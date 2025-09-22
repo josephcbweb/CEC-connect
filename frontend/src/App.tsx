@@ -11,6 +11,7 @@ const App = () => {
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
         </Route>
+        <Route path="/" element={<Landing />}></Route>
       </Routes>
     </div>
   );
