@@ -41,7 +41,7 @@ export const Landing = () => {
       <div className="flex justify-center mt-6 sm:mt-10">
         <button
           className="w-40 sm:w-48 h-12 sm:h-20 bg-[#031D44] text-white border-4 sm:border-8 rounded-2xl 
-                           hover:bg-[#F8F8F8] hover:text-black transition-colors duration-300"
+                           hover:bg-[#F8F8F8] hover:text-black transition-colors duration-300 cursor-pointer"
         >
           Get Started
         </button>
