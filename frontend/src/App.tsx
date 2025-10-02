@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import Signup from "./components/Signup";
 import AdminWrapper from "./components/AdminWrapper";
 import Home from "./components/admin/Home";
+import { Landing } from "./components/Landing";
 
 const App = () => {
   return (

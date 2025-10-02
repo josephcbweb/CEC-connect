@@ -4,14 +4,14 @@ import SidebarPhone from "./sidebar/SidebarPhone";
 
 function AdminWrapper() {
   return (
-    <div className="flex bg-gray-100 min-h-screen w-screen">
+    <div className="flex min-h-screen w-screen">
       <div className="hidden md:block">
         <Sidebar />
       </div>
       <div className="md:hidden block">
         <SidebarPhone />
       </div>
-      <main className="flex-1 transition-all duration-300 p-8">
+      <main className="flex-1 transition-all duration-300 p-8 ">
         <Outlet />
       </main>
     </div>

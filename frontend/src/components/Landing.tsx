@@ -1,5 +1,6 @@
 import React from "react";
 import Logo from "../assets/logo.png";
+import { Link } from "react-router-dom";
 
 export const Landing = () => {
   return (
@@ -23,7 +24,11 @@ export const Landing = () => {
         </ul>
 
         <ul className="flex gap-6 sm:gap-10 font-medium text-[#031D44] mt-4 sm:mt-0">
-          <li className="hover:text-[#3AA9AB] cursor-pointer">Sign up</li>
+          <li>
+            <Link to="/signup" className="hover:text-[#3AA9AB] cursor-pointer">
+              Sign up
+            </Link>
+          </li>
           <li className="hover:text-[#3AA9AB] cursor-pointer">Log in</li>
         </ul>
       </nav>
