@@ -1,9 +1,3 @@
-/*
-  Warnings:
-
-  - You are about to drop the `User` table. If the table is not empty, all the data it contains will be lost.
-
-*/
 -- CreateEnum
 CREATE TYPE "UserStatus" AS ENUM ('active', 'inactive', 'suspended');
 
@@ -31,8 +25,20 @@ CREATE TYPE "PaymentStatus" AS ENUM ('successful', 'failed', 'pending');
 -- CreateEnum
 CREATE TYPE "NotificationStatus" AS ENUM ('read', 'unread');
 
--- DropTable
-DROP TABLE "public"."User";
+-- CreateEnum
+CREATE TYPE "Program" AS ENUM ('btech', 'mca');
+
+-- CreateEnum
+CREATE TYPE "Category" AS ENUM ('general', 'obc', 'sc', 'st', 'ews', 'sebc', 'oec', 'other');
+
+-- CreateEnum
+CREATE TYPE "AdmissionQuota" AS ENUM ('merit', 'management', 'government', 'other');
+
+-- CreateEnum
+CREATE TYPE "AdmissionStatus" AS ENUM ('pending', 'approved', 'rejected', 'waitlisted');
+
+-- CreateEnum
+CREATE TYPE "AdmissionType" AS ENUM ('nri', 'regular', 'lateral', 'management');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -46,6 +52,71 @@ CREATE TABLE "users" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("user_id")
+);
+
+-- CreateTable
+CREATE TABLE "students" (
+    "student_id" SERIAL NOT NULL,
+    "advisor_id" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    "name" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "date_of_birth" TIMESTAMP(3) NOT NULL,
+    "email" TEXT,
+    "gender" "Gender" NOT NULL,
+    "religion" TEXT NOT NULL,
+    "nationality" TEXT NOT NULL DEFAULT 'Indian',
+    "mother_tongue" TEXT NOT NULL,
+    "blood_group" TEXT,
+    "student_phone_number" TEXT NOT NULL,
+    "permanent_address" TEXT NOT NULL,
+    "contact_address" TEXT NOT NULL,
+    "state_of_residence" TEXT NOT NULL,
+    "aadhaar_number" TEXT NOT NULL,
+    "fatherName" TEXT,
+    "father_phone_number" TEXT,
+    "motherName" TEXT,
+    "mother_phone_number" TEXT,
+    "parent_email" TEXT,
+    "annual_family_income" DECIMAL(65,30),
+    "guardian_name" TEXT,
+    "guardian_relationship" TEXT,
+    "guardian_email" TEXT,
+    "local_guardian_address" TEXT,
+    "local_guardian_phone_number" TEXT,
+    "program" "Program" NOT NULL,
+    "department_id" INTEGER NOT NULL,
+    "status" "AdmissionStatus" NOT NULL DEFAULT 'pending',
+    "admission_number" TEXT,
+    "admission_date" TIMESTAMP(3),
+    "admission_type" "AdmissionType" NOT NULL DEFAULT 'regular',
+    "admission_quota" "AdmissionQuota",
+    "admitted_category" "Category",
+    "category" TEXT,
+    "allotted_branch" TEXT NOT NULL,
+    "is_fee_concession_eligible" BOOLEAN NOT NULL DEFAULT false,
+    "last_institution" TEXT NOT NULL,
+    "tc_number" TEXT,
+    "tc_date" TIMESTAMP(3),
+    "qualifying_exam_name" TEXT NOT NULL,
+    "qualifying_exam_register_no" TEXT NOT NULL,
+    "percentage" DOUBLE PRECISION,
+    "previous_degree_cgpa_or_total_marks" DOUBLE PRECISION,
+    "physics_score" DOUBLE PRECISION,
+    "chemistry_score" DOUBLE PRECISION,
+    "maths_score" DOUBLE PRECISION,
+    "keam_subject_total" DOUBLE PRECISION,
+    "entrance_type" TEXT,
+    "entrance_roll_no" TEXT,
+    "entrance_rank" INTEGER,
+    "entrance_total_score" DOUBLE PRECISION,
+    "account_number" TEXT,
+    "bank_name" TEXT,
+    "ifsc_code" TEXT,
+    "bank_branch" TEXT,
+
+    CONSTRAINT "students_pkey" PRIMARY KEY ("student_id")
 );
 
 -- CreateTable
@@ -80,22 +151,6 @@ CREATE TABLE "role_permissions" (
     "permission_id" INTEGER NOT NULL,
 
     CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("role_id","permission_id")
-);
-
--- CreateTable
-CREATE TABLE "students" (
-    "student_id" SERIAL NOT NULL,
-    "user_id" INTEGER NOT NULL,
-    "first_name" TEXT NOT NULL,
-    "last_name" TEXT NOT NULL,
-    "date_of_birth" DATE NOT NULL,
-    "gender" "Gender" NOT NULL,
-    "department_id" INTEGER NOT NULL,
-    "advisor_id" INTEGER,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "students_pkey" PRIMARY KEY ("student_id")
 );
 
 -- CreateTable
@@ -249,13 +304,22 @@ CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "students_email_key" ON "students"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "students_student_phone_number_key" ON "students"("student_phone_number");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "students_aadhaar_number_key" ON "students"("aadhaar_number");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "students_admission_number_key" ON "students"("admission_number");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "roles_role_name_key" ON "roles"("role_name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "permissions_permission_name_key" ON "permissions"("permission_name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "students_user_id_key" ON "students"("user_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "departments_department_name_key" ON "departments"("department_name");
@@ -282,6 +346,12 @@ CREATE UNIQUE INDEX "payments_transaction_id_key" ON "payments"("transaction_id"
 CREATE UNIQUE INDEX "settings_key_key" ON "settings"("key");
 
 -- AddForeignKey
+ALTER TABLE "students" ADD CONSTRAINT "students_advisor_id_fkey" FOREIGN KEY ("advisor_id") REFERENCES "users"("user_id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "students" ADD CONSTRAINT "students_department_id_fkey" FOREIGN KEY ("department_id") REFERENCES "departments"("department_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -292,12 +362,6 @@ ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_fkey" FO
 
 -- AddForeignKey
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "permissions"("permission_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "students" ADD CONSTRAINT "students_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "students" ADD CONSTRAINT "students_department_id_fkey" FOREIGN KEY ("department_id") REFERENCES "departments"("department_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "hod_details" ADD CONSTRAINT "hod_details_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
