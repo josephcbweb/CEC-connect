@@ -2,8 +2,9 @@ import { Route, Routes } from "react-router-dom";
 import Signup from "./components/Signup";
 import AdminWrapper from "./components/AdminWrapper";
 import Home from "./components/admin/Home";
-import AnalyticsDashboard from "./components/Landing";
+import { Landing } from "./components/Landing";
 import AdminFeesDashboard from "./components/fee/AdminFeeDashboard";
+import AdminFeesPage from "./components/fee/AdminFeeDashboard";
 import AdminCertificatPage from "./components/certificate/AdminCertificatePage";
 
 const App = () => {
@@ -14,8 +15,10 @@ const App = () => {
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
           <Route path="/admin/fee" element={<AdminFeesDashboard />} />
+          <Route path="/admin/fee" element={<AdminFeesPage />} />
+          <Route path="/admin/certificate" element={<AdminCertificatPage />} />
         </Route>
-        <Route path="/" element={<AnalyticsDashboard />}></Route>
+        <Route path="/" element={<Landing />}></Route>
       </Routes>
     </div>
   );

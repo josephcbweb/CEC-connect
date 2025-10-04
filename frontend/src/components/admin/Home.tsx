@@ -20,7 +20,6 @@ import type { Student, Invoice } from "../../types"; // Assuming types are in a 
 interface AnalyticsData {
   totalStudents: number;
   totalDepartments: number;
-
   totalRevenue: number;
   totalPending: number;
   studentsByDept: { name: string; value: number }[];
@@ -38,34 +37,35 @@ const AnalyticsDashboard: React.FC = () => {
     const fetchAnalyticsData = async () => {
       try {
         setLoading(true);
-        // Fetch all necessary data in parallel
-        const [studentsRes, invoicesRes] = await Promise.all([
-          fetch("http://localhost:3000/students/all"),
-          fetch("http://localhost:3000/fee/invoices"),
-        ]);
+        // OPTIMIZATION: Fetch all student data, which now includes invoices, in a single call.
+        const response = await fetch(
+          "http://localhost:3000/students/all?include=department,invoices"
+        );
 
-        if (!studentsRes.ok || !invoicesRes.ok) {
-          throw new Error("Failed to fetch necessary data from the server.");
+        if (!response.ok) {
+          throw new Error(
+            "Failed to fetch student and fee data from the server."
+          );
         }
 
-        const students: Student[] = await studentsRes.json();
-        const invoices: Invoice[] = await invoicesRes.json();
+        const students: Student[] = await response.json();
 
+        // --- Create a flat list of all invoices from the students data ---
+        const allInvoices: Invoice[] = students.flatMap(
+          (s) => s.invoices || []
+        );
+
+        // --- Process Data for Analytics ---
         const totalStudents = students.length;
 
-        const totalRevenue = invoices
+        // FIX: Ensure all calculations use parseFloat to handle decimal-to-string conversion from Prisma.
+        const totalRevenue = allInvoices
           .filter((inv) => inv.status === "paid")
-          .reduce((sum, inv) => sum + inv.amount, 0);
+          .reduce((sum, inv) => sum + parseFloat(inv.amount as any), 0);
 
-        const totalPending = invoices
+        const totalPending = allInvoices
           .filter((inv) => inv.status !== "paid")
-          .reduce((sum, inv) => {
-            const amount =
-              typeof inv.amount === "string"
-                ? parseFloat(inv.amount)
-                : inv.amount;
-            return sum + amount;
-          }, 0);
+          .reduce((sum, inv) => sum + parseFloat(inv.amount as any), 0);
 
         const studentsByDept = students.reduce((acc, student) => {
           const deptName = student.department?.name || "No Department";
@@ -73,7 +73,7 @@ const AnalyticsDashboard: React.FC = () => {
           return acc;
         }, {} as Record<string, number>);
 
-        const monthlyCollections = invoices.reduce((acc, inv) => {
+        const monthlyCollections = allInvoices.reduce((acc, inv) => {
           const date = new Date(inv.issueDate);
           const month = date.toLocaleString("default", {
             month: "short",
@@ -83,9 +83,9 @@ const AnalyticsDashboard: React.FC = () => {
             acc[month] = { month, collected: 0, pending: 0 };
           }
           if (inv.status === "paid") {
-            acc[month].collected += inv.amount;
+            acc[month].collected += parseFloat(inv.amount as any);
           } else {
-            acc[month].pending += inv.amount;
+            acc[month].pending += parseFloat(inv.amount as any);
           }
           return acc;
         }, {} as Record<string, { month: string; collected: number; pending: number }>);
@@ -106,11 +106,13 @@ const AnalyticsDashboard: React.FC = () => {
           studentsByDept: Object.entries(studentsByDept).map(
             ([name, value]) => ({ name, value })
           ),
-          monthlyCollections: Object.values(monthlyCollections).reverse(),
+          monthlyCollections: Object.values(monthlyCollections).sort(
+            (a, b) => new Date(a.month).getTime() - new Date(b.month).getTime()
+          ),
           admissionTrend: Object.entries(admissionTrend)
             .map(([year, count]) => ({ year, count }))
             .sort((a, b) => a.year.localeCompare(b.year)),
-          recentInvoices: invoices
+          recentInvoices: allInvoices
             .sort(
               (a, b) =>
                 new Date(b.issueDate).getTime() -
