@@ -4,6 +4,7 @@ import AdminWrapper from "./components/AdminWrapper";
 import Home from "./components/admin/Home";
 import AnalyticsDashboard from "./components/Landing";
 import AdminFeesDashboard from "./components/fee/AdminFeeDashboard";
+import AdminCertificatPage from "./components/certificate/AdminCertificatePage";
 
 const App = () => {
   return (

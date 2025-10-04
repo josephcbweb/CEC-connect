@@ -5,6 +5,7 @@ import {
   GraduationCap,
   Building,
   BookCopy,
+  BookOpen,
   UserCog,
   Settings,
 } from "lucide-react";
@@ -19,5 +20,6 @@ export const sidebarItems = [
   { icon: BookCopy, text: "Classes", route: "/classes" },
   { icon: UserCog, text: "Staff & Roles", route: "/staff-roles" },
   { icon: Settings, text: "Settings", route: "/settings" },
+  {icon: BookOpen, text: "Certificates", route: "/certificate" },
   { icon: FaMoneyBill, text: "Fee Management", route: "/fee" },
 ];
