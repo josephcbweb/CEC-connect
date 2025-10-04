@@ -8,7 +8,291 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// 2. Define Enums
+model User {
+  id                    Int               @id @default(autoincrement()) @map("user_id")
+  username              String            @unique
+  passwordHash          String            @map("password_hash")
+  email                 String            @unique
+  status                UserStatus        @default(active)
+  lastLogin             DateTime?         @map("last_login")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+  advisorDetails        AdvisorDetails?
+  auditLogs             AuditLog[]
+  hodDetails            HodDetails?
+  approvals             NoDueApproval[]
+  receivedNotifications Notification[]    @relation("ReceivedNotifications")
+  sentNotifications     Notification[]    @relation("SentNotifications")
+  principalDetails      PrincipalDetails?
+  students              Student[]
+  userRoles             UserRole[]
+
+  @@map("users")
+}
+
+model Role {
+  id          Int              @id @default(autoincrement()) @map("role_id")
+  name        String           @unique @map("role_name")
+  description String?
+  permissions RolePermission[]
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement()) @map("permission_id")
+  name        String           @unique @map("permission_name")
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId Int  @map("user_id")
+  roleId Int  @map("role_id")
+  role   Role @relation(fields: [roleId], references: [id])
+  user   User @relation(fields: [userId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       Int        @map("role_id")
+  permissionId Int        @map("permission_id")
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  role         Role       @relation(fields: [roleId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Student {
+  id                                  Int             @id @default(autoincrement()) @map("student_id")
+  advisorId                           Int?            @map("advisor_id")
+  createdAt                           DateTime        @default(now()) @map("created_at")
+  updatedAt                           DateTime        @updatedAt @map("updated_at")
+  name                                String
+  password                            String
+  dateOfBirth                         DateTime?       @map("date_of_birth")
+  email                               String?         @unique
+  gender                              Gender
+  religion                            String
+  nationality                         String          @default("Indian")
+  mother_tongue                       String
+  blood_group                         String?
+  student_phone_number                String          @unique
+  permanent_address                   String
+  contact_address                     String
+  state_of_residence                  String
+  aadhaar_number                      String          @unique
+  fatherName                          String?
+  father_phone_number                 String?
+  motherName                          String?
+  mother_phone_number                 String?
+  parent_email                        String?
+  annual_family_income                Decimal?
+  guardian_name                       String?
+  guardian_relationship               String?
+  guardian_email                      String?
+  local_guardian_address              String?
+  local_guardian_phone_number         String?
+  program                             Program
+  departmentId                        Int             @map("department_id")
+  status                              AdmissionStatus @default(pending)
+  admission_number                    String?         @unique
+  admission_date                      DateTime?
+  admission_type                      AdmissionType   @default(regular)
+  category                            String?
+  allotted_branch                     String
+  is_fee_concession_eligible          Boolean         @default(false)
+  last_institution                    String
+  tc_number                           String?
+  tc_date                             DateTime?
+  qualifying_exam_name                String
+  qualifying_exam_register_no         String
+  percentage                          Float?
+  previous_degree_cgpa_or_total_marks Float?
+  physics_score                       Float?
+  chemistry_score                     Float?
+  maths_score                         Float?
+  keam_subject_total                  Float?
+  entrance_type                       String?
+  entrance_roll_no                    String?
+  entrance_rank                       Int?
+  entrance_total_score                Float?
+  account_number                      String?
+  bank_name                           String?
+  ifsc_code                           String?
+  bank_branch                         String?
+  admitted_category                   String?
+  admission_quota                     String?
+  feeDetails                          FeeDetails[]
+  invoices                            Invoice[]
+  requests                            NoDueRequest[]
+  users                               User?           @relation(fields: [advisorId], references: [id])
+  department                          Department      @relation(fields: [departmentId], references: [id])
+
+  @@map("students")
+}
+
+model Department {
+  id              Int         @id @default(autoincrement()) @map("department_id")
+  name            String      @unique @map("department_name")
+  hodId           Int?        @unique @map("hod_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  department_code String      @unique
+  hodDetails      HodDetails?
+  noDues          NoDue[]
+  students        Student[]
+
+  @@map("departments")
+}
+
+model HodDetails {
+  id           Int        @id @default(autoincrement()) @map("hod_id")
+  userId       Int        @unique @map("user_id")
+  departmentId Int        @unique @map("department_id")
+  department   Department @relation(fields: [departmentId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@map("hod_details")
+}
+
+model AdvisorDetails {
+  id     Int  @id @default(autoincrement()) @map("advisor_id")
+  userId Int  @unique @map("user_id")
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("advisor_details")
+}
+
+model PrincipalDetails {
+  id     Int  @id @default(autoincrement()) @map("principal_id")
+  userId Int  @unique @map("user_id")
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("principal_details")
+}
+
+model NoDueRequest {
+  id             Int                   @id @default(autoincrement()) @map("request_id")
+  studentId      Int                   @map("student_id")
+  reason         String
+  requestDate    DateTime              @default(now()) @map("request_date")
+  status         RequestStatus         @default(pending)
+  workflowStatus RequestWorkflowStatus @default(submitted) @map("workflow_status")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+  student        Student               @relation(fields: [studentId], references: [id])
+  noDues         NoDue[]
+
+  @@map("no_due_requests")
+}
+
+model NoDue {
+  id           Int             @id @default(autoincrement()) @map("no_due_id")
+  requestId    Int             @map("request_id")
+  departmentId Int             @map("department_id")
+  status       NoDueStatus     @default(pending)
+  comments     String?
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  approvals    NoDueApproval[]
+  department   Department      @relation(fields: [departmentId], references: [id])
+  request      NoDueRequest    @relation(fields: [requestId], references: [id])
+
+  @@map("no_dues")
+}
+
+model NoDueApproval {
+  id           Int            @id @default(autoincrement()) @map("approval_id")
+  noDueId      Int            @map("no_due_id")
+  approverId   Int            @map("approver_id")
+  approvalDate DateTime       @default(now()) @map("approval_date")
+  status       ApprovalStatus @default(pending)
+  comments     String?
+  approver     User           @relation(fields: [approverId], references: [id])
+  noDue        NoDue          @relation(fields: [noDueId], references: [id])
+
+  @@map("no_due_approvals")
+}
+
+model FeeDetails {
+  id        Int       @id @default(autoincrement()) @map("fee_id")
+  studentId Int       @map("student_id")
+  feeType   String    @map("fee_type")
+  amount    Decimal
+  dueDate   DateTime  @map("due_date") @db.Date
+  createdAt DateTime  @default(now()) @map("created_at")
+  student   Student   @relation(fields: [studentId], references: [id])
+  invoices  Invoice[]
+
+  @@map("fee_details")
+}
+
+model Invoice {
+  id        Int           @id @default(autoincrement()) @map("invoice_id")
+  studentId Int           @map("student_id")
+  feeId     Int           @map("fee_id")
+  amount    Decimal
+  issueDate DateTime      @default(now()) @map("issue_date") @db.Date
+  dueDate   DateTime      @map("due_date") @db.Date
+  status    InvoiceStatus @default(unpaid)
+  createdAt DateTime      @default(now()) @map("created_at")
+  fee       FeeDetails    @relation(fields: [feeId], references: [id])
+  student   Student       @relation(fields: [studentId], references: [id])
+  payments  Payment[]
+
+  @@map("invoices")
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement()) @map("payment_id")
+  invoiceId     Int           @map("invoice_id")
+  amount        Decimal
+  paymentDate   DateTime      @default(now()) @map("payment_date")
+  paymentMethod String        @map("payment_method")
+  transactionId String        @unique @map("transaction_id")
+  status        PaymentStatus @default(pending)
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
+}
+
+model Notification {
+  id         Int                @id @default(autoincrement()) @map("notification_id")
+  senderId   Int                @map("sender_id")
+  receiverId Int                @map("receiver_id")
+  message    String
+  status     NotificationStatus @default(unread)
+  createdAt  DateTime           @default(now()) @map("created_at")
+  receiver   User               @relation("ReceivedNotifications", fields: [receiverId], references: [id])
+  sender     User               @relation("SentNotifications", fields: [senderId], references: [id])
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement()) @map("log_id")
+  userId    Int      @map("user_id")
+  action    String
+  details   Json?
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("audit_log")
+}
+
+model Setting {
+  id    Int    @id @default(autoincrement()) @map("setting_id")
+  key   String @unique
+  value String
+
+  @@map("settings")
+}
+
 enum UserStatus {
   active
   inactive
@@ -66,283 +350,21 @@ enum NotificationStatus {
   unread
 }
 
-// 3. Define Models
-model User {
-  id           Int        @id @default(autoincrement()) @map("user_id")
-  username     String     @unique
-  passwordHash String     @map("password_hash")
-  email        String     @unique
-  status       UserStatus @default(active)
-  lastLogin    DateTime?  @map("last_login")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-
-  // --- Relations ---
-  student               Student?
-  approvals             NoDueApproval[]
-  userRoles             UserRole[]
-  hodDetails            HodDetails?
-  advisorDetails        AdvisorDetails?
-  principalDetails      PrincipalDetails?
-  sentNotifications     Notification[]    @relation("SentNotifications")
-  receivedNotifications Notification[]    @relation("ReceivedNotifications")
-  auditLogs             AuditLog[]
-
-  @@map("users")
+enum AdmissionStatus {
+  pending
+  approved
+  rejected
+  waitlisted
 }
 
-model Role {
-  id          Int     @id @default(autoincrement()) @map("role_id")
-  name        String  @unique @map("role_name")
-  description String?
-
-  // --- Relations ---
-  userRoles   UserRole[]
-  permissions RolePermission[]
-
-  @@map("roles")
+enum AdmissionType {
+  nri
+  regular
+  lateral
+  management
 }
 
-model Permission {
-  id          Int     @id @default(autoincrement()) @map("permission_id")
-  name        String  @unique @map("permission_name") // e.g., 'create-request', 'approve-hod'
-  description String?
-
-  // --- Relations ---
-  roles RolePermission[]
-
-  @@map("permissions")
-}
-
-model UserRole {
-  userId Int @map("user_id")
-  roleId Int @map("role_id")
-
-  // --- Relations ---
-  user User @relation(fields: [userId], references: [id])
-  role Role @relation(fields: [roleId], references: [id])
-
-  @@id([userId, roleId])
-  @@map("user_roles")
-}
-
-model RolePermission {
-  roleId       Int @map("role_id")
-  permissionId Int @map("permission_id")
-
-  // --- Relations ---
-  role       Role       @relation(fields: [roleId], references: [id])
-  permission Permission @relation(fields: [permissionId], references: [id])
-
-  @@id([roleId, permissionId])
-  @@map("role_permissions")
-}
-
-model Student {
-  id           Int      @id @default(autoincrement()) @map("student_id")
-  userId       Int      @unique @map("user_id")
-  firstName    String   @map("first_name")
-  lastName     String   @map("last_name")
-  dateOfBirth  DateTime @map("date_of_birth") @db.Date
-  gender       Gender
-  departmentId Int      @map("department_id")
-  advisorId    Int?     @map("advisor_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  // --- Relations ---
-  user       User           @relation(fields: [userId], references: [id])
-  department Department     @relation(fields: [departmentId], references: [id])
-  requests   NoDueRequest[]
-  invoices   Invoice[]
-  feeDetails FeeDetails[]
-
-  @@map("students")
-}
-
-model Department {
-  id        Int      @id @default(autoincrement()) @map("department_id")
-  name      String   @unique @map("department_name")
-  hodId     Int?     @unique @map("hod_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // --- Relations ---
-  students   Student[]
-  noDues     NoDue[]
-  hodDetails HodDetails?
-
-  @@map("departments")
-}
-
-model HodDetails {
-  id           Int @id @default(autoincrement()) @map("hod_id")
-  userId       Int @unique @map("user_id")
-  departmentId Int @unique @map("department_id")
-
-  // --- Relations ---
-  user       User       @relation(fields: [userId], references: [id])
-  department Department @relation(fields: [departmentId], references: [id])
-
-  @@map("hod_details")
-}
-
-model AdvisorDetails {
-  id     Int @id @default(autoincrement()) @map("advisor_id")
-  userId Int @unique @map("user_id")
-
-  // --- Relations ---
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("advisor_details")
-}
-
-model PrincipalDetails {
-  id     Int @id @default(autoincrement()) @map("principal_id")
-  userId Int @unique @map("user_id")
-
-  // --- Relations ---
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("principal_details")
-}
-
-model NoDueRequest {
-  id             Int                   @id @default(autoincrement()) @map("request_id")
-  studentId      Int                   @map("student_id")
-  reason         String
-  requestDate    DateTime              @default(now()) @map("request_date")
-  status         RequestStatus         @default(pending)
-  workflowStatus RequestWorkflowStatus @default(submitted) @map("workflow_status")
-  updatedAt      DateTime              @updatedAt @map("updated_at")
-
-  // --- Relations ---
-  student Student @relation(fields: [studentId], references: [id])
-  noDues  NoDue[]
-
-  @@map("no_due_requests")
-}
-
-model NoDue {
-  id           Int         @id @default(autoincrement()) @map("no_due_id")
-  requestId    Int         @map("request_id")
-  departmentId Int         @map("department_id")
-  status       NoDueStatus @default(pending)
-  comments     String?
-  updatedAt    DateTime    @updatedAt @map("updated_at")
-
-  request    NoDueRequest    @relation(fields: [requestId], references: [id])
-  department Department      @relation(fields: [departmentId], references: [id])
-  approvals  NoDueApproval[]
-
-  @@map("no_dues")
-}
-
-model NoDueApproval {
-  id           Int            @id @default(autoincrement()) @map("approval_id")
-  noDueId      Int            @map("no_due_id")
-  approverId   Int            @map("approver_id")
-  approvalDate DateTime       @default(now()) @map("approval_date")
-  status       ApprovalStatus @default(pending)
-  comments     String?
-
-  noDue    NoDue @relation(fields: [noDueId], references: [id])
-  approver User  @relation(fields: [approverId], references: [id])
-
-  @@map("no_due_approvals")
-}
-
-model FeeStructure {
-  id          Int       @id @default(autoincrement()) @map("fee_structure_id")
-  name        String    @unique @map("fee_name")
-  description String?
-  amount      Decimal
-  invoices    Invoice[]
-
-  @@map("fee_structures")
-}
-
-model FeeDetails {
-  id        Int      @id @default(autoincrement()) @map("fee_id")
-  studentId Int      @map("student_id")
-  feeType   String   @map("fee_type")
-  amount    Decimal
-  dueDate   DateTime @map("due_date") @db.Date
-  createdAt DateTime @default(now()) @map("created_at")
-
-  student  Student   @relation(fields: [studentId], references: [id])
-  invoices Invoice[]
-
-  @@map("fee_details")
-}
-
-model Invoice {
-  id             Int           @id @default(autoincrement()) @map("invoice_id")
-  studentId      Int           @map("student_id")
-  feeId          Int           @map("fee_id")
-  feeStructureId Int?          @map("fee_structure_id")
-  amount         Decimal
-  issueDate      DateTime      @default(now()) @map("issue_date") @db.Date
-  dueDate        DateTime      @map("due_date") @db.Date
-  status         InvoiceStatus @default(unpaid)
-  createdAt      DateTime      @default(now()) @map("created_at")
-
-  student      Student       @relation(fields: [studentId], references: [id])
-  fee          FeeDetails    @relation(fields: [feeId], references: [id])
-  feeStructure FeeStructure? @relation(fields: [feeStructureId], references: [id])
-
-  payments Payment[]
-
-  @@map("invoices")
-}
-
-model Payment {
-  id            Int           @id @default(autoincrement()) @map("payment_id")
-  invoiceId     Int           @map("invoice_id")
-  amount        Decimal
-  paymentDate   DateTime      @default(now()) @map("payment_date")
-  paymentMethod String        @map("payment_method")
-  transactionId String        @unique @map("transaction_id")
-  status        PaymentStatus @default(pending)
-
-  // --- Relations ---
-  invoice Invoice @relation(fields: [invoiceId], references: [id])
-
-  @@map("payments")
-}
-
-model Notification {
-  id         Int                @id @default(autoincrement()) @map("notification_id")
-  senderId   Int                @map("sender_id")
-  receiverId Int                @map("receiver_id")
-  message    String
-  status     NotificationStatus @default(unread)
-  createdAt  DateTime           @default(now()) @map("created_at")
-
-  // --- Relations ---
-  sender   User @relation("SentNotifications", fields: [senderId], references: [id])
-  receiver User @relation("ReceivedNotifications", fields: [receiverId], references: [id])
-
-  @@map("notifications")
-}
-
-model AuditLog {
-  id        Int      @id @default(autoincrement()) @map("log_id")
-  userId    Int      @map("user_id")
-  action    String
-  details   Json?
-  timestamp DateTime @default(now())
-
-  // --- Relations ---
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("audit_log")
-}
-
-model Setting {
-  id    Int    @id @default(autoincrement()) @map("setting_id")
-  key   String @unique
-  value String
-
-  @@map("settings")
+enum Program {
+  btech
+  mca
 }

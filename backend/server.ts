@@ -11,8 +11,7 @@ const app = express();
 app.use(express.json());
 
 app.use("/", homeRoutes);
-app.use("/", studentRoutes);
-app.use("/", homeRoutes);
+app.use("/students", studentRoutes);
 app.listen(PORT, () => {
   console.log("Server listening on port: ", PORT);
 });
