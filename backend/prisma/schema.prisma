@@ -75,17 +75,6 @@ enum Program {
   mca
 }
 
-// enum Category {
-//   general
-//   obc
-//   sc
-//   st
-//   ews
-//   sebc
-//   oec
-//   other
-// }
-
 enum AdmissionQuota {
   merit
   management
@@ -145,12 +134,12 @@ model Student {
   name         String
   password     String // For potential student-specific login
   dateOfBirth  DateTime? @map("date_of_birth")
-  email        String?  @unique
+  email        String?   @unique
   gender       Gender
   religion     String
-  nationality  String   @default("Indian")
-  motherTongue String   @map("mother_tongue")
-  bloodGroup   String?  @map("blood_group")
+  nationality  String    @default("Indian")
+  motherTongue String    @map("mother_tongue")
+  bloodGroup   String?   @map("blood_group")
 
   // --- Contact Info ---
   studentPhoneNumber String @unique @map("student_phone_number")
@@ -181,7 +170,7 @@ model Student {
   admissionNumber         String?         @unique @map("admission_number")
   admissionDate           DateTime?       @map("admission_date")
   admissionType           AdmissionType   @default(regular) @map("admission_type")
-  admissionQuota          AdmissionQuota?  @map("admission_quota")
+  admissionQuota          AdmissionQuota? @map("admission_quota")
   admittedCategory        String?         @map("admitted_category")
   category                String?
   allottedBranch          String          @map("allotted_branch")
@@ -268,14 +257,15 @@ model RolePermission {
 }
 
 model Department {
-  id         Int         @id @default(autoincrement()) @map("department_id")
-  name       String      @unique @map("department_name")
-  hodId      Int?        @unique @map("hod_id")
-  createdAt  DateTime    @default(now()) @map("created_at")
-  updatedAt  DateTime    @updatedAt @map("updated_at")
-  students   Student[]
-  noDues     NoDue[]
-  hodDetails HodDetails?
+  id             Int         @id @default(autoincrement()) @map("department_id")
+  name           String      @unique @map("department_name")
+  departmentCode String     @unique @map("department_code")
+  hodId          Int?        @unique @map("hod_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  students       Student[]
+  noDues         NoDue[]
+  hodDetails     HodDetails?
 
   @@map("departments")
 }
