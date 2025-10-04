@@ -231,7 +231,6 @@ model NoDue {
   comments     String?
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
-  // --- Relations ---
   request    NoDueRequest    @relation(fields: [requestId], references: [id])
   department Department      @relation(fields: [departmentId], references: [id])
   approvals  NoDueApproval[]
@@ -247,11 +246,20 @@ model NoDueApproval {
   status       ApprovalStatus @default(pending)
   comments     String?
 
-  // --- Relations ---
   noDue    NoDue @relation(fields: [noDueId], references: [id])
   approver User  @relation(fields: [approverId], references: [id])
 
   @@map("no_due_approvals")
+}
+
+model FeeStructure {
+  id          Int       @id @default(autoincrement()) @map("fee_structure_id")
+  name        String    @unique @map("fee_name")
+  description String?
+  amount      Decimal
+  invoices    Invoice[]
+
+  @@map("fee_structures")
 }
 
 model FeeDetails {
@@ -262,7 +270,6 @@ model FeeDetails {
   dueDate   DateTime @map("due_date") @db.Date
   createdAt DateTime @default(now()) @map("created_at")
 
-  // --- Relations ---
   student  Student   @relation(fields: [studentId], references: [id])
   invoices Invoice[]
 
@@ -270,18 +277,20 @@ model FeeDetails {
 }
 
 model Invoice {
-  id        Int           @id @default(autoincrement()) @map("invoice_id")
-  studentId Int           @map("student_id")
-  feeId     Int           @map("fee_id")
-  amount    Decimal
-  issueDate DateTime      @default(now()) @map("issue_date") @db.Date
-  dueDate   DateTime      @map("due_date") @db.Date
-  status    InvoiceStatus @default(unpaid)
-  createdAt DateTime      @default(now()) @map("created_at")
+  id             Int           @id @default(autoincrement()) @map("invoice_id")
+  studentId      Int           @map("student_id")
+  feeId          Int           @map("fee_id")
+  feeStructureId Int?          @map("fee_structure_id")
+  amount         Decimal
+  issueDate      DateTime      @default(now()) @map("issue_date") @db.Date
+  dueDate        DateTime      @map("due_date") @db.Date
+  status         InvoiceStatus @default(unpaid)
+  createdAt      DateTime      @default(now()) @map("created_at")
 
-  // --- Relations ---
-  student  Student    @relation(fields: [studentId], references: [id])
-  fee      FeeDetails @relation(fields: [feeId], references: [id])
+  student      Student       @relation(fields: [studentId], references: [id])
+  fee          FeeDetails    @relation(fields: [feeId], references: [id])
+  feeStructure FeeStructure? @relation(fields: [feeStructureId], references: [id])
+
   payments Payment[]
 
   @@map("invoices")
