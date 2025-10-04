@@ -17,6 +17,7 @@ const navItems = [
   { name: "Dashboard", icon: <FaHome /> },
   { name: "Courses", icon: <FaBookOpen /> },
   { name: "Schedule", icon: <FaCalendarAlt /> },
+  { name: "Certificate", icon: <FaBookOpen /> },
   { name: "Fee Management", icon: <FaMoneyBill /> },
 ];
 

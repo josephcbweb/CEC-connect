@@ -4,6 +4,7 @@ import AdminWrapper from "./components/AdminWrapper";
 import Home from "./components/admin/Home";
 import { Landing } from "./components/Landing";
 import AdminFeesPage from "./components/fee/AdminFee";
+import AdminCertificatPage from "./components/certificate/AdminCertificatePage";
 
 const App = () => {
   return (
@@ -13,6 +14,7 @@ const App = () => {
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
           <Route path="/admin/fee" element={<AdminFeesPage />} />
+          <Route path="/admin/certificate" element={<AdminCertificatPage />} />
         </Route>
         <Route path="/" element={<Landing />}></Route>
       </Routes>
