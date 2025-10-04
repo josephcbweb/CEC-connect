@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -11,7 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
-  Menu
+  Menu,
 } from "lucide-react";
 
 // Define the structure for a sidebar item
@@ -60,18 +61,28 @@ const SidebarItem: React.FC<SidebarItemProps & { collapsed: boolean }> = ({
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeItem, setActiveItem] = useState("Dashboard");
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const sidebarItems = [
-    { icon: LayoutDashboard, text: "Dashboard", active: true },
-    { icon: UserPlus, text: "Admissions", alert: true },
-    { icon: Users, text: "Students" },
-    { icon: GraduationCap, text: "Faculty" },
-    { icon: Building, text: "Departments" },
-    { icon: BookCopy, text: "Classes" },
-    { icon: UserCog, text: "Staff & Roles" },
-    { icon: Settings, text: "Settings" },
+    { icon: LayoutDashboard, text: "Dashboard", active: true, path: "/admin" },
+    {
+      icon: UserPlus,
+      text: "Admissions",
+      alert: true,
+      path: "/admin/admissions",
+    },
+    { icon: Users, text: "Students", path: "/admin/students" },
+    { icon: GraduationCap, text: "Faculty", path: "/admin/faculty" },
+    { icon: Building, text: "Departments", path: "/admin/departments" },
+    { icon: BookCopy, text: "Classes", path: "/admin/classes" },
+    { icon: UserCog, text: "Staff & Roles", path: "/admin/staffs" },
+    { icon: Settings, text: "Settings", path: "/admin/settings" },
   ];
+
+  const handleItemClick = (item: { text: string; path: string }) => {
+    navigate(item.path);
+  };
 
   return (
     <aside className="h-screen sticky top-0">
@@ -109,9 +120,9 @@ const Sidebar = () => {
               key={index}
               icon={item.icon}
               text={item.text}
-              active={activeItem === item.text}
+              active={location.pathname === item.path}
               collapsed={collapsed}
-              onClick={() => setActiveItem(item.text)}
+              onClick={() => handleItemClick(item)}
             />
           ))}
         </ul>
