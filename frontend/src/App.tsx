@@ -2,8 +2,8 @@ import { Route, Routes } from "react-router-dom";
 import Signup from "./components/Signup";
 import AdminWrapper from "./components/AdminWrapper";
 import Home from "./components/admin/Home";
-import { Landing } from "./components/Landing";
-import AdminFeesPage from "./components/fee/AdminFee";
+import AnalyticsDashboard from "./components/Landing";
+import AdminFeesDashboard from "./components/fee/AdminFeeDashboard";
 
 const App = () => {
   return (
@@ -12,9 +12,9 @@ const App = () => {
         <Route path="/signup" element={<Signup />} />
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
-          <Route path="/admin/fee" element={<AdminFeesPage />} />
+          <Route path="/admin/fee" element={<AdminFeesDashboard />} />
         </Route>
-        <Route path="/" element={<Landing />}></Route>
+        <Route path="/" element={<AnalyticsDashboard />}></Route>
       </Routes>
     </div>
   );

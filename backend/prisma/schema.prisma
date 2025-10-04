@@ -219,6 +219,18 @@ model NoDueApproval {
   @@map("no_due_approvals")
 }
 
+model FeeStructure {
+  id          Int     @id @default(autoincrement()) @map("fee_structure_id")
+  name        String  @unique @map("fee_name") // e.g., "Annual Tuition Fee 2024"
+  description String?
+  amount      Decimal
+
+  // --- Relations ---
+  invoices Invoice[]
+
+  @@map("fee_structures")
+}
+
 model FeeDetails {
   id        Int       @id @default(autoincrement()) @map("fee_id")
   studentId Int       @map("student_id")
@@ -233,17 +245,19 @@ model FeeDetails {
 }
 
 model Invoice {
-  id        Int           @id @default(autoincrement()) @map("invoice_id")
-  studentId Int           @map("student_id")
-  feeId     Int           @map("fee_id")
-  amount    Decimal
-  issueDate DateTime      @default(now()) @map("issue_date") @db.Date
-  dueDate   DateTime      @map("due_date") @db.Date
-  status    InvoiceStatus @default(unpaid)
-  createdAt DateTime      @default(now()) @map("created_at")
-  fee       FeeDetails    @relation(fields: [feeId], references: [id])
-  student   Student       @relation(fields: [studentId], references: [id])
-  payments  Payment[]
+  id             Int           @id @default(autoincrement()) @map("invoice_id")
+  studentId      Int           @map("student_id")
+  feeId          Int           @map("fee_id")
+  amount         Decimal
+  issueDate      DateTime      @default(now()) @map("issue_date") @db.Date
+  dueDate        DateTime      @map("due_date") @db.Date
+  status         InvoiceStatus @default(unpaid)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  fee            FeeDetails    @relation(fields: [feeId], references: [id])
+  student        Student       @relation(fields: [studentId], references: [id])
+  payments       Payment[]
+  FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
+  feeStructureId Int?
 
   @@map("invoices")
 }

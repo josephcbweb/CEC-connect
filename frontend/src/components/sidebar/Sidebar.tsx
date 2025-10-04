@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, LogOut, Menu } from "lucide-react";
 import { sidebarItems } from "../../utilities/sidebarItems";
 import SidebarItem from "./SideBarItem";
+import { useLocation } from "react-router-dom";
 
 const Sidebar = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const [activeItem, setActiveItem] = useState("Dashboard");
-
+  const [collapsed, setCollapsed] = useState(true);
+  const location = useLocation();
+  const [activeItem, setActiveItem] = useState(location.pathname);
+  useEffect(() => {
+    setActiveItem(location.pathname);
+  }, [location.pathname]);
   return (
     <aside className="h-screen sticky top-0">
       <nav
@@ -43,7 +47,7 @@ const Sidebar = () => {
               key={index}
               icon={item.icon}
               text={item.text}
-              active={activeItem === item.text}
+              active={activeItem === `/admin${item.route}`}
               collapsed={collapsed}
               route={`/admin${item.route}`}
               onClick={() => setActiveItem(item.text)}

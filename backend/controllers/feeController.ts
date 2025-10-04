@@ -1,178 +1,180 @@
 import { PrismaClient, InvoiceStatus } from "@prisma/client";
-import { z } from "zod";
 import { Request, Response } from "express";
 
 const prisma = new PrismaClient();
 
-const isoDateString = z.string().refine((val) => !isNaN(Date.parse(val)), {
-  message: "Due date must be a valid ISO date string.",
-});
+// --- Fee Structure CRUD ---
 
-const feeDetailSchema = z.object({
-  feeType: z.string().min(3, "Fee type is required."),
-  amount: z.number().positive("Amount must be a positive number."),
-  dueDate: isoDateString,
-  studentId: z.number().int().positive(),
-});
-
-export const createFee = async (req: Request, res: Response) => {
+export const createFeeStructure = async (req: Request, res: Response) => {
   try {
-    const feeData = feeDetailSchema.parse(req.body);
-    const newFee = await prisma.feeDetails.create({
-      data: {
-        ...feeData,
-        dueDate: new Date(feeData.dueDate),
-      },
-    });
-    res.status(201).json(newFee);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: error.issues });
+    const { name, description, amount } = req.body;
+    if (!name || amount === undefined) {
+      return res.status(400).json({ error: "Name and amount are required." });
     }
-    console.error("Error creating fee:", error);
+    const newFeeStructure = await prisma.feeStructure.create({
+      data: { name, description, amount: parseFloat(amount) },
+    });
+    res.status(201).json(newFeeStructure);
+  } catch (error) {
+    console.error("Error creating fee structure:", error);
     res.status(500).json({ error: "Failed to create fee structure." });
   }
 };
 
-/**
- * @desc    Get all fee structures
- */
-export const getAllFees = async (req: Request, res: Response) => {
+export const getAllInvoices = async (req: Request, res: Response) => {
   try {
-    const fees = await prisma.feeDetails.findMany({
-      include: { student: true },
-    });
-    res.json(fees);
+    const invoices = await prisma.invoice.findMany({});
+    res.status(200).json(invoices);
   } catch (error) {
-    console.error("Error fetching fees:", error);
+    console.error("Error fetching invoices:", error);
+    res.status(500).json({ error: "Failed to retrieve invoices." });
+  }
+};
+
+export const getAllFeeStructures = async (req: Request, res: Response) => {
+  try {
+    const feeStructures = await prisma.feeStructure.findMany();
+    res.status(200).json(feeStructures);
+  } catch (error) {
+    console.error("Error fetching fee structures:", error);
     res.status(500).json({ error: "Failed to retrieve fee structures." });
   }
 };
 
-/**
- * @desc    Update a fee structure
- */
-export const updateFee = async (req: Request, res: Response) => {
+export const updateFeeStructure = async (req: Request, res: Response) => {
   try {
     const feeId = parseInt(req.params.id);
-    const feeData = feeDetailSchema.partial().parse(req.body);
-
-    const updatedFee = await prisma.feeDetails.update({
+    const { name, description, amount } = req.body;
+    const updatedFeeStructure = await prisma.feeStructure.update({
       where: { id: feeId },
       data: {
-        ...feeData,
-        dueDate: feeData.dueDate ? new Date(feeData.dueDate) : undefined,
+        name,
+        description,
+        amount: amount ? parseFloat(amount) : undefined,
       },
     });
-    res.json(updatedFee);
+    res.status(200).json(updatedFeeStructure);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: error.issues });
-    }
-    console.error("Error updating fee:", error);
     res.status(500).json({
       error: `Failed to update fee structure with ID ${req.params.id}.`,
     });
   }
 };
 
-/**
- * @desc    Delete a fee structure
- */
-export const deleteFee = async (req: Request, res: Response) => {
+export const deleteFeeStructure = async (req: Request, res: Response) => {
   try {
     const feeId = parseInt(req.params.id);
-    await prisma.feeDetails.delete({
-      where: { id: feeId },
-    });
+    await prisma.feeStructure.delete({ where: { id: feeId } });
     res.status(204).send();
   } catch (error) {
-    console.error("Error deleting fee:", error);
     res.status(500).json({
       error: `Failed to delete fee structure with ID ${req.params.id}.`,
     });
   }
 };
 
-const assignFeeSchema = z.object({
-  feeType: z.string(),
-  amount: z.number().positive(),
-  dueDate: isoDateString,
-  target: z.object({
-    type: z.enum(["student", "department"]),
-    id: z.number().int().positive(),
-  }),
-});
+// --- Fee Assignment and Payment ---
 
-/**
- * @desc    Assign a fee to students and generate invoices
- */
-export const assignFeeAndGenerateInvoices = async (
-  req: Request,
-  res: Response
-) => {
+export const assignFeeToStudents = async (req: Request, res: Response) => {
   try {
-    const { feeType, amount, dueDate, target } = assignFeeSchema.parse(
-      req.body
+    const { feeStructureId, studentIds, dueDate } = req.body;
+
+    if (
+      !feeStructureId ||
+      !studentIds ||
+      !Array.isArray(studentIds) ||
+      !dueDate
+    ) {
+      return res.status(400).json({
+        error:
+          "Fee structure ID, student IDs array, and due date are required.",
+      });
+    }
+
+    const feeStructure = await prisma.feeStructure.findUnique({
+      where: { id: feeStructureId },
+    });
+
+    if (!feeStructure) {
+      return res.status(404).json({ error: "Fee Structure not found." });
+    }
+
+    // FIX: Increased transaction timeout to handle large batches of students.
+    // The default is 5 seconds, which can be too short for many database writes.
+    await prisma.$transaction(
+      async (tx) => {
+        for (const studentId of studentIds) {
+          // Step 1: Create a FeeDetails entry for this specific assignment.
+          // This represents the instance of the fee being applied to the student.
+          const feeDetail = await tx.feeDetails.create({
+            data: {
+              studentId: studentId,
+              feeType: feeStructure.name,
+              amount: feeStructure.amount,
+              dueDate: new Date(dueDate), // Use the provided due date
+            },
+          });
+
+          // Step 2: Create an Invoice linked to the new FeeDetails and the FeeStructure template.
+          await tx.invoice.create({
+            data: {
+              studentId: studentId,
+              feeId: feeDetail.id,
+              feeStructureId: feeStructureId,
+              amount: feeStructure.amount,
+              dueDate: new Date(dueDate),
+              issueDate: new Date(),
+              status: InvoiceStatus.unpaid,
+            },
+          });
+        }
+      },
+      {
+        timeout: 3000000,
+      }
     );
 
-    let studentsToInvoice: Array<{ id: number }> = [];
-
-    if (target.type === "student") {
-      const student = await prisma.student.findUnique({
-        where: { id: target.id },
-      });
-      if (student) studentsToInvoice.push(student);
-    } else if (target.type === "department") {
-      studentsToInvoice = await prisma.student.findMany({
-        where: { departmentId: target.id },
-      });
-    }
-
-    if (studentsToInvoice.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No students found for the given target." });
-    }
-
-    const transactionResult = await prisma.$transaction(async (tx) => {
-      const createdInvoices = [];
-      for (const student of studentsToInvoice) {
-        const feeDetail = await tx.feeDetails.create({
-          data: {
-            studentId: student.id,
-            feeType: feeType,
-            amount: amount,
-            dueDate: new Date(dueDate),
-          },
-        });
-
-        const invoice = await tx.invoice.create({
-          data: {
-            studentId: student.id,
-            feeId: feeDetail.id,
-            amount: amount,
-            dueDate: new Date(dueDate),
-            issueDate: new Date(),
-            status: InvoiceStatus.unpaid,
-          },
-        });
-        createdInvoices.push(invoice);
-      }
-      return createdInvoices;
-    });
-
-    res.status(201).json({
-      message: `Successfully generated ${transactionResult.length} invoices.`,
-      invoices: transactionResult,
-    });
+    res
+      .status(201)
+      .json({ message: "Fee assigned and invoices generated successfully." });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: error.issues });
-    }
-    console.error("Error assigning fees:", error);
+    console.error("Error assigning fee structures:", error);
     res
       .status(500)
       .json({ error: "Failed to assign fees and generate invoices." });
+  }
+};
+
+export const markInvoiceAsPaid = async (req: Request, res: Response) => {
+  try {
+    const { invoiceId } = req.params;
+    const { paymentMethod } = req.body;
+
+    if (!paymentMethod) {
+      return res.status(400).json({ error: "Payment method is required." });
+    }
+
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: parseInt(invoiceId) },
+      data: { status: InvoiceStatus.paid },
+    });
+
+    await prisma.payment.create({
+      data: {
+        invoiceId: updatedInvoice.id,
+        amount: updatedInvoice.amount,
+        paymentMethod: paymentMethod,
+        transactionId: `MANUAL_${updatedInvoice.id}_${Date.now()}`,
+        status: "successful",
+      },
+    });
+
+    res.status(200).json(updatedInvoice);
+  } catch (error) {
+    console.error(
+      `Error marking invoice ${req.params.invoiceId} as paid:`,
+      error
+    );
+    res.status(500).json({ error: "Failed to mark invoice as paid." });
   }
 };

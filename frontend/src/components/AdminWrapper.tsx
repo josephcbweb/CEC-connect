@@ -4,7 +4,7 @@ import SidebarPhone from "./sidebar/SidebarPhone";
 
 function AdminWrapper() {
   return (
-    <div className="flex min-h-screen w-screen">
+    <div className="flex min-h-screen w-screen ">
       <div className="hidden md:block">
         <Sidebar />
       </div>
