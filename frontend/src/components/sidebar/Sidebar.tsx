@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, LogOut, Menu } from "lucide-react";
+import { ChevronLeft, LogOut, Menu, BookOpen } from "lucide-react";
 import { sidebarItems } from "../../utilities/sidebarItems";
 import SidebarItem from "./SideBarItem";
 
