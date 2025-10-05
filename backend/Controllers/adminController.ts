@@ -53,28 +53,36 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
       },
     });
 
+    const currentYear = new Date().getFullYear();
+
     const enriched = students.map((student) => {
-  const admissionYear = student.admissionDate
-    ? new Date(student.admissionDate).getFullYear()
-    : null;
+      const admissionYear = student.admissionDate
+        ? new Date(student.admissionDate).getFullYear()
+        : null;
 
-  const currentYear = new Date().getFullYear();
+      const year =
+        admissionYear && admissionYear <= currentYear
+          ? currentYear - admissionYear + 1
+          : null;
 
-  const year =
-    admissionYear && admissionYear <= currentYear
-      ? currentYear - admissionYear + 1
-      : null;
+      return {
+        id: student.id,
+        name: student.name,
+        program: student.program,
+        department: student.department?.departmentCode || student.department?.name,
+        year,
+      };
+    });
 
-  return {
-    id: student.id,
-    name: student.name,
-    program: student.program,
-    department: student.department?.departmentCode || student.department?.name,
-    year,
-  };
-});
+    // ✅ Extract unique programs
+    const uniquePrograms = Array.from(
+      new Set(students.map((s) => s.program).filter(Boolean))
+    );
 
-    res.json(enriched);
+    res.json({
+      students: enriched,
+      programs: uniquePrograms,
+    });
   } catch (error) {
     console.error("Error fetching students:", error);
     res.status(500).json({ error: "Failed to fetch students" });

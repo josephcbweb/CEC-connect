@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import StudentSummary from "../StudentSummary";
 import StudentRow from "../StudentRow";
+import { Search } from "lucide-react";
 
 const baseURL = `http://localhost:3000`;
 
@@ -20,6 +21,11 @@ interface StatItem {
 const StudentsPage = () => {
   const [stats, setStats] = useState<StatItem[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [programs, setPrograms] = useState<string[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState("All");
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState("All");
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -35,8 +41,16 @@ const StudentsPage = () => {
     const fetchStudents = async () => {
       try {
         const response = await fetch("http://localhost:3000/admin/students");
-        const data: Student[] = await response.json();
-        setStudents(data);
+        const data = await response.json();
+        const students: Student[] = data.students;
+
+        setStudents(data.students);
+        setPrograms(data.programs);
+        const uniqueDepartments = Array.from(
+          new Set(students.map((s) => s.department).filter(Boolean))
+        );
+
+        setDepartments(uniqueDepartments);
       } catch (error) {
         console.error("Failed to fetch students:", error);
       }
@@ -46,9 +60,21 @@ const StudentsPage = () => {
     fetchStudents();
   }, []);
 
+  const filteredStudents = students.filter((student) => {
+    const matchesName = student.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesProgram =
+      selectedProgram === "All" || student.program === selectedProgram;
+    const matchesDepartment =
+      selectedProgram !== "B.Tech" ||
+      selectedDepartment === "All" ||
+      student.department === selectedDepartment;
+    return matchesName && matchesProgram && matchesDepartment;
+  });
+
   return (
     <>
-      {/* ... your page title and stats sections remain the same */}
       <div className="flex h-fit justify-between items-center">
         <div>
           <h2 className="font-bold text-3xl">Student Management</h2>
@@ -72,20 +98,57 @@ const StudentsPage = () => {
       </div>
 
       <hr className="border-t border-gray-200 my-6" />
+      <div className="flex justify-end w-full gap-3 items-center">
+        {selectedProgram === "btech" && (
+          <div className="flex flex-wrap mb-6 ml-0 mr-auto bg-gray-100 p-1 rounded-[7px]">
+            {["All", ...departments].map((dept) => (
+              <button
+                key={dept}
+                onClick={() => setSelectedDepartment(dept)}
+                className={`px-4 py-2 text-sm font-medium ${
+                  selectedDepartment === dept
+                    ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
+                    : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
+                }`}
+              >
+                {dept}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="relative">
+          <Search className="h-5 w-5 text-gray-400 absolute top-2.5 left-3" />
+          <input
+            type="text"
+            placeholder="Search by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="mb-6 w-full max-w-md px-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-300"
+          />
+        </div>
+        <select
+          value={selectedProgram}
+          onChange={(e) => setSelectedProgram(e.target.value)}
+          className="mb-6 max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 font-semibold"
+        >
+          <option value="All">All</option>
+          {programs.map((program) => (
+            <option key={program} value={program}>
+              {program}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="bg-white rounded-lg shadow border border-gray-200">
-        {/* Table Header */}
-        {/* --- REMOVE px-4 from this div --- */}
         <div className="flex items-center py-3 border-b border-gray-200 bg-gray-50">
-          {/* --- ADD padding (pl-4) to the first column --- */}
           <div className="w-4/12 flex items-center pl-4">
             <input type="checkbox" className="mr-4" />
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Name
             </span>
           </div>
-
-          {/* --- ADD padding (px-2) to middle columns for spacing --- */}
           <div className="w-3/12 px-2">
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Program
@@ -97,21 +160,27 @@ const StudentsPage = () => {
               Department
             </span>
           </div>
-
-          {/* --- ADD padding (pr-4) to the last column --- */}
           <div className="w-2/12 pr-4">
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Year
             </span>
           </div>
         </div>
-
-        {/* Student List */}
-        <div>
-          {students.map((student) => (
-            <StudentRow key={student.id} {...student} />
-          ))}
-        </div>
+        {filteredStudents.length === 0 ? (
+          <p className="text-gray-500 text-center py-5">No students found.</p>
+        ) : (
+          <div className="flex flex-col gap-y-2">
+            {filteredStudents.map((student) => (
+              <StudentRow
+                key={student.id}
+                name={student.name}
+                program={student.program}
+                department={student.department}
+                year={student.year}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

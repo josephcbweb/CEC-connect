@@ -75,12 +75,7 @@ enum Program {
   mca
 }
 
-enum AdmissionQuota {
-  merit
-  management
-  government
-  other
-}
+
 
 enum AdmissionStatus {
   pending
@@ -170,7 +165,7 @@ model Student {
   admissionNumber         String?         @unique @map("admission_number")
   admissionDate           DateTime?       @map("admission_date")
   admissionType           AdmissionType   @default(regular) @map("admission_type")
-  admissionQuota          AdmissionQuota? @map("admission_quota")
+  admissionQuota          String? @map("admission_quota")
   admittedCategory        String?         @map("admitted_category")
   category                String?
   allottedBranch          String          @map("allotted_branch")

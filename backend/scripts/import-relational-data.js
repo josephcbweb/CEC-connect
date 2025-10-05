@@ -80,11 +80,24 @@ async function main() {
             );
             continue;
           }
-
+          let departmentCode ;
+          console.log(row.allottedBranch);
+          if(row.allottedBranch.toString().toLowerCase().includes(`ai`)){
+            departmentCode = `AD`;
+          }
+          else if(row.allottedBranch.toString().toLowerCase().includes(`computer`)||row.allottedBranch.toString().toLowerCase().includes(`cse`) ){
+            departmentCode = `CSE`;
+          }
+          else if(row.allottedBranch.toString().toLowerCase().includes(`electrical`)){
+            departmentCode = `EEE`;
+          }
+          else{
+            departmentCode = `ECE`;
+          }
           const department = await prisma.department.upsert({
             where: { name: departmentName },
             update: {},
-            create: { name: departmentName },
+            create: { name: departmentName ,departmentCode},
           });
 
           // Prepare the complete student data object
@@ -96,7 +109,7 @@ async function main() {
             password: "", // Default value as requested
             program: "btech", // Default value
             status: "approved", // Default value
-
+            email:row.email,
             createdAt: parseCustomDate(row.createdAt),
             updatedAt: parseCustomDate(row.createdAt), // Set to same as createdAt
             name: row.name,
@@ -120,9 +133,7 @@ async function main() {
             fatherPhoneNumber: row.fatherPhoneNumber || null,
             motherPhoneNumber: row.motherPhoneNumber || null,
             localGuardianPhoneNumber: row.localGuardianPhoneNumber || null,
-            annualFamilyIncome: row.annualFamilyIncome
-              ? new Prisma.Decimal(row.annualFamilyIncome)
-              : null,
+            annualFamilyIncome: row.annualFamilyIncome,
             motherTongue: row.motherTongue || null,
             bloodGroup: row.bloodGroup || null,
             lastInstitution: row.lastInstitution || null,
