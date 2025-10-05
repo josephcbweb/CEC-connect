@@ -19,6 +19,10 @@ const App = () => {
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
         </Route>
         <Route path="/" element={<Landing />}></Route>
+        {/* <Route path="/student">
+          <Route index element={<Student />} />
+          <Route path="/admin/fee" element={<AdminFeesDashboard />} />
+        </Route> */}
       </Routes>
     </div>
   );

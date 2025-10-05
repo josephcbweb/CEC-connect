@@ -21,7 +21,10 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ invoiceId, paymentMethod: "Manual" }),
+          body: JSON.stringify({
+            invoiceId: invoiceId,
+            paymentMethod: "Manual",
+          }),
         }
       );
       if (response.ok) {
