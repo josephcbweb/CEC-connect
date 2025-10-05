@@ -44,7 +44,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-2xl">
+      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-4xl">
         <div className="flex justify-between items-start mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">{student.name}</h2>
@@ -86,7 +86,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                   {invoices.map((invoice: Invoice) => (
                     <tr key={invoice.id}>
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
-                        {invoice.fee?.feeType || "N/A"}
+                        {invoice.FeeStructure.name || "N/A"}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
                         ₹{invoice.amount}

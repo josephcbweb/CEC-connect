@@ -1,4 +1,14 @@
-import type { FeeStructure, Invoice, Student } from "../../types";
+import React from "react";
+import { useOutletContext } from "react-router-dom";
+import type { Student, Invoice, FeeStructure } from "../../types";
+
+interface StudentWithFees extends Student {
+  invoices: (Invoice & { feeStructure: FeeStructure | null })[];
+}
+
+interface OutletContextType {
+  studentData: StudentWithFees;
+}
 
 const formatCurrency = (amount: number | string) => {
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
@@ -42,12 +52,10 @@ const StatCard: React.FC<{ title: string; value: string; color?: string }> = ({
     <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
   </div>
 );
-interface StudentWithFees extends Student {
-  invoices: (Invoice & { FeeStructure: FeeStructure | null })[];
-}
-export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
-  studentData,
-}) => {
+
+const StudentFeePage: React.FC = () => {
+  const { studentData } = useOutletContext<OutletContextType>();
+
   const totalDue = studentData.invoices.reduce(
     (sum, inv) => sum + parseFloat(inv.amount as any),
     0
@@ -56,6 +64,7 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
     .filter((inv) => inv.status === "paid")
     .reduce((sum, inv) => sum + parseFloat(inv.amount as any), 0);
   const outstandingBalance = totalDue - totalPaid;
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900">Fee Payment Portal</h1>
@@ -64,7 +73,6 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-        <StatCard title="Total Due Amount" value={formatCurrency(totalDue)} />
         <StatCard
           title="Total Paid"
           value={formatCurrency(totalPaid)}
@@ -115,7 +123,7 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
                       #{invoice.id}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800">
-                      {invoice.FeeStructure?.name || "N/A"}
+                      {invoice.feeStructure?.name || "N/A"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800">
                       {formatDate(invoice.dueDate)}
@@ -128,9 +136,14 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
                     </td>
                     <td className="px-6 py-4 text-sm">
                       {invoice.status !== "paid" && (
-                        <button className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-xs font-semibold">
-                          Pay Now
-                        </button>
+                        <a
+                          className="border-none "
+                          href="https://onlinesbi.sbi.bank.in/sbicollect/icollecthome.htm"
+                        >
+                          <button className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-xs font-semibold">
+                            Pay Now
+                          </button>
+                        </a>
                       )}
                     </td>
                   </tr>
@@ -149,3 +162,5 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
     </div>
   );
 };
+
+export default StudentFeePage;

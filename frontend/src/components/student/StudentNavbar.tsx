@@ -1,38 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import type { FeeStructure, Invoice, Student } from "../../types";
 
+// --- Type Definition ---
 interface StudentWithFees extends Student {
   invoices: (Invoice & { feeStructure: FeeStructure | null })[];
 }
-
 interface StudentNavbarProps {
   studentData: StudentWithFees | null;
-  activeView: string;
-  onNavigate: (view: "dashboard" | "fees") => void;
 }
-
 export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   studentData,
-  activeView,
-  onNavigate,
 }) => {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const location = useLocation();
 
-  const getInitials = (name: string | undefined) => {
-    if (!name) return "..";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
-  };
-
-  const navLinkClasses = (view: string) =>
-    `px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-      activeView === view
-        ? "text-teal-600 border-b-2 border-teal-600"
-        : "text-gray-500 hover:text-gray-900"
-    }`;
+  const [pathname, setPathName] = useState(location.pathname);
+  //   const getInitials = (name: string | undefined) => {
+  //     if (!name) return "..";
+  //     return name
+  //       .split(" ")
+  //       .map((n) => n[0])
+  //       .join("")
+  //       .toUpperCase();
+  //   };
+  useEffect(() => {
+    setPathName(location.pathname);
+    console.log(pathname);
+  }, [location.pathname]);
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
@@ -43,27 +38,33 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
           </div>
 
           <div className="hidden md:flex items-center space-x-8">
-            <button
-              onClick={() => onNavigate("dashboard")}
-              className={navLinkClasses("dashboard")}
+            <NavLink
+              to="/student"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student"
+                  ? "border-b-teal-600 text-teal-700"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
             >
               Dashboard
-            </button>
-            <button
-              onClick={() => onNavigate("fees")}
-              className={navLinkClasses("fees")}
+            </NavLink>
+            <NavLink
+              to="/student/fees"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/fees"
+                  ? "border-b-teal-600 text-teal-700"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
             >
               Fees
-            </button>
-
+            </NavLink>
             <span className="text-gray-500">|</span>
-
             <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0 h-10 w-10 bg-teal-100 rounded-full flex items-center justify-center">
+              {/* <div className="flex-shrink-0 h-10 w-10 bg-teal-100 rounded-full flex items-center justify-center">
                 <span className="text-teal-800 font-medium">
                   {getInitials(studentData?.name)}
                 </span>
-              </div>
+              </div> */}
               <span className="text-gray-700 font-medium">
                 {studentData?.name || "Loading..."}
               </span>
@@ -108,32 +109,28 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-200">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <button
-              onClick={() => {
-                onNavigate("dashboard");
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full text-left block px-3 py-2 rounded-md text-base font-medium ${
-                activeView === "dashboard"
+            <NavLink
+              to="/student"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student"
                   ? "bg-teal-50 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
               Dashboard
-            </button>
-            <button
-              onClick={() => {
-                onNavigate("fees");
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full text-left block px-3 py-2 rounded-md text-base font-medium ${
-                activeView === "fees"
+            </NavLink>
+            <NavLink
+              to="/student/fees"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/fees"
                   ? "bg-teal-50 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
               Fees
-            </button>
+            </NavLink>
             <div className="border-t border-gray-200 my-2"></div>
             <div className="px-3 py-2">
               <p className="text-sm text-gray-500">Welcome,</p>
