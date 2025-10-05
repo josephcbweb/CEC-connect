@@ -9,6 +9,8 @@ interface StudentFeeTableProps {
   setSelectedStudents: React.Dispatch<React.SetStateAction<number[]>>;
   onViewDetails: (student: StudentFee) => void;
   onRefresh: () => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }
 
 const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
@@ -19,6 +21,8 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
   setSelectedStudents,
   onViewDetails,
   onRefresh,
+  searchQuery,
+  onSearchChange,
 }) => {
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -60,31 +64,64 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
-      <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-800">
-          Student Fees ({students.length} students)
-        </h2>
-        <button
-          onClick={onRefresh}
-          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          <span>Refresh</span>
-        </button>
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex justify-between items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Student Fees ({students.length})
+            </h2>
+          </div>
+          <div className="flex gap-10 w-fit">
+            <div className="relative w-full max-w-xs">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                name="search"
+                id="search"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                placeholder="Search by student name..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={onRefresh}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
       </div>
 
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -185,7 +222,6 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
             ))}
           </tbody>
         </table>
-
         {students.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No students found.</p>
