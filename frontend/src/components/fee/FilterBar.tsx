@@ -78,12 +78,12 @@ const FilterBar: React.FC<FilterBarProps> = ({
           options={departments}
           placeholder="All Departments"
         />
-        <FilterDropdown
+        {/* <FilterDropdown
           label="Branch"
           filterKey="branch"
           options={branches}
           placeholder="All Branches"
-        />
+        /> */}
         <FilterDropdown
           label="Program"
           filterKey="program"

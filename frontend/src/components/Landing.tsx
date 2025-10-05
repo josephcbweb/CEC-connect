@@ -151,6 +151,22 @@ export const Landing: React.FC = () => {
     }
   };
 
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth" });
+    }
+    setIsMenuOpen(false);
+  };
+
+  const navItems = [
+    { id: "home", label: "Home" },
+    { id: "about", label: "About" },
+    { id: "academics", label: "Academics" },
+    { id: "research", label: "Research" },
+    { id: "contact", label: "Contact" },
+  ];
+
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Enhanced Animated Background */}
@@ -186,26 +202,33 @@ export const Landing: React.FC = () => {
 
             {/* Desktop Menu */}
             <div className="hidden lg:flex items-center space-x-10">
-              {["Home", "About", "Academics", "Research", "Contact"].map(
-                (item) => (
-                  <a
-                    key={item}
-                    href="#"
-                    className="text-gray-700 hover:text-blue-600 transition-all duration-300 font-light text-sm relative group"
-                  >
-                    {item}
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-                  </a>
-                )
-              )}
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-gray-700 hover:text-blue-600 transition-all duration-300 font-light text-sm relative group"
+                >
+                  {item.label}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Student Login Button */}
               <Link
-                to="/signup"
+                to="/studentlogin"
                 className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm font-light rounded-full hover:from-blue-700 hover:to-teal-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-blue-500/25"
               >
-                LOG IN
+                STUDENT LOGIN
+              </Link>
+
+              {/* Admin Login Button */}
+              <Link
+                to="/signup"
+                className="px-6 py-2.5 border border-blue-600 text-blue-600 text-sm font-light rounded-full hover:bg-blue-600 hover:text-white transition-all duration-300 transform hover:scale-105"
+              >
+                ADMIN LOGIN
               </Link>
 
               {/* Mobile Menu Button */}
@@ -237,33 +260,48 @@ export const Landing: React.FC = () => {
           {/* Mobile Menu */}
           <div
             className={`lg:hidden overflow-hidden transition-all duration-500 ease-in-out ${
-              isMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+              isMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
             }`}
           >
             <div className="py-4 space-y-4 border-t border-gray-200 mt-4">
-              {["Home", "About", "Academics", "Research", "Contact"].map(
-                (item) => (
-                  <a
-                    key={item}
-                    href="#"
-                    className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 font-light text-sm py-2"
-                  >
-                    {item}
-                  </a>
-                )
-              )}
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 font-light text-sm py-2 w-full text-left"
+                >
+                  {item.label}
+                </button>
+              ))}
+              <div className="pt-4 border-t border-gray-200 space-y-3">
+                <Link
+                  to="/student-login"
+                  className="block w-full text-center px-4 py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm font-light rounded-full hover:from-blue-700 hover:to-teal-700 transition-all duration-300"
+                >
+                  STUDENT LOGIN
+                </Link>
+                <Link
+                  to="/admin-login"
+                  className="block w-full text-center px-4 py-2.5 border border-blue-600 text-blue-600 text-sm font-light rounded-full hover:bg-blue-600 hover:text-white transition-all duration-300"
+                >
+                  ADMIN LOGIN
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </nav>
 
       {/* Enhanced Hero Section */}
-      <section className="min-h-screen flex items-center justify-center pt-20 relative z-10">
-        <div className="container mx-auto px-6">
-          <div className="max-w-6xl mx-auto text-center">
+      <section
+        id="home"
+        className="min-h-screen flex items-center justify-center pt-20 relative z-10 cursor-pointer"
+      >
+        <div className="container mx-auto px-6 ">
+          <div className="max-w-6xl mx-auto text-center ">
             <div
               ref={(el) => addToRefs(el, "hero")}
-              className="opacity-0 translate-y-8 transition-all duration-1000 ease-out"
+              className="opacity-0 translate-y-8 transition-all duration-1000 ease-out "
             >
               {/* Animated Logo */}
               <div className="flex justify-center mb-12">
@@ -293,16 +331,16 @@ export const Landing: React.FC = () => {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                <button className="group px-12 py-5 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-2xl hover:from-blue-700 hover:to-teal-700 transition-all duration-500 text-lg font-light shadow-2xl hover:shadow-blue-500/30 transform hover:scale-105">
+                <button
+                  onClick={() => scrollToSection("about")}
+                  className="group px-12 py-5 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-2xl hover:from-blue-700 hover:to-teal-700 transition-all duration-500 text-lg font-light shadow-2xl hover:shadow-blue-500/30 transform hover:scale-105"
+                >
                   <span className="flex items-center">
                     Explore Platform
                     <span className="ml-4 group-hover:translate-x-2 transition-transform duration-300 text-xl">
                       →
                     </span>
                   </span>
-                </button>
-                <button className="px-12 py-5 border-2 border-gray-300 text-gray-700 rounded-2xl hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-500 text-lg font-light transform hover:scale-105">
-                  View Demo
                 </button>
               </div>
 
@@ -318,7 +356,7 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* Enhanced Stats Section */}
-      <section className="py-24 relative z-10">
+      <section id="about" className="py-24 relative z-10">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-5xl mx-auto">
             {[
@@ -446,7 +484,10 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* Enhanced Academic Programs */}
-      <section className="py-32 bg-gradient-to-br from-gray-50 to-blue-50/30 relative z-10">
+      <section
+        id="academics"
+        className="py-32 bg-gradient-to-br from-gray-50 to-blue-50/30 relative z-10"
+      >
         <div className="container mx-auto px-6">
           <div
             ref={(el) => addToRefs(el, "programs-header")}
@@ -531,7 +572,7 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* Enhanced Research Section */}
-      <section className="py-32 relative z-10">
+      <section id="research" className="py-32 relative z-10">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center max-w-7xl mx-auto">
             <div
@@ -594,7 +635,7 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* Enhanced CTA Section */}
-      <section className="py-32 relative z-10 overflow-hidden">
+      <section id="contact" className="py-32 relative z-10 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-teal-900"></div>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/10 to-transparent"></div>
         <div className="container mx-auto px-6 relative z-10">
@@ -616,17 +657,23 @@ export const Landing: React.FC = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-              <button className="group px-14 py-5 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-2xl hover:from-blue-600 hover:to-teal-600 transition-all duration-500 text-lg font-semibold shadow-2xl hover:shadow-blue-500/40 transform hover:scale-105">
+              <Link
+                to="/student-login"
+                className="group px-14 py-5 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-2xl hover:from-blue-600 hover:to-teal-600 transition-all duration-500 text-lg font-semibold shadow-2xl hover:shadow-blue-500/40 transform hover:scale-105"
+              >
                 <span className="flex items-center">
-                  Start Your Application
+                  Student Portal
                   <span className="ml-4 group-hover:translate-x-2 transition-transform duration-300 text-xl">
                     →
                   </span>
                 </span>
-              </button>
-              <button className="px-14 py-5 border-2 border-white/30 text-white rounded-2xl hover:bg-white hover:text-gray-900 transition-all duration-500 text-lg font-light backdrop-blur-sm transform hover:scale-105">
-                Contact Admissions
-              </button>
+              </Link>
+              <Link
+                to="/admin-login"
+                className="px-14 py-5 border-2 border-white/30 text-white rounded-2xl hover:bg-white hover:text-gray-900 transition-all duration-500 text-lg font-light backdrop-blur-sm transform hover:scale-105"
+              >
+                Admin Portal
+              </Link>
             </div>
 
             <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 text-white/60 text-sm">
