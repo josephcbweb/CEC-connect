@@ -7,6 +7,6 @@ import {
 const router = express.Router();
 
 router.get("/all", getStudents);
-router.get("/students/:id/fees", getStudentFeeDetails);
+router.get("/:id/fees", getStudentFeeDetails);
 
 export default router;

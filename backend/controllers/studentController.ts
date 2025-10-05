@@ -4,7 +4,11 @@ import { Request, Response } from "express";
 const prisma = new PrismaClient();
 export const getStudents = async (req: Request, res: Response) => {
   const result = await prisma.student.findMany({
-    include: { department: true, invoices: true, feeDetails: true },
+    include: {
+      department: true,
+      invoices: { include: { FeeStructure: true } },
+      feeDetails: true,
+    },
   });
   res.status(201).json(result);
 };
@@ -25,6 +29,7 @@ export const getStudentFeeDetails = async (req: Request, res: Response) => {
           },
           include: {
             fee: true,
+            FeeStructure: true,
           },
         },
       },

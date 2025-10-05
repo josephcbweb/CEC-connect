@@ -225,7 +225,6 @@ model FeeStructure {
   description String?
   amount      Decimal
 
-  // --- Relations ---
   invoices Invoice[]
 
   @@map("fee_structures")
