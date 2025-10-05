@@ -48,6 +48,7 @@ export interface Invoice {
   id: number;
   studentId: number;
   feeId: number;
+  FeeStructure: { name: string };
   fee: { feeType: string };
   amount: number;
   dueDate: string;

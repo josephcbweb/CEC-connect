@@ -5,9 +5,8 @@ import FilterBar from "./FilterBar";
 import StatsCards from "./StatsCards";
 import AssignFeeModal from "./AssignFeeModal";
 import StudentDetailsModal from "./StudentDetailsModal";
-import type { Student, StudentFee, SortConfig, Department } from "../../types";
+import type { Student, StudentFee, SortConfig } from "../../types";
 
-// Updated FilterConfig to include the new property
 interface FilterConfig {
   department: string;
   branch: string;
@@ -19,7 +18,6 @@ interface FilterConfig {
   admission_quota: string;
 }
 
-// Helper function to get unique values for filters
 const getUniqueValues = <T, K extends keyof T>(
   items: T[],
   key: K
@@ -47,7 +45,8 @@ const AdminFeesDashboard: React.FC = () => {
     admission_quota: "",
   });
 
-  // State for new features
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState<boolean>(false);
   const [viewingStudent, setViewingStudent] = useState<StudentFee | null>(null);
@@ -101,6 +100,15 @@ const AdminFeesDashboard: React.FC = () => {
 
   const filteredStudents = useMemo(() => {
     let result = students.filter((student) => {
+      // Search filter
+      if (
+        searchQuery &&
+        !student.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
+
+      // Dropdown filters
       if (filters.department && student.department.name !== filters.department)
         return false;
       if (filters.branch && student.allotted_branch !== filters.branch)
@@ -111,7 +119,6 @@ const AdminFeesDashboard: React.FC = () => {
       if (filters.feeStatus && student.feeStatus !== filters.feeStatus)
         return false;
       if (filters.program && student.program !== filters.program) return false;
-      // Added filter for admission_quota
       if (
         filters.admission_quota &&
         student.admission_quota !== filters.admission_quota
@@ -138,7 +145,7 @@ const AdminFeesDashboard: React.FC = () => {
       });
     }
     return result;
-  }, [students, filters, sortConfig]);
+  }, [students, filters, sortConfig, searchQuery]);
 
   const handleSort = (key: keyof StudentFee): void => {
     setSortConfig((prev: any) => ({
@@ -162,6 +169,7 @@ const AdminFeesDashboard: React.FC = () => {
       year: "",
       admission_quota: "",
     });
+    setSearchQuery("");
   };
 
   const handleAssignSuccess = () => {
@@ -181,7 +189,6 @@ const AdminFeesDashboard: React.FC = () => {
       categories: getUniqueValues(students, "category"),
       programs: getUniqueValues(students, "program"),
       genders: getUniqueValues(students, "gender"),
-      // Added admission quotas to the filter options
       admission_quotas: getUniqueValues(students, "admission_quota"),
       feeStatuses: ["pending", "due", "paid", "overdue"],
       years: ["1", "2", "3", "4"],
@@ -265,6 +272,8 @@ const AdminFeesDashboard: React.FC = () => {
             setSelectedStudents={setSelectedStudents}
             onViewDetails={setViewingStudent}
             onRefresh={fetchStudents}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
           />
         </div>
       </div>
