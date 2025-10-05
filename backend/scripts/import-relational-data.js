@@ -40,9 +40,6 @@ async function main() {
   const adminRole = await prisma.role.create({ data: { name: "admin" } });
   const hodRole = await prisma.role.create({ data: { name: "hod" } });
 
-  const salt = await bcrypt.genSalt(10);
-  const adminPassword = await bcrypt.hash("admin123", salt);
-
   const adminUser = await prisma.user.create({
     data: {
       username: "admin",
@@ -80,26 +77,29 @@ async function main() {
             );
             continue;
           }
-          let departmentCode ;
+          let departmentCode;
           console.log(row.allottedBranch);
-          if(row.allottedBranch.toString().toLowerCase().includes(`ai`)){
+          if (row.allottedBranch.toString().toLowerCase().includes(`ai`)) {
             departmentCode = `AD`;
-          }
-          else if(row.allottedBranch.toString().toLowerCase().includes(`computer`)||row.allottedBranch.toString().toLowerCase().includes(`cse`) ){
+          } else if (
+            row.allottedBranch.toString().toLowerCase().includes(`computer`) ||
+            row.allottedBranch.toString().toLowerCase().includes(`cse`)
+          ) {
             departmentCode = `CSE`;
-          }
-          else if(row.allottedBranch.toString().toLowerCase().includes(`electrical`)){
+          } else if (
+            row.allottedBranch.toString().toLowerCase().includes(`electrical`)
+          ) {
             departmentCode = `EEE`;
-          }
-          else{
+          } else {
             departmentCode = `ECE`;
           }
           const department = await prisma.department.upsert({
             where: { name: departmentName },
             update: {},
-            create: { name: departmentName ,departmentCode},
+            create: { name: departmentName, departmentCode },
           });
-
+          const salt = await bcrypt.genSalt(10);
+          const adminPassword = await bcrypt.hash("admin123", salt);
           // Prepare the complete student data object
           const studentData = {
             // CHANGED: Use a nested 'connect' query for the department relationship
@@ -109,7 +109,7 @@ async function main() {
             password: "", // Default value as requested
             program: "btech", // Default value
             status: "approved", // Default value
-            email:row.email,
+            email: row.studentEmail,
             createdAt: parseCustomDate(row.createdAt),
             updatedAt: parseCustomDate(row.createdAt), // Set to same as createdAt
             name: row.name,
