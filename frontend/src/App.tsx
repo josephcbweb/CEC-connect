@@ -7,6 +7,7 @@ import StudentsPage from "./components/admin/StudentsPage";
 import AdminFeesDashboard from "./components/fee/AdminFeeDashboard";
 import AdminFeesPage from "./components/fee/AdminFeeDashboard";
 import AdminCertificatPage from "./components/certificate/AdminCertificatePage";
+import StudentDetails from "./components/admin/StudentDetails";
 
 const App = () => {
   return (
@@ -17,6 +18,7 @@ const App = () => {
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
           <Route path="students" element={<StudentsPage />} />
+            <Route path="studentDetails/:id" element={<StudentDetails/>} />
           <Route path="/admin/fee" element={<AdminFeesDashboard />} />
           <Route path="/admin/fee" element={<AdminFeesPage />} />
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
