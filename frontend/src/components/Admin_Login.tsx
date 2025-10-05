@@ -55,7 +55,7 @@ const Signup = () => {
           <div className="w-full max-w-md">
             <div className="text-center mb-12">
               <h1 className="text-4xl font-light text-[#031D44] mb-4">
-                Welcome Back
+                Admin Portal
               </h1>
               <p className="text-gray-600 font-light">
                 Sign in to your academic dashboard
