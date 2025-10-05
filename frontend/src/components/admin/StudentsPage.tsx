@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import StudentSummary from "../StudentSummary";
 import StudentRow from "../StudentRow";
 import { Search } from "lucide-react";
+import DeleteBtn from "./DeleteBtn";
+import DeleteModal from "./DeleteModal";
 
 const baseURL = `http://localhost:3000`;
 
@@ -11,6 +13,8 @@ interface Student {
   program: string;
   department: string;
   year: number | null;
+  isSelected: boolean;
+  onSelect: (id: number) => void;
 }
 
 interface StatItem {
@@ -26,38 +30,40 @@ const StudentsPage = () => {
   const [selectedProgram, setSelectedProgram] = useState("All");
   const [departments, setDepartments] = useState<string[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+
+  const fetchStudents = async () => {
+    try {
+      const res = await fetch(`${baseURL}/admin/students`);
+      const data = await res.json();
+      const students: Student[] = data.students;
+      setStudents(students);
+      setPrograms(data.programs);
+      const uniqueDepartments = Array.from(
+        new Set(students.map((s) => s.department).filter(Boolean))
+      );
+      setDepartments(uniqueDepartments);
+    } catch (error) {
+      console.error("Failed to fetch students:", error);
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch(`${baseURL}/admin/viewStats`);
-        const data: StatItem[] = await response.json();
-        console.log(data);
+        const res = await fetch(`${baseURL}/admin/viewStats`);
+        const data: StatItem[] = await res.json();
         setStats(data);
       } catch (error) {
         console.error("Failed to fetch stats:", error);
       }
     };
-    const fetchStudents = async () => {
-      try {
-        const response = await fetch("http://localhost:3000/admin/students");
-        const data = await response.json();
-        const students: Student[] = data.students;
 
-        setStudents(data.students);
-        setPrograms(data.programs);
-        const uniqueDepartments = Array.from(
-          new Set(students.map((s) => s.department).filter(Boolean))
-        );
-
-        setDepartments(uniqueDepartments);
-      } catch (error) {
-        console.error("Failed to fetch students:", error);
-      }
-    };
-
-    fetchStats();
-    fetchStudents();
+    Promise.all([fetchStats(), fetchStudents()])
+      .catch((error) => console.error("Failed to fetch:", error))
+      .finally(() => setLoading(false));
   }, []);
 
   const filteredStudents = students.filter((student) => {
@@ -67,14 +73,74 @@ const StudentsPage = () => {
     const matchesProgram =
       selectedProgram === "All" || student.program === selectedProgram;
     const matchesDepartment =
-      selectedProgram !== "B.Tech" ||
+      selectedProgram !== "btech" ||
       selectedDepartment === "All" ||
       student.department === selectedDepartment;
     return matchesName && matchesProgram && matchesDepartment;
   });
 
+  const handleStudentSelect = (studentId: number) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const handleSelectAllFiltered = () => {
+    const filteredIds = filteredStudents.map((s) => s.id);
+    if (selectedStudentIds.length === filteredIds.length) {
+      setSelectedStudentIds([]); // Deselect all
+    } else {
+      setSelectedStudentIds(filteredIds); // Select all
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      const response = await fetch(
+        "http://localhost:3000/admin/deleteStudents",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: selectedStudentIds }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("Deleted:", result.deletedCount);
+        // Refresh students list
+        fetchStudents();
+        setSelectedStudentIds([]);
+        setIsDeleteModalOpen(false);
+      } else {
+        console.error("Deletion failed:", result.error);
+      }
+    } catch (error) {
+      console.error("Error deleting students:", error);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsDeleteModalOpen(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-teal-600"></div>
+      </div>
+    );
+  }
+
   return (
-    <>
+    <div className="p-10">
       <div className="flex h-fit justify-between items-center">
         <div>
           <h2 className="font-bold text-3xl">Student Management</h2>
@@ -82,7 +148,7 @@ const StudentsPage = () => {
             View,Edit and Manage all students
           </p>
         </div>
-        <button className="bg-black text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3">
+        <button className="bg-teal-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3">
           Export CSV
         </button>
       </div>
@@ -139,12 +205,23 @@ const StudentsPage = () => {
             </option>
           ))}
         </select>
+        {selectedStudentIds.length > 0 && (
+          <DeleteBtn onClick={handleDeleteClick} />
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow border border-gray-200">
         <div className="flex items-center py-3 border-b border-gray-200 bg-gray-50">
           <div className="w-4/12 flex items-center pl-4">
-            <input type="checkbox" className="mr-4" />
+            <input
+              type="checkbox"
+              className="mr-4 h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+              onChange={handleSelectAllFiltered}
+              checked={
+                filteredStudents.length > 0 &&
+                selectedStudentIds.length === filteredStudents.length
+              }
+            />
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Name
             </span>
@@ -154,7 +231,6 @@ const StudentsPage = () => {
               Program
             </span>
           </div>
-
           <div className="w-3/12 px-2">
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Department
@@ -165,6 +241,12 @@ const StudentsPage = () => {
               Year
             </span>
           </div>
+          {/* Add the new Actions column header */}
+          <div className="w-2/12 pr-4 text-right">
+            <span className="text-xs font-semibold text-gray-600 uppercase">
+              Actions
+            </span>
+          </div>
         </div>
         {filteredStudents.length === 0 ? (
           <p className="text-gray-500 text-center py-5">No students found.</p>
@@ -173,16 +255,25 @@ const StudentsPage = () => {
             {filteredStudents.map((student) => (
               <StudentRow
                 key={student.id}
+                id={student.id}
                 name={student.name}
                 program={student.program}
                 department={student.department}
                 year={student.year}
+                isSelected={selectedStudentIds.includes(student.id)}
+                onSelect={handleStudentSelect}
               />
             ))}
           </div>
         )}
       </div>
-    </>
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseModal}
+        onConfirm={handleConfirmDelete}
+        studentCount={selectedStudentIds.length}
+      />
+    </div>
   );
 };
 
