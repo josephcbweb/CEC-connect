@@ -147,9 +147,8 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
 
 export const markInvoiceAsPaid = async (req: Request, res: Response) => {
   try {
-    const { invoiceId } = req.params;
+    const { invoiceId } = req.body;
     const { paymentMethod } = req.body;
-
     if (!paymentMethod) {
       return res.status(400).json({ error: "Payment method is required." });
     }

@@ -18,8 +18,8 @@ router.put("/:id", updateFeeStructure);
 router.delete("/:id", deleteFeeStructure);
 
 // --- Fee Assignment and Payment Routes ---
-router.get("/invoices", getAllInvoices);
 router.post("/assign", assignFeeToStudents);
 router.post("/invoices/mark-paid", markInvoiceAsPaid);
+router.get("/invoices", getAllInvoices);
 
 export default router;
