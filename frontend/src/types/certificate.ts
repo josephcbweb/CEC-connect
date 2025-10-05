@@ -30,14 +30,14 @@ export type CertificateRequest = {
 };
 
 export type CertificateType =
-  | 'BONAFIDE'
-  | 'COURSE_COMPLETION'
-  | 'TRANSFER'
-  | 'CHARACTER'
-  | 'OTHER';
+  | "BONAFIDE"
+  | "COURSE_COMPLETION"
+  | "TRANSFER"
+  | "CHARACTER"
+  | "OTHER";
 
 export type CertificateStatus =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'GENERATED';
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "GENERATED";
