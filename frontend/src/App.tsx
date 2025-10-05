@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
-import Signup from "./components/Signup";
+import Admin_Login from "./components/Admin_Login";
+import Student_Login from "./components/Student_Login";
 import AdminWrapper from "./components/AdminWrapper";
 import Home from "./components/admin/Home";
 import { Landing } from "./components/Landing";
@@ -11,7 +12,8 @@ const App = () => {
   return (
     <div>
       <Routes>
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/signup" element={<Admin_Login />} />
+        <Route path="/studentlogin" element={<Student_Login />} />
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
           <Route path="/admin/fee" element={<AdminFeesDashboard />} />
