@@ -6,6 +6,7 @@ import { Landing } from "./components/Landing";
 import AdminFeesDashboard from "./components/fee/AdminFeeDashboard";
 import AdminFeesPage from "./components/fee/AdminFeeDashboard";
 import AdminCertificatPage from "./components/certificate/AdminCertificatePage";
+import StudentCertificatePage from "./components/certificate/StudentCertificatePage";
 import StudentLayout from "./components/StudentWrapper";
 import StudentDashboardPage from "./components/student/StudentDashboardPage";
 import StudentFeePage from "./components/student/StudentFeePage";
@@ -25,6 +26,7 @@ const App = () => {
         <Route path="/student" element={<StudentLayout />}>
           <Route index element={<StudentDashboardPage />} />
           <Route path="fees" element={<StudentFeePage />} />
+          <Route path="certificates" element={<StudentCertificatePage />} />
         </Route>
       </Routes>
     </div>

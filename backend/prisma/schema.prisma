@@ -26,6 +26,7 @@ model User {
   principalDetails      PrincipalDetails?
   students              Student[]
   userRoles             UserRole[]
+  approvedCertificates Certificate[]
 
   @@map("users")
 }
@@ -134,6 +135,7 @@ model Student {
   requests                            NoDueRequest[]
   users                               User?           @relation(fields: [advisorId], references: [id])
   department                          Department      @relation(fields: [departmentId], references: [id])
+   certificates Certificate[]
 
   @@map("students")
 }
@@ -305,7 +307,39 @@ model Setting {
 
   @@map("settings")
 }
+model Certificate {
+  id              Int               @id @default(autoincrement()) @map("certificate_id")
+  studentId       Int               @map("student_id")
+  type            CertificateType
+  reason          String
+  status          CertificateStatus @default(PENDING)
+  requestedAt     DateTime          @default(now()) @map("requested_at")
+  approvedAt      DateTime?         @map("approved_at")
+  rejectedAt      DateTime?         @map("rejected_at")
+  approvedById    Int?              @map("approved_by_id")
+  rejectionReason String?
+  certificateUrl  String?           @map("certificate_url")
+  
+  // Relations
+  student     Student       @relation(fields: [studentId], references: [id])
+  approvedBy  User?         @relation(fields: [approvedById], references: [id])
+  
+  @@map("certificates")
+}
+enum CertificateType {
+  BONAFIDE
+  COURSE_COMPLETION
+  TRANSFER
+  CHARACTER
+  OTHER
+}
 
+enum CertificateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  GENERATED
+}
 enum UserStatus {
   active
   inactive
