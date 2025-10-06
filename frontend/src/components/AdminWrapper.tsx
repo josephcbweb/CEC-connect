@@ -1,6 +1,7 @@
 import Sidebar from "./sidebar/Sidebar";
 import { Outlet } from "react-router-dom";
 import SidebarPhone from "./sidebar/SidebarPhone";
+import StudentsPage from "./admin/StudentsPage";
 
 function AdminWrapper() {
   return (
