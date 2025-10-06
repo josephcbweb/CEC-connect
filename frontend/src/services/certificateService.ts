@@ -1,3 +1,4 @@
+// certificateService.ts
 import type { Certificate, CertificateRequest } from '../types/certificate';
 
 const API_BASE_URL = 'http://localhost:3000/api';
@@ -76,4 +77,41 @@ export const certificateService = {
     
     return response.json();
   },
+
+  // Student: Download certificate PDF - SIMPLIFIED VERSION
+  downloadCertificate: async (certificateId: number): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/certificates/${certificateId}/download`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to download certificate');
+    }
+
+    // Create blob and trigger download
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `certificate-${certificateId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  // Alternative: Get certificate blob for custom handling
+  getCertificateBlob: async (certificateId: number): Promise<Blob> => {
+    const response = await fetch(`${API_BASE_URL}/certificates/${certificateId}/download`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to download certificate');
+    }
+    
+    return response.blob();
+  },
+
+  // Get certificate URL for direct opening
+  getCertificateUrl: (certificateId: number): string => {
+    return `${API_BASE_URL}/certificates/${certificateId}/download`;
+  }
 };
