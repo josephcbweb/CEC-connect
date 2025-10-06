@@ -123,7 +123,7 @@ const StudentFeePage: React.FC = () => {
                       #{invoice.id}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800">
-                      {invoice.feeStructure?.name || "N/A"}
+                      {invoice.FeeStructure?.name || "N/A"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800">
                       {formatDate(invoice.dueDate)}
