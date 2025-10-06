@@ -1,43 +1,33 @@
-// Use type aliases instead of interfaces
-export type Certificate = {
+// types/certificate.ts
+export type CertificateType = 'BONAFIDE' | 'COURSE_COMPLETION' | 'TRANSFER' | 'CHARACTER' | 'OTHER';
+
+export type CertificateStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'GENERATED';
+
+export interface Certificate {
   id: number;
   studentId: number;
   type: CertificateType;
   reason: string;
   status: CertificateStatus;
   requestedAt: string;
-  approvedAt?: string;
-  rejectedAt?: string;
-  approvedById?: number;
-  rejectionReason?: string;
-  certificateUrl?: string;
-  student?: {
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  approvedById: number | null;
+  rejectionReason: string | null;
+  certificateUrl: string | null;
+  student: {
     name: string;
     admission_number: string;
+    program?: string;
+    dateOfBirth?: string;
     department?: {
       name: string;
     };
   };
-  approvedBy?: {
-    username: string;
-  };
-};
+}
 
-export type CertificateRequest = {
+export interface CertificateRequest {
   studentId: number;
   type: CertificateType;
   reason: string;
-};
-
-export type CertificateType =
-  | 'BONAFIDE'
-  | 'COURSE_COMPLETION'
-  | 'TRANSFER'
-  | 'CHARACTER'
-  | 'OTHER';
-
-export type CertificateStatus =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'GENERATED';
+}

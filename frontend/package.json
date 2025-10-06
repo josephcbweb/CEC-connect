@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "^4.1.11",
     "lucide-react": "^0.544.0",
     "motion": "^12.23.16",
+    "pdfkit": "^0.17.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.61.1",
