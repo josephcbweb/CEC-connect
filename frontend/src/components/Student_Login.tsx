@@ -56,6 +56,7 @@ const StudentLogin = () => {
     e.preventDefault();
     setMessage({ text: "", type: "" }); // Clear previous messages
     setIsLoading(true);
+    console.log("Sending login data:", inputValue);
 
     try {
       // 1. Send login credentials to the backend
@@ -69,6 +70,7 @@ const StudentLogin = () => {
       });
 
       const data = await response.json();
+      console.log(data);
 
       if (response.ok) {
         // 2. Login successful: Store JWT token in localStorage
