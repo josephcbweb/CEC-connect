@@ -30,21 +30,4 @@ export interface CertificateRequest {
   studentId: number;
   type: CertificateType;
   reason: string;
-<<<<<<< HEAD
 }
-=======
-};
-
-export type CertificateType =
-  | "BONAFIDE"
-  | "COURSE_COMPLETION"
-  | "TRANSFER"
-  | "CHARACTER"
-  | "OTHER";
-
-export type CertificateStatus =
-  | "PENDING"
-  | "APPROVED"
-  | "REJECTED"
-  | "GENERATED";
->>>>>>> 3db0e6507ee6b533567e050507891dd314d8468c
