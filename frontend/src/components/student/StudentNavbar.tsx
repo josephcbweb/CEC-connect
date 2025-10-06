@@ -16,14 +16,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   const location = useLocation();
 
   const [pathname, setPathName] = useState(location.pathname);
-  //   const getInitials = (name: string | undefined) => {
-  //     if (!name) return "..";
-  //     return name
-  //       .split(" ")
-  //       .map((n) => n[0])
-  //       .join("")
-  //       .toUpperCase();
-  //   };
+  
   useEffect(() => {
     setPathName(location.pathname);
     console.log(pathname);
@@ -58,13 +51,19 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
             >
               Fees
             </NavLink>
+            {/* ADD CERTIFICATE LINK */}
+            <NavLink
+              to="/student/certificates"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/certificates"
+                  ? "border-b-teal-600 text-teal-700"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Certificates
+            </NavLink>
             <span className="text-gray-500">|</span>
             <div className="flex items-center space-x-3">
-              {/* <div className="flex-shrink-0 h-10 w-10 bg-teal-100 rounded-full flex items-center justify-center">
-                <span className="text-teal-800 font-medium">
-                  {getInitials(studentData?.name)}
-                </span>
-              </div> */}
               <span className="text-gray-700 font-medium">
                 {studentData?.name || "Loading..."}
               </span>
@@ -130,6 +129,18 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
               }`}
             >
               Fees
+            </NavLink>
+            {/* ADD CERTIFICATE LINK FOR MOBILE */}
+            <NavLink
+              to="/student/certificates"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/certificates"
+                  ? "bg-teal-50 text-teal-700"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Certificates
             </NavLink>
             <div className="border-t border-gray-200 my-2"></div>
             <div className="px-3 py-2">

@@ -1,4 +1,3 @@
-// src/types/fee.ts
 export interface FeeDetails {
   id: number;
   feeType: string;

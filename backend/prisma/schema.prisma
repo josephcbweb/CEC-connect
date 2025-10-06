@@ -1,3 +1,4 @@
+// datasource and generator blocks should be at the top of your file
 generator client {
   provider = "prisma-client-js"
 }
@@ -26,6 +27,7 @@ model User {
   principalDetails      PrincipalDetails?
   students              Student[]
   userRoles             UserRole[]
+  approvedCertificates Certificate[]
 
   @@map("users")
 }
@@ -134,6 +136,7 @@ model Student {
   requests                            NoDueRequest[]
   users                               User?           @relation(fields: [advisorId], references: [id])
   department                          Department      @relation(fields: [departmentId], references: [id])
+   certificates Certificate[]
 
   @@map("students")
 }
@@ -237,7 +240,7 @@ model FeeDetails {
   amount    Decimal
   dueDate   DateTime  @map("due_date") @db.Date
   createdAt DateTime  @default(now()) @map("created_at")
-  student   Student   @relation(fields: [studentId], references: [id])
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
 
   @@map("fee_details")
@@ -253,7 +256,7 @@ model Invoice {
   status         InvoiceStatus @default(unpaid)
   createdAt      DateTime      @default(now()) @map("created_at")
   fee            FeeDetails    @relation(fields: [feeId], references: [id])
-  student        Student       @relation(fields: [studentId], references: [id])
+  student        Student       @relation(fields: [studentId], references: [id],onDelete: Cascade)
   payments       Payment[]
   FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
   feeStructureId Int?
@@ -269,7 +272,7 @@ model Payment {
   paymentMethod String        @map("payment_method")
   transactionId String        @unique @map("transaction_id")
   status        PaymentStatus @default(pending)
-  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id],onDelete: Cascade)
 
   @@map("payments")
 }
@@ -305,7 +308,39 @@ model Setting {
 
   @@map("settings")
 }
+model Certificate {
+  id              Int               @id @default(autoincrement()) @map("certificate_id")
+  studentId       Int               @map("student_id")
+  type            CertificateType
+  reason          String
+  status          CertificateStatus @default(PENDING)
+  requestedAt     DateTime          @default(now()) @map("requested_at")
+  approvedAt      DateTime?         @map("approved_at")
+  rejectedAt      DateTime?         @map("rejected_at")
+  approvedById    Int?              @map("approved_by_id")
+  rejectionReason String?
+  certificateUrl  String?           @map("certificate_url")
+  
+  // Relations
+  student     Student       @relation(fields: [studentId], references: [id])
+  approvedBy  User?         @relation(fields: [approvedById], references: [id])
+  
+  @@map("certificates")
+}
+enum CertificateType {
+  BONAFIDE
+  COURSE_COMPLETION
+  TRANSFER
+  CHARACTER
+  OTHER
+}
 
+enum CertificateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  GENERATED
+}
 enum UserStatus {
   active
   inactive
