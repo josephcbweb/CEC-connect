@@ -1,3 +1,4 @@
+// datasource and generator blocks should be at the top of your file
 generator client {
   provider = "prisma-client-js"
 }
@@ -253,6 +254,10 @@ model Invoice {
   dueDate        DateTime      @map("due_date") @db.Date
   status         InvoiceStatus @default(unpaid)
   createdAt      DateTime      @default(now()) @map("created_at")
+  fee            FeeDetails    @relation(fields: [feeId], references: [id])
+  student        Student       @relation(fields: [studentId], references: [id],onDelete: Cascade)
+  payments       Payment[]
+  FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
   feeStructureId Int?
   FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
   fee            FeeDetails    @relation(fields: [feeId], references: [id])
@@ -270,7 +275,7 @@ model Payment {
   paymentMethod String        @map("payment_method")
   transactionId String        @unique @map("transaction_id")
   status        PaymentStatus @default(pending)
-  invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id],onDelete: Cascade)
 
   @@map("payments")
 }

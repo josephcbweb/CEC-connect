@@ -4,9 +4,11 @@ import Student_Login from "./components/Student_Login";
 import AdminWrapper from "./components/AdminWrapper";
 import Home from "./components/admin/Home";
 import { Landing } from "./components/Landing";
+import StudentsPage from "./components/admin/StudentsPage";
 import AdminFeesDashboard from "./components/fee/AdminFeeDashboard";
 import AdminFeesPage from "./components/fee/AdminFeeDashboard";
 import AdminCertificatPage from "./components/certificate/AdminCertificatePage";
+import StudentDetails from "./components/admin/StudentDetails";
 import StudentCertificatePage from "./components/certificate/StudentCertificatePage";
 import StudentLayout from "./components/StudentWrapper";
 import StudentDashboardPage from "./components/student/StudentDashboardPage";
@@ -16,10 +18,13 @@ const App = () => {
   return (
     <div>
       <Routes>
+        <Route path="/" element={<Landing />}></Route>
         <Route path="/signup" element={<Admin_Login />} />
         <Route path="/studentlogin" element={<Student_Login />} />
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
+          <Route path="students" element={<StudentsPage />} />
+            <Route path="studentDetails/:id" element={<StudentDetails/>} />
           <Route path="/admin/fee" element={<AdminFeesDashboard />} />
           <Route path="/admin/fee" element={<AdminFeesPage />} />
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
