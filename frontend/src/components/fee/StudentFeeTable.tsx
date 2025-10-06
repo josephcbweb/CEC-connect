@@ -1,5 +1,7 @@
 import React from "react";
 import type { StudentFee, SortConfig } from "../../types";
+import { exportToPDF } from "../../utilities/feereport";
+import { Download } from "lucide-react";
 
 interface StudentFeeTableProps {
   students: StudentFee[];
@@ -66,12 +68,10 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex justify-between items-center gap-4 flex-wrap">
+          <h2 className="text-xl font-semibold text-gray-800">
+            Student Fees ({students.length})
+          </h2>
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-gray-800">
-              Student Fees ({students.length})
-            </h2>
-          </div>
-          <div className="flex gap-10 w-fit">
             <div className="relative w-full max-w-xs">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg
@@ -90,10 +90,8 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
               </div>
               <input
                 type="text"
-                name="search"
-                id="search"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                placeholder="Search by student name..."
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                placeholder="Search by name..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
               />
@@ -117,16 +115,24 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
               </svg>
               <span>Refresh</span>
             </button>
+            <button
+              onClick={() => exportToPDF(students)}
+              className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-md transition-colors duration-200 flex justify-around items-center gap-4 w-[65%]"
+            >
+              <span className="md:block hidden">Export PDF</span>
+              <span>
+                <Download size={20} />
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="pr-4 px-2 py-4">
+              <th scope="col" className="pr-4 pl-4 py-3">
                 <input
                   type="checkbox"
                   className="h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
@@ -181,7 +187,7 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
                   selectedStudents.includes(student.id) ? "bg-teal-50" : ""
                 }`}
               >
-                <td className="p-4">
+                <td className="pl-4 py-4">
                   <input
                     type="checkbox"
                     className="h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"

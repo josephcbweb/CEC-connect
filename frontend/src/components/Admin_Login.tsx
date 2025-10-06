@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 // Removed: import { Link } from "react-router-dom"; and import Logo from "../assets/logo.png";
 
 // Custom Alert/Message Box Component (replaces alert())
@@ -28,6 +29,7 @@ const MessageAlert = ({ message, type }: MessageAlertProps) => {
 
 // Main Login Component
 const Login = () => {
+  const navigate = useNavigate();
   // State updated to reflect backend requirement (email instead of name)
   const [inputValue, setInputValue] = useState({
     email: "",
@@ -76,6 +78,7 @@ const Login = () => {
           });
           // You would typically redirect the user to the dashboard here
           console.log("JWT Token Stored:", data.token);
+          navigate("/admin");
         } else {
           // Should not happen if backend is correct, but good for safety
           throw new Error("Login failed: Token not received.");
