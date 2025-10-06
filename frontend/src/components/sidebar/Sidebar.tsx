@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, LogOut, Menu, BookOpen } from "lucide-react";
 import { sidebarItems } from "../../utilities/sidebarItems";
 import SidebarItem from "./SideBarItem";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
   const [activeItem, setActiveItem] = useState(location.pathname);
+  const navigate = useNavigate();
   useEffect(() => {
     setActiveItem(location.pathname);
   }, [location.pathname]);
@@ -62,6 +63,10 @@ const Sidebar = () => {
             icon={LogOut}
             text="Logout"
             collapsed={collapsed}
+            onClick={() => {
+              localStorage.removeItem("authToken");
+              navigate("/signup");
+            }}
           />
         </div>
       </nav>

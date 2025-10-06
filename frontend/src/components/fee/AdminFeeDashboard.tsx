@@ -6,6 +6,8 @@ import StatsCards from "./StatsCards";
 import AssignFeeModal from "./AssignFeeModal";
 import StudentDetailsModal from "./StudentDetailsModal";
 import type { Student, StudentFee, SortConfig } from "../../types";
+import { jwtDecode } from "jwt-decode";
+import { useNavigate } from "react-router-dom";
 
 interface FilterConfig {
   department: string;
@@ -44,7 +46,16 @@ const AdminFeesDashboard: React.FC = () => {
     year: "",
     admission_quota: "",
   });
+  const navigate = useNavigate();
+  const token = localStorage.getItem("authToken");
 
+  if (!token) {
+    navigate("/signup");
+    return;
+  }
+  const tokenData = jwtDecode<{ userId: string; userName: string }>(token);
+
+  const adminId = tokenData.userId;
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
