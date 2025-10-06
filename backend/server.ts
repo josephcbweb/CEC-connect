@@ -4,6 +4,7 @@ import homeRoutes from "./routes/homeRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import studentRoutes from "./routes/studentRoutes";
 import feeRoutes from "./routes/feeRoutes";
+import authRouter from "./routes/authRouter";
 import cors from "cors";
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use("/admin",adminRoutes);
 
 app.use("/students", studentRoutes);
 app.use("/fee", feeRoutes);
+app.use("/auth", authRouter);
 app.listen(PORT, () => {
   console.log("Server listening on port: ", PORT);
 });
