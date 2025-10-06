@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import type { FeeStructure, Invoice, Student } from "../../types";
 
 // --- Type Definition ---
@@ -12,16 +12,17 @@ interface StudentNavbarProps {
 export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   studentData,
 }) => {
+  const navigate = useNavigate();
+
   const [isMobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const location = useLocation();
 
   const [pathname, setPathName] = useState(location.pathname);
-  
+
   useEffect(() => {
     setPathName(location.pathname);
     console.log(pathname);
   }, [location.pathname]);
-
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -68,7 +69,13 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
                 {studentData?.name || "Loading..."}
               </span>
             </div>
-            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            <button
+              onClick={() => {
+                localStorage.removeItem("studentAuthToken");
+                navigate("/studentlogin");
+              }}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
               Logout
             </button>
           </div>
