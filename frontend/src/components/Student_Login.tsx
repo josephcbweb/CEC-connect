@@ -42,7 +42,7 @@ const StudentLogin = () => {
   }>({ text: "", type: "" });
 
   // NOTE: This URL must be updated to match your running Node.js server address
-  const API_URL = "http://localhost:3000/auth/login";
+  const API_URL = "http://localhost:3000/auth/login-student";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
