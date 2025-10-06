@@ -1,22 +1,32 @@
 import React, { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import type { Student, Invoice, FeeStructure } from "../types";
 import { StudentNavbar } from "./student/StudentNavbar";
+import { jwtDecode } from "jwt-decode";
 
 // --- Type Definition ---
 interface StudentWithFees extends Student {
   invoices: (Invoice & { feeStructure: FeeStructure | null })[];
 }
-
 const StudentLayout: React.FC = () => {
+  const navigate = useNavigate();
+
   const [studentData, setStudentData] = useState<StudentWithFees | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const token = localStorage.getItem("studentAuthToken");
+  if (!token) {
+    navigate("/studentlogin");
+    return;
+  }
+  interface StudentJwtPayload {
+    userId: string;
+    [key: string]: any;
+  }
+  const tokenData = jwtDecode<StudentJwtPayload>(token);
 
+  const studentId = tokenData.userId;
   useEffect(() => {
-    // Lakshmi fetch the student id from the session and add it here.
-    const studentId = 20;
-
     const fetchStudentData = async () => {
       try {
         setLoading(true);

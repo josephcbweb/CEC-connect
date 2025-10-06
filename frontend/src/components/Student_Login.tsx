@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 // Removed: import { Link } from "react-router-dom"; and import Logo from "../assets/logo.png";
 
 // Custom Alert/Message Box Component (replaces alert())
@@ -33,7 +34,7 @@ const StudentLogin = () => {
     email: "",
     password: "",
   });
-
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   // State for displaying success/error messages to the user
   const [message, setMessage] = useState<{
@@ -81,6 +82,7 @@ const StudentLogin = () => {
             type: "success",
           });
           console.log("JWT Token Stored:", data.token);
+          navigate("/student");
         } else {
           throw new Error("Login failed: Token not received.");
         }
