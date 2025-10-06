@@ -16,6 +16,7 @@ const StudentCertificatePage: React.FC = () => {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState<number | null>(null); // ADD THIS
   const [formData, setFormData] = useState<CertificateRequest>({
     studentId: studentData.id,
     type: 'BONAFIDE',
@@ -46,11 +47,26 @@ const StudentCertificatePage: React.FC = () => {
       loadCertificates();
     } catch (error) {
       console.error('Error submitting request:', error);
+      alert('Failed to submit request. Please try again.'); // ADD ERROR FEEDBACK
     } finally {
       setLoading(false);
     }
   };
 
+// In StudentCertificatePage.tsx - replace the handleDownload function
+const handleDownload = async (certificateId: number) => {
+  setDownloadLoading(certificateId);
+  try {
+    // Use the backend URL directly
+    const downloadUrl = `http://localhost:3000/api/certificates/${certificateId}/download`;
+    window.open(downloadUrl, '_blank');
+  } catch (error) {
+    console.error('Error downloading certificate:', error);
+    alert('Failed to download certificate. Please try again.');
+  } finally {
+    setDownloadLoading(null);
+  }
+};
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'APPROVED': return 'bg-green-100 text-green-800';
@@ -67,6 +83,7 @@ const StudentCertificatePage: React.FC = () => {
     { value: 'CHARACTER', label: 'Character Certificate' },
     { value: 'OTHER', label: 'Other Certificate' }
   ];
+  
 
   return (
     <div className="p-6">
@@ -109,13 +126,15 @@ const StudentCertificatePage: React.FC = () => {
                   className="w-full p-2 border rounded-lg"
                   rows={4}
                   required
+                  placeholder="Please specify the purpose for this certificate..."
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                  disabled={loading}
                 >
                   Cancel
                 </button>
@@ -142,6 +161,7 @@ const StudentCertificatePage: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requested</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -151,7 +171,7 @@ const StudentCertificatePage: React.FC = () => {
                     {certificateTypeOptions.find(opt => opt.value === certificate.type)?.label || certificate.type}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-800">{certificate.reason}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">
+                  <td className="px-6 py-4 text-sm text-gray-800"> {/* FIXED: removed extra hyphen */}
                     {new Date(certificate.requestedAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-sm">
@@ -159,11 +179,27 @@ const StudentCertificatePage: React.FC = () => {
                       {certificate.status}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-sm">
+                    {certificate.status === 'GENERATED' && (
+                      <button
+                        onClick={() => handleDownload(certificate.id)}
+                        disabled={downloadLoading === certificate.id}
+                        className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 disabled:opacity-50 font-medium"
+                      >
+                        {downloadLoading === certificate.id ? 'Downloading...' : 'Download PDF'}
+                      </button>
+                    )}
+                    {certificate.status === 'REJECTED' && certificate.rejectionReason && (
+                      <div className="text-xs text-red-600 max-w-xs">
+                        Reason: {certificate.rejectionReason}
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
               {certificates.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-10 text-gray-500">
+                  <td colSpan={5} className="text-center py-10 text-gray-500">
                     You have no certificate requests yet.
                   </td>
                 </tr>

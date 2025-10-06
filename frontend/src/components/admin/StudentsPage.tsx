@@ -4,6 +4,9 @@ import StudentRow from "../StudentRow";
 import { Search } from "lucide-react";
 import DeleteBtn from "./DeleteBtn";
 import DeleteModal from "./DeleteModal";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import PdfModal from "./PdfModal";
 
 const baseURL = `http://localhost:3000`;
 
@@ -33,6 +36,8 @@ const StudentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [isPdfModalOpen, setisPdfModalOpen] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<number | "All">("All");
 
   const fetchStudents = async () => {
     try {
@@ -76,8 +81,109 @@ const StudentsPage = () => {
       selectedProgram !== "btech" ||
       selectedDepartment === "All" ||
       student.department === selectedDepartment;
-    return matchesName && matchesProgram && matchesDepartment;
+    const matchesYear =
+      selectedProgram === "All" ||
+      selectedYear === "All" ||
+      student.year === selectedYear;
+
+    return matchesName && matchesProgram && matchesDepartment && matchesYear;
   });
+
+  const handleGeneratePDF = (filters: {
+    program: string;
+    departments?: string[];
+    year?: number[];
+  }) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Header
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("College of Engineering, Cherthala", pageWidth / 2, 20, {
+      align: "center",
+    });
+
+    const timestamp = new Date().toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Report generated on: ${timestamp}`, pageWidth / 2, 28, {
+      align: "center",
+    });
+
+    let currentY = 35;
+
+    const departmentsToExport =
+      filters.departments && filters.departments.length > 0
+        ? filters.departments
+        : Array.from(
+            new Set(students.map((s) => s.department).filter(Boolean))
+          );
+
+    departmentsToExport.forEach((dept) => {
+      const filtered = students.filter((s) => {
+        return (
+          s.program === filters.program &&
+          s.department === dept &&
+          (!filters.year || filters.year.includes(s.year ?? 0))
+        );
+      });
+
+      if (filtered.length === 0) return;
+
+      // Department heading
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Department: ${dept}`, 14, currentY);
+      currentY += 6;
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [["S.No", "Name", "Program", "Department", "Year"]],
+        body: filtered.map((s, index) => [
+          (index + 1).toString(),
+          s.name,
+          s.program,
+          s.department,
+          s.year?.toString() ?? "",
+        ]),
+        styles: {
+          fontSize: 10,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.3,
+          cellPadding: 4,
+          valign: "middle",
+          textColor: [50, 50, 50],
+        },
+        headStyles: {
+          fillColor: [230, 230, 230],
+          textColor: [0, 0, 0],
+          fontStyle: "bold",
+          halign: "center",
+          lineColor: [180, 180, 180],
+          lineWidth: 0.5,
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245],
+        },
+        columnStyles: {
+          0: { halign: "center" },
+          4: { halign: "center" },
+        },
+        theme: "grid",
+        didDrawPage: (data) => {
+          if (data.cursor) {
+            currentY = data.cursor.y + 10;
+          }
+        },
+      });
+    });
+
+    doc.save(`student_report_${filters.program}.pdf`);
+  };
 
   const handleStudentSelect = (studentId: number) => {
     setSelectedStudentIds((prev) =>
@@ -148,8 +254,11 @@ const StudentsPage = () => {
             View,Edit and Manage all students
           </p>
         </div>
-        <button className="bg-teal-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3">
-          Export CSV
+        <button
+          className="bg-teal-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3"
+          onClick={() => setisPdfModalOpen(true)}
+        >
+          Export PDF
         </button>
       </div>
 
@@ -205,6 +314,27 @@ const StudentsPage = () => {
             </option>
           ))}
         </select>
+        {selectedProgram !== "All" && (
+          <select
+            value={selectedYear}
+            onChange={(e) =>
+              setSelectedYear(
+                e.target.value === "All" ? "All" : Number(e.target.value)
+              )
+            }
+            className="mb-6 max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 font-semibold"
+          >
+            <option value="All">All Years</option>
+            {(selectedProgram === "btech" ? [1, 2, 3, 4] : [1, 2]).map(
+              (year) => (
+                <option key={year} value={year}>
+                  Year {year}
+                </option>
+              )
+            )}
+          </select>
+        )}
+
         {selectedStudentIds.length > 0 && (
           <DeleteBtn onClick={handleDeleteClick} />
         )}
@@ -224,6 +354,8 @@ const StudentsPage = () => {
             />
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Name
+              {selectedStudentIds.length > 0 &&
+                <span className="text-violet-600">{` (${selectedStudentIds.length})`}</span>}
             </span>
           </div>
           <div className="w-3/12 px-2">
@@ -272,6 +404,13 @@ const StudentsPage = () => {
         onClose={handleCloseModal}
         onConfirm={handleConfirmDelete}
         studentCount={selectedStudentIds.length}
+      />
+      <PdfModal
+        isOpen={isPdfModalOpen}
+        onClose={() => setisPdfModalOpen(false)}
+        onGenerate={handleGeneratePDF}
+        programs={programs}
+        departments={departments}
       />
     </div>
   );
