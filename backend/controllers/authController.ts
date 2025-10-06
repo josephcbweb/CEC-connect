@@ -42,5 +42,31 @@ class AuthController{
         res.status(500).json({ message: "Error fetching user", error });
       }
     };
+    static StudentLogin = async(req: Request,res: Response)=> {
+      try{
+        console.log(req.body);
+      const {email,password} = req.body;
+      const token = await AuthService.loginStudent(email,password);
+      return res.status(200).json({token});
+      }catch(error){
+        console.log(error);
+        res.status(400).json({message: 'login failed',error});
+      }
+    };
+
+    static getStudentById = async(req: AuthenticatedRequest,res: Response)=>{
+      try{
+        const user = req.user;
+        const { id } = req.params;
+        if (!id) 
+        {
+            return res.status(400).json({ message: "User ID is required" });
+        }
+        const foundUser = await AuthService.findStudentById(parseInt(id));
+        return res.json({foundUser: foundUser,user: user});
+      }catch(error){
+        res.status(500).json({ message: "Error fetching user", error });
+      }
+    };
   }
   export default AuthController;

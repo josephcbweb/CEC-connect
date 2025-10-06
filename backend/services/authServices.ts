@@ -41,20 +41,6 @@ class AuthService{
     });
     return token;
   };
-
-  //Student
-
-  // static registerStudent = async (
-  //   username: string,email: string,password: string
-  // )=>{
-  //   const hashedpassword = await bcrypt.hash(password,10);
-  //   const user = await prisma.student.create({
-  //     data:{
-  //       email,password: hashedpassword,
-  //     },
-  //   });
-  //   return user;
-  // };
   static findStudentById = async(id: number)=>{
     return prisma.student.findUnique({
       where: {id: id}
