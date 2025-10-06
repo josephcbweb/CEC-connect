@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import homeRoutes from "./routes/homeRoutes";
 import studentRoutes from "./routes/studentRoutes";
 import feeRoutes from "./routes/feeRoutes";
+import certificateRoutes from './routes/certificateRoutes';
 import cors from "cors";
 dotenv.config();
 
@@ -14,6 +15,7 @@ app.use(cors());
 app.use("/", homeRoutes);
 app.use("/students", studentRoutes);
 app.use("/fee", feeRoutes);
+app.use("/api", certificateRoutes);
 app.listen(PORT, () => {
   console.log("Server listening on port: ", PORT);
 });

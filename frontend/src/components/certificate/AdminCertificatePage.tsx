@@ -19,6 +19,7 @@ const AdminCertificatePage: React.FC = () => {
     }
   };
 
+
   const handleApprove = async (id: number) => {
     try {
       // Remove adminId from the call - handle it in the backend via authentication
@@ -123,7 +124,7 @@ const AdminCertificatePage: React.FC = () => {
                     )}
                     {certificate.status === 'GENERATED' && certificate.certificateUrl && (
                       <a
-                        href={certificate.certificateUrl}
+                        href={`http://localhost:3000/api/certificates/${certificate.id}/download`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
@@ -131,7 +132,7 @@ const AdminCertificatePage: React.FC = () => {
                         Download
                       </a>
                     )}
-                  </div>
+                    </div>
                 </td>
               </tr>
             ))}

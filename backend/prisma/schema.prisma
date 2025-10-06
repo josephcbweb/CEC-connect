@@ -19,6 +19,7 @@ model User {
   updatedAt             DateTime          @updatedAt @map("updated_at")
   advisorDetails        AdvisorDetails?
   auditLogs             AuditLog[]
+  approvedCertificates  Certificate[]
   hodDetails            HodDetails?
   approvals             NoDueApproval[]
   receivedNotifications Notification[]    @relation("ReceivedNotifications")
@@ -26,7 +27,6 @@ model User {
   principalDetails      PrincipalDetails?
   students              Student[]
   userRoles             UserRole[]
-  approvedCertificates Certificate[]
 
   @@map("users")
 }
@@ -130,12 +130,12 @@ model Student {
   bank_branch                         String?
   admitted_category                   String?
   admission_quota                     String?
+  certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
   requests                            NoDueRequest[]
   users                               User?           @relation(fields: [advisorId], references: [id])
   department                          Department      @relation(fields: [departmentId], references: [id])
-   certificates Certificate[]
 
   @@map("students")
 }
@@ -222,12 +222,11 @@ model NoDueApproval {
 }
 
 model FeeStructure {
-  id          Int     @id @default(autoincrement()) @map("fee_structure_id")
-  name        String  @unique @map("fee_name") // e.g., "Annual Tuition Fee 2024"
+  id          Int       @id @default(autoincrement()) @map("fee_structure_id")
+  name        String    @unique @map("fee_name")
   description String?
   amount      Decimal
-
-  invoices Invoice[]
+  invoices    Invoice[]
 
   @@map("fee_structures")
 }
@@ -239,7 +238,7 @@ model FeeDetails {
   amount    Decimal
   dueDate   DateTime  @map("due_date") @db.Date
   createdAt DateTime  @default(now()) @map("created_at")
-  student   Student   @relation(fields: [studentId], references: [id])
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
 
   @@map("fee_details")
@@ -254,11 +253,11 @@ model Invoice {
   dueDate        DateTime      @map("due_date") @db.Date
   status         InvoiceStatus @default(unpaid)
   createdAt      DateTime      @default(now()) @map("created_at")
-  fee            FeeDetails    @relation(fields: [feeId], references: [id])
-  student        Student       @relation(fields: [studentId], references: [id])
-  payments       Payment[]
-  FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
   feeStructureId Int?
+  FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
+  fee            FeeDetails    @relation(fields: [feeId], references: [id])
+  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  payments       Payment[]
 
   @@map("invoices")
 }
@@ -271,7 +270,7 @@ model Payment {
   paymentMethod String        @map("payment_method")
   transactionId String        @unique @map("transaction_id")
   status        PaymentStatus @default(pending)
-  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
@@ -307,6 +306,7 @@ model Setting {
 
   @@map("settings")
 }
+
 model Certificate {
   id              Int               @id @default(autoincrement()) @map("certificate_id")
   studentId       Int               @map("student_id")
@@ -319,13 +319,12 @@ model Certificate {
   approvedById    Int?              @map("approved_by_id")
   rejectionReason String?
   certificateUrl  String?           @map("certificate_url")
-  
-  // Relations
-  student     Student       @relation(fields: [studentId], references: [id])
-  approvedBy  User?         @relation(fields: [approvedById], references: [id])
-  
+  approvedBy      User?             @relation(fields: [approvedById], references: [id])
+  student         Student           @relation(fields: [studentId], references: [id])
+
   @@map("certificates")
 }
+
 enum CertificateType {
   BONAFIDE
   COURSE_COMPLETION
@@ -340,6 +339,7 @@ enum CertificateStatus {
   REJECTED
   GENERATED
 }
+
 enum UserStatus {
   active
   inactive
