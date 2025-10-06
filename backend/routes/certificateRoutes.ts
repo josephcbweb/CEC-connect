@@ -1,3 +1,4 @@
+// certificateRoutes.ts
 import express from 'express';
 import { certificateController } from '../controllers/certificateController';
 
@@ -11,5 +12,8 @@ router.get('/student/certificates/:studentId', certificateController.getStudentC
 router.get('/admin/certificates', certificateController.getAllCertificates);
 router.put('/admin/certificates/:id', certificateController.updateCertificateStatus);
 router.post('/admin/certificates/:id/generate', certificateController.generateCertificate);
+
+// Download route - FIXED: use :id instead of :certificateId
+router.get('/certificates/:id/download', certificateController.downloadCertificate);
 
 export default router;
