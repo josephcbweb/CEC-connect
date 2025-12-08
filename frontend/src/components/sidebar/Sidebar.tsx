@@ -59,7 +59,7 @@ const Sidebar = () => {
         <div className="px-3">
           <hr className="my-2 border-gray-300" />
           <SidebarItem
-            route=""
+            route="/signup"
             icon={LogOut}
             text="Logout"
             collapsed={collapsed}

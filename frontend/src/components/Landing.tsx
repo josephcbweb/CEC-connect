@@ -169,7 +169,6 @@ export const Landing: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Enhanced Animated Background */}
       <canvas
         ref={canvasRef}
         className="fixed inset-0 pointer-events-none z-0"
@@ -201,7 +200,7 @@ export const Landing: React.FC = () => {
             </div>
 
             {/* Desktop Menu */}
-            <div className="hidden lg:flex items-center space-x-10">
+            <div className="hidden lg:flex items-center space-x-10 absolute mx-auto w-full justify-center">
               {navItems.map((item) => (
                 <button
                   key={item.id}
@@ -345,7 +344,7 @@ export const Landing: React.FC = () => {
               </div>
 
               {/* Scroll Indicator */}
-              <div className="mt-24 animate-bounce">
+              <div className="mt-24 animate-bounce w-full flex justify-center">
                 <div className="w-6 h-10 border-2 border-gray-400 rounded-full flex justify-center">
                   <div className="w-1 h-3 bg-gray-400 rounded-full mt-2"></div>
                 </div>

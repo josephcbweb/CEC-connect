@@ -14,19 +14,20 @@ const StudentLayout: React.FC = () => {
   const [studentData, setStudentData] = useState<StudentWithFees | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const token = localStorage.getItem("studentAuthToken");
-  if (!token) {
-    navigate("/studentlogin");
-    return;
-  }
-  interface StudentJwtPayload {
-    userId: string;
-    [key: string]: any;
-  }
-  const tokenData = jwtDecode<StudentJwtPayload>(token);
 
-  const studentId = tokenData.userId;
   useEffect(() => {
+    const token = localStorage.getItem("studentAuthToken");
+    if (!token) {
+      navigate("/studentlogin");
+      return;
+    }
+    interface StudentJwtPayload {
+      userId: string;
+      [key: string]: any;
+    }
+    const tokenData = jwtDecode<StudentJwtPayload>(token);
+
+    const studentId = tokenData.userId;
     const fetchStudentData = async () => {
       try {
         setLoading(true);
