@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import type { Certificate, CertificateRequest, CertificateType } from '../../types/certificate';
-import { certificateService } from '../../services/certificateService';
+import React, { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
+import type {
+  Certificate,
+  CertificateRequest,
+  CertificateType,
+} from "../../types/certificate";
+import { certificateService } from "../../services/certificateService";
 
 interface OutletContextType {
   studentData: {
@@ -19,8 +23,8 @@ const StudentCertificatePage: React.FC = () => {
   const [downloadLoading, setDownloadLoading] = useState<number | null>(null); // ADD THIS
   const [formData, setFormData] = useState<CertificateRequest>({
     studentId: studentData.id,
-    type: 'BONAFIDE',
-    reason: ''
+    type: "BONAFIDE",
+    reason: "",
   });
 
   useEffect(() => {
@@ -29,66 +33,73 @@ const StudentCertificatePage: React.FC = () => {
 
   const loadCertificates = async () => {
     try {
-      const data = await certificateService.getStudentCertificates(studentData.id);
+      const data = await certificateService.getStudentCertificates(
+        studentData.id
+      );
       setCertificates(data);
     } catch (error) {
-      console.error('Error loading certificates:', error);
+      console.error("Error loading certificates:", error);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       await certificateService.submitRequest(formData);
       setShowModal(false);
-      setFormData({ studentId: studentData.id, type: 'BONAFIDE', reason: '' });
+      setFormData({ studentId: studentData.id, type: "BONAFIDE", reason: "" });
       loadCertificates();
     } catch (error) {
-      console.error('Error submitting request:', error);
-      alert('Failed to submit request. Please try again.'); // ADD ERROR FEEDBACK
+      console.error("Error submitting request:", error);
+      alert("Failed to submit request. Please try again."); // ADD ERROR FEEDBACK
     } finally {
       setLoading(false);
     }
   };
 
-// In StudentCertificatePage.tsx - replace the handleDownload function
-const handleDownload = async (certificateId: number) => {
-  setDownloadLoading(certificateId);
-  try {
-    // Use the backend URL directly
-    const downloadUrl = `http://localhost:3000/api/certificates/${certificateId}/download`;
-    window.open(downloadUrl, '_blank');
-  } catch (error) {
-    console.error('Error downloading certificate:', error);
-    alert('Failed to download certificate. Please try again.');
-  } finally {
-    setDownloadLoading(null);
-  }
-};
+  // In StudentCertificatePage.tsx - replace the handleDownload function
+  const handleDownload = async (certificateId: number) => {
+    setDownloadLoading(certificateId);
+    try {
+      // Use the backend URL directly
+      const downloadUrl = `http://localhost:3000/api/certificates/${certificateId}/download`;
+      window.open(downloadUrl, "_blank");
+    } catch (error) {
+      console.error("Error downloading certificate:", error);
+      alert("Failed to download certificate. Please try again.");
+    } finally {
+      setDownloadLoading(null);
+    }
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'APPROVED': return 'bg-green-100 text-green-800';
-      case 'REJECTED': return 'bg-red-100 text-red-800';
-      case 'GENERATED': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-yellow-100 text-yellow-800';
+      case "APPROVED":
+        return "bg-green-100 text-green-800";
+      case "REJECTED":
+        return "bg-red-100 text-red-800";
+      case "GENERATED":
+        return "bg-blue-100 text-blue-800";
+      default:
+        return "bg-yellow-100 text-yellow-800";
     }
   };
 
   const certificateTypeOptions: { value: CertificateType; label: string }[] = [
-    { value: 'BONAFIDE', label: 'Bonafide Certificate' },
-    { value: 'COURSE_COMPLETION', label: 'Course Completion Certificate' },
-    { value: 'TRANSFER', label: 'Transfer Certificate' },
-    { value: 'CHARACTER', label: 'Character Certificate' },
-    { value: 'OTHER', label: 'Other Certificate' }
+    { value: "BONAFIDE", label: "Bonafide Certificate" },
+    { value: "COURSE_COMPLETION", label: "Course Completion Certificate" },
+    { value: "TRANSFER", label: "Transfer Certificate" },
+    { value: "CHARACTER", label: "Character Certificate" },
+    { value: "OTHER", label: "Other Certificate" },
   ];
-  
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Certificate Requests</h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          My Certificate Requests
+        </h1>
         <button
           onClick={() => setShowModal(true)}
           className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 font-medium"
@@ -99,19 +110,26 @@ const handleDownload = async (certificateId: number) => {
 
       {/* Certificate Request Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-gray-200 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-96">
             <h2 className="text-xl font-bold mb-4">New Certificate Request</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Certificate Type</label>
+                <label className="block text-sm font-medium mb-2">
+                  Certificate Type
+                </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as CertificateType })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      type: e.target.value as CertificateType,
+                    })
+                  }
                   className="w-full p-2 border rounded-lg"
                   required
                 >
-                  {certificateTypeOptions.map(option => (
+                  {certificateTypeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -122,7 +140,9 @@ const handleDownload = async (certificateId: number) => {
                 <label className="block text-sm font-medium mb-2">Reason</label>
                 <textarea
                   value={formData.reason}
-                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, reason: e.target.value })
+                  }
                   className="w-full p-2 border rounded-lg"
                   rows={4}
                   required
@@ -143,7 +163,7 @@ const handleDownload = async (certificateId: number) => {
                   disabled={loading}
                   className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 disabled:opacity-50 font-medium"
                 >
-                  {loading ? 'Submitting...' : 'Submit Request'}
+                  {loading ? "Submitting..." : "Submit Request"}
                 </button>
               </div>
             </form>
@@ -157,43 +177,66 @@ const handleDownload = async (certificateId: number) => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requested</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Reason
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Requested
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {certificates.map(certificate => (
+              {certificates.map((certificate) => (
                 <tr key={certificate.id}>
                   <td className="px-6 py-4 text-sm text-gray-800">
-                    {certificateTypeOptions.find(opt => opt.value === certificate.type)?.label || certificate.type}
+                    {certificateTypeOptions.find(
+                      (opt) => opt.value === certificate.type
+                    )?.label || certificate.type}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{certificate.reason}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800"> {/* FIXED: removed extra hyphen */}
+                  <td className="px-6 py-4 text-sm text-gray-800">
+                    {certificate.reason}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-800">
+                    {" "}
+                    {/* FIXED: removed extra hyphen */}
                     {new Date(certificate.requestedAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(certificate.status)}`}>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                        certificate.status
+                      )}`}
+                    >
                       {certificate.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {certificate.status === 'GENERATED' && (
+                    {certificate.status === "GENERATED" && (
                       <button
                         onClick={() => handleDownload(certificate.id)}
                         disabled={downloadLoading === certificate.id}
                         className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 disabled:opacity-50 font-medium"
                       >
-                        {downloadLoading === certificate.id ? 'Downloading...' : 'Download PDF'}
+                        {downloadLoading === certificate.id
+                          ? "Downloading..."
+                          : "Download PDF"}
                       </button>
                     )}
-                    {certificate.status === 'REJECTED' && certificate.rejectionReason && (
-                      <div className="text-xs text-red-600 max-w-xs">
-                        Reason: {certificate.rejectionReason}
-                      </div>
-                    )}
+                    {certificate.status === "REJECTED" &&
+                      certificate.rejectionReason && (
+                        <div className="text-xs text-red-600 max-w-xs">
+                          Reason: {certificate.rejectionReason}
+                        </div>
+                      )}
                   </td>
                 </tr>
               ))}

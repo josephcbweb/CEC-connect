@@ -86,7 +86,6 @@ const Login = () => {
       } else {
         // 3. Login failed: Display error message from the backend
         const errorMessage =
-          data.message ||
           "Authentication failed. Please check your credentials.";
         setMessage({ text: errorMessage, type: "error" });
       }
