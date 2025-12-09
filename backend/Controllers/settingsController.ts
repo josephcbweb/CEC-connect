@@ -1,13 +1,14 @@
-import { Prisma, PrismaClient } from "@prisma/client";
-import { Value } from "@prisma/client-runtime-utils";
 import { Request, Response } from "express";
-
-const prisma = new PrismaClient();
+import { prisma } from "../lib/prisma";
 
 export const toggleSettings = async (req: Request, res: Response) => {
   try {
     const { name, value } = req.body;
-    const setting = await prisma.setting.findUnique({ where: { key: name } });
+    const setting = await prisma.setting.upsert({
+      where: { key: name },
+      update: { key: name, enabled: value },
+      create: { key: name, enabled: value },
+    });
     if (setting) {
       setting.value = value;
     }

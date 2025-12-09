@@ -1,10 +1,16 @@
-const { PrismaClient, Prisma } = require("@prisma/client");
+
 const bcrypt = require("bcrypt");
 const fs = require("fs");
 const csv = require("csv-parser");
 const path = require("path");
+const { PrismaClient } = require("../generated/prisma/client");
+const { PrismaPg } = require("@prisma/adapter-pg");
+require("dotenv/config");
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
+
 
 // Helper function to correctly parse dates like "DD/MM/YYYY"
 function parseCustomDate(dateString) {
@@ -106,7 +112,7 @@ async function main() {
             department: {
               connect: { id: department.id },
             },
-            password: "", // Default value as requested
+            password: "$2a$10$Cvpbg91lGoW83LCUlOTaO.sqclvlvYiAxTnO5e1yLmMXX.MM4q.Uy", // Default value as requested
             program: "btech", // Default value
             status: "approved", // Default value
             email: row.studentEmail,

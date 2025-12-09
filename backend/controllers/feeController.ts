@@ -1,7 +1,6 @@
-import { PrismaClient, InvoiceStatus } from "@prisma/client";
 import { Request, Response } from "express";
-
-const prisma = new PrismaClient();
+import { prisma } from "../lib/prisma";
+import { InvoiceStatus } from "../generated/prisma/enums";
 
 // --- Fee Structure CRUD ---
 
