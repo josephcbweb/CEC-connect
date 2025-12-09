@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
+import { prisma } from "../lib/prisma";
 
-const prisma = new PrismaClient();
 export const getStudents = async (req: Request, res: Response) => {
   const result = await prisma.student.findMany({
     include: {

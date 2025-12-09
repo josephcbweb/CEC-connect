@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-import { Request, Response } from 'express';
-
-const prisma = new PrismaClient();
+import { Request, Response } from "express";
+import { prisma } from "../lib/prisma";
 
 export const fetchStats = async (req: Request, res: Response) => {
   try {
@@ -22,11 +20,10 @@ export const fetchStats = async (req: Request, res: Response) => {
       count: dept.students.length,
     }));
 
-    res.json( [
-      { title: 'Total Students', count: totalStudents },
+    res.json([
+      { title: "Total Students", count: totalStudents },
       ...departmentCounts,
     ]);
-
   } catch (error) {
     console.error("Failed to fetch student stats:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -69,7 +66,8 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
         id: student.id,
         name: student.name,
         program: student.program,
-        department: student.department?.department_code || student.department?.name,
+        department:
+          student.department?.department_code || student.department?.name,
         year,
       };
     });
@@ -91,7 +89,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
 
 export const deleteStudents = async (req: Request, res: Response) => {
   const { ids } = req.body;
-  
+
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: "Invalid or empty ID list." });
   }
@@ -117,7 +115,7 @@ const calculateYear = (admissionDate: Date | null): number | null => {
   if (!admissionDate) return null;
 
   const now = new Date();
-  const yearsElapsed = (now.getFullYear() - admissionDate.getFullYear())+1;
+  const yearsElapsed = now.getFullYear() - admissionDate.getFullYear() + 1;
 
   // Adjust if current month is before admission month
   const hasCompletedYear =
@@ -126,7 +124,6 @@ const calculateYear = (admissionDate: Date | null): number | null => {
 
   return hasCompletedYear ? yearsElapsed + 1 : yearsElapsed;
 };
-
 
 export const getStudentDetails = async (req: Request, res: Response) => {
   const studentId = parseInt(req.params.id);
