@@ -13,6 +13,7 @@ import StudentCertificatePage from "./components/certificate/StudentCertificateP
 import StudentLayout from "./components/StudentWrapper";
 import StudentDashboardPage from "./components/student/StudentDashboardPage";
 import StudentFeePage from "./components/student/StudentFeePage";
+import Settings from "./components/settings/Settings";
 
 const App = () => {
   return (
@@ -24,10 +25,11 @@ const App = () => {
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
           <Route path="students" element={<StudentsPage />} />
-            <Route path="studentDetails/:id" element={<StudentDetails/>} />
+          <Route path="studentDetails/:id" element={<StudentDetails />} />
           <Route path="/admin/fee" element={<AdminFeesDashboard />} />
           <Route path="/admin/fee" element={<AdminFeesPage />} />
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
+          <Route path="/admin/settings" element={<Settings />} />
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>
