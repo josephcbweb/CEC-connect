@@ -1,6 +1,7 @@
 // datasource and generator blocks should be at the top of your file
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -299,9 +300,10 @@ model AuditLog {
 }
 
 model Setting {
-  id    Int    @id @default(autoincrement()) @map("setting_id")
-  key   String @unique
-  value String
+  id      Int     @id @default(autoincrement()) @map("setting_id")
+  key     String  @unique
+  value   String
+  enabled Boolean @default(false)
 
   @@map("settings")
 }

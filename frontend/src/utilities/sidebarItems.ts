@@ -8,6 +8,7 @@ import {
   BookOpen,
   UserCog,
   Settings,
+  Settings2Icon,
 } from "lucide-react";
 import { FaMoneyBill } from "react-icons/fa";
 
@@ -21,5 +22,6 @@ export const sidebarItems = [
   { icon: GraduationCap, text: "Faculty", route: "/faculty" },
   { icon: BookCopy, text: "Classes", route: "/classes" },
   { icon: UserCog, text: "Staff & Roles", route: "/staff-roles" },
+  { icon: Settings2Icon, text: "Settings", route: "/settings" },
   // { icon: Settings, text: "Settings", route: "/settings" },
 ];
