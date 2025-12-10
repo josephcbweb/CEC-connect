@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { CertificateType, PrismaClient } from "@prisma/client";
 import PDFDocument from "pdfkit";
-import { certificateTemplates } from "./certificateTemplates";
+import { certificateTemplates } from './certificateTemplates';
+import { CertificateType } from "../generated/prisma/enums";
+import { prisma } from "../lib/prisma";
 
-const prisma = new PrismaClient();
+
 
 // Proper type definition
 type CertificateWithStudent = {
