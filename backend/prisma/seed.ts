@@ -89,6 +89,59 @@ async function main(): Promise<void> {
   });
 
   console.log("✅ Admin user and roles created:", adminUser.username);
+  // In your seed.ts, after creating roles
+// Add these permissions
+console.log("🔑 Creating permissions...");
+
+const permissions = [
+  // Dashboard permissions
+  { name: 'view_dashboard', moduleName: 'dashboard', action: 'read', description: 'View dashboard' },
+  
+  // Student permissions
+  { name: 'view_students', moduleName: 'students', action: 'read', description: 'View students' },
+  { name: 'create_students', moduleName: 'students', action: 'create', description: 'Create students' },
+  { name: 'update_students', moduleName: 'students', action: 'update', description: 'Update students' },
+  { name: 'delete_students', moduleName: 'students', action: 'delete', description: 'Delete students' },
+  
+  // Fee permissions
+  { name: 'view_fees', moduleName: 'fees', action: 'read', description: 'View fees' },
+  { name: 'manage_fees', moduleName: 'fees', action: 'manage', description: 'Manage fees' },
+  
+  // Certificate permissions
+  { name: 'view_certificates', moduleName: 'certificates', action: 'read', description: 'View certificates' },
+  { name: 'approve_certificates', moduleName: 'certificates', action: 'approve', description: 'Approve certificates' },
+  
+  // User/Role permissions
+  { name: 'view_users', moduleName: 'users', action: 'read', description: 'View users' },
+  { name: 'manage_users', moduleName: 'users', action: 'manage', description: 'Manage users' },
+  { name: 'view_roles', moduleName: 'roles', action: 'read', description: 'View roles' },
+  { name: 'manage_roles', moduleName: 'roles', action: 'manage', description: 'Manage roles' },
+  { name: 'view_permissions', moduleName: 'permissions', action: 'read', description: 'View permissions' },
+  { name: 'manage_permissions', moduleName: 'permissions', action: 'manage', description: 'Manage permissions' },
+  
+  // Settings permissions
+  { name: 'view_settings', moduleName: 'settings', action: 'read', description: 'View settings' },
+  { name: 'manage_settings', moduleName: 'settings', action: 'manage', description: 'Manage settings' },
+];
+
+for (const perm of permissions) {
+  await prisma.permission.create({
+    data: perm
+  });
+}
+
+// Assign all permissions to admin role
+const allPermissions = await prisma.permission.findMany();
+for (const perm of allPermissions) {
+  await prisma.rolePermission.create({
+    data: {
+      roleId: adminRole.id,
+      permissionId: perm.id
+    }
+  });
+}
+
+console.log(`✅ Created ${permissions.length} permissions`);
 
   // 3. Read all data from CSV into memory first
   const filePath = path.join(__dirname, "..", "btech-students.csv");
@@ -271,6 +324,7 @@ async function main(): Promise<void> {
     `\n✨ Import complete. Success: ${successCount}, Failures: ${errorCount}`
   );
 }
+
 
 // ---------- Run ----------
 
