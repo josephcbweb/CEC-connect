@@ -13,6 +13,11 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   studentData,
 }) => {
   const navigate = useNavigate();
+  const handleProfileClick = () => {
+    if (studentData?.id) {
+      navigate(`/student/profile/${studentData.id}`);
+    }
+  };
 
   const [isMobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const location = useLocation();
@@ -64,11 +69,21 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
               Certificates
             </NavLink>
             <span className="text-gray-500">|</span>
-            <div className="flex items-center space-x-3">
-              <span className="text-gray-700 font-medium">
+            <div
+              onClick={handleProfileClick}
+              className="flex items-center space-x-2 cursor-pointer group"
+            >
+              {/* Profile Icon */}
+              <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white text-sm font-semibold group-hover:bg-teal-700 transition">
+                {studentData?.name?.charAt(0).toUpperCase() || "S"}
+              </div>
+
+              {/* Student Name */}
+              <span className="text-gray-700 font-medium group-hover:text-teal-700 transition">
                 {studentData?.name || "Loading..."}
               </span>
             </div>
+
             <button
               onClick={() => {
                 localStorage.removeItem("studentAuthToken");

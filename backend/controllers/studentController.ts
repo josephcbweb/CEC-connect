@@ -125,3 +125,61 @@ export const getStudentProfile = async (req:Request,res:Response) => {
     return res.status(500).json({error:`Failed to fetch student details`});
   }
 }
+
+export const updateStudentProfile = async (req: Request, res: Response) => {
+  try {
+    const studentId = Number(req.params.id);
+    console.log("Hello");
+    console.log("BODY:", req.body);
+    if (isNaN(studentId)) {
+      return res.status(400).json({ message: "Invalid student ID" });
+    }
+
+    const {
+      email,
+      phone,
+      permanentAddress,
+      contactAddress,
+      fatherPhone,
+      motherPhone,
+      guardianAddress,
+      accountNumber,
+      bankName,
+      bankBranch,
+    } = req.body;
+
+    const updatedStudent = await prisma.student.update({
+      where: { id: studentId },
+      data: {
+        email: email || undefined,
+        student_phone_number: phone || undefined,
+        permanent_address: permanentAddress || undefined,
+        contact_address: contactAddress || undefined,
+        father_phone_number: fatherPhone || undefined,
+        mother_phone_number: motherPhone || undefined,
+        local_guardian_address: guardianAddress || undefined,
+        account_number: accountNumber || undefined,
+        bank_name: bankName || undefined,
+        bank_branch: bankBranch || undefined,
+      },
+    });
+
+    res.json({
+      message: "Profile updated successfully",
+      student: updatedStudent,
+    });
+  } catch (error: any) {
+    console.error(error);
+
+    // Prisma unique constraint (email / phone / account number)
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        message: `Duplicate value for field: ${error.meta?.target}`,
+      });
+    }
+
+    res.status(500).json({
+      message: "Failed to update profile",
+    });
+  }
+};

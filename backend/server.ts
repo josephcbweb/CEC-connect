@@ -6,7 +6,7 @@ import studentRoutes from "./routes/studentRoutes";
 import feeRoutes from "./routes/feeRoutes";
 import certificateRoutes from "./routes/certificateRoutes";
 import authRouter from "./routes/authRouter";
-import departmentRoutes from "./routes/adminRoutes";
+import departmentRoutes from "./routes/departmentRoutes";
 import admissionRoutes from "./routes/admissionRoutes";
 import cors from "cors";
 dotenv.config();
