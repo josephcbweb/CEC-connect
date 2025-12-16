@@ -30,6 +30,9 @@ const MessageAlert = ({ message, type }: MessageAlertProps) => {
 // Main Login Component
 const Login = () => {
   const navigate = useNavigate();
+  const handleBack = () => {
+    navigate("/");
+  };
   // State updated to reflect backend requirement (email instead of name)
   const [inputValue, setInputValue] = useState({
     email: "",
@@ -112,6 +115,12 @@ const Login = () => {
         <div className="flex flex-col md:flex-row w-full max-w-6xl shadow-2xl rounded-2xl overflow-hidden bg-white">
           {/* Left Side - Form */}
           <div className="flex flex-col items-center justify-center p-8 md:p-12 w-full md:w-1/2">
+            <button
+              onClick={handleBack}
+              className="self-start mb-6 flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#031D44] transition-colors hover:cursor-pointer"
+            >
+              ← Back
+            </button>
             {/* Header - Use a div instead of Link to remove router dependency */}
             <div className="w-full text-left mb-8">
               <div
