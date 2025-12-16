@@ -145,10 +145,10 @@ model Department {
   id              Int              @id @default(autoincrement()) @map("department_id")
   name            String           @unique @map("department_name")
   hodId           Int?             @unique @map("hod_id")
+  status          DepartmentStatus @default(ACTIVE)
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
   department_code String           @unique
-  status          DepartmentStatus @default(ACTIVE)
   hodDetails      HodDetails?
   noDues          NoDue[]
   students        Student[]
@@ -339,6 +339,11 @@ model Certificate {
   student         Student           @relation(fields: [studentId], references: [id])
 
   @@map("certificates")
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  INACTIVE
 }
 
 enum CertificateType {
