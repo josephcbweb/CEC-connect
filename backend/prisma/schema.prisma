@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -47,10 +41,12 @@ model Role {
 }
 
 model Permission {
-  id          Int              @id @default(autoincrement()) @map("permission_id")
-  name        String           @unique @map("permission_name")
-  description String?
-  roles       RolePermission[]
+  id              Int              @id @default(autoincrement()) @map("permission_id")
+  name            String           @unique @map("permission_name")
+  description     String?
+  moduleName      String           @map("module")
+  action          String
+  rolePermissions RolePermission[]
 
   @@map("permissions")
 }
@@ -146,17 +142,31 @@ model Student {
 }
 
 model Department {
-  id              Int         @id @default(autoincrement()) @map("department_id")
-  name            String      @unique @map("department_name")
-  hodId           Int?        @unique @map("hod_id")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
-  department_code String      @unique
+  id              Int              @id @default(autoincrement()) @map("department_id")
+  name            String           @unique @map("department_name")
+  hodId           Int?             @unique @map("hod_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  department_code String           @unique
+  status          DepartmentStatus @default(ACTIVE)
   hodDetails      HodDetails?
   noDues          NoDue[]
   students        Student[]
 
   @@map("departments")
+}
+
+model AdmissionWindow {
+  id          Int      @id @default(autoincrement())
+  program     Program
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  isOpen      Boolean  @default(true) @map("is_open")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("admission_windows")
 }
 
 model HodDetails {
@@ -258,11 +268,11 @@ model Invoice {
   dueDate        DateTime      @map("due_date") @db.Date
   status         InvoiceStatus @default(unpaid)
   createdAt      DateTime      @default(now()) @map("created_at")
+  feeStructureId Int?
+  FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
   fee            FeeDetails    @relation(fields: [feeId], references: [id])
   student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   payments       Payment[]
-  FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
-  feeStructureId Int?
 
   @@map("invoices")
 }
@@ -420,4 +430,11 @@ enum AdmissionType {
 enum Program {
   btech
   mca
+  mtech
+  mba
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  INACTIVE
 }
