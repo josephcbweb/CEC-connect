@@ -5,7 +5,7 @@ import {
   fetchAllStudents,
   fetchStats,
   getStudentDetails,
-} from "../Controllers/adminController";
+} from "../controllers/adminController";
 
 const router = express.Router();
 
