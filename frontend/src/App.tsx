@@ -14,6 +14,8 @@ import StudentLayout from "./components/StudentWrapper";
 import StudentDashboardPage from "./components/student/StudentDashboardPage";
 import StudentFeePage from "./components/student/StudentFeePage";
 import Settings from "./components/settings/Settings";
+import AdmissionsPage from "./components/admin/admissions/AdmissionsPage";
+import AdmissionSettings from "./components/settings/AdmissionSettings";
 
 const App = () => {
   return (
@@ -30,6 +32,8 @@ const App = () => {
           <Route path="/admin/fee" element={<AdminFeesPage />} />
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
           <Route path="/admin/settings" element={<Settings />} />
+          <Route path="admissions" element={<AdmissionsPage />} />
+          <Route path="admissions/settings" element={<AdmissionSettings />} />
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>

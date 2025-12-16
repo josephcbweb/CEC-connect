@@ -23,5 +23,4 @@ export const sidebarItems = [
   { icon: BookCopy, text: "Classes", route: "/classes" },
   { icon: UserCog, text: "Staff & Roles", route: "/staff-roles" },
   { icon: Settings2Icon, text: "Settings", route: "/settings" },
-  // { icon: Settings, text: "Settings", route: "/settings" },
 ];
