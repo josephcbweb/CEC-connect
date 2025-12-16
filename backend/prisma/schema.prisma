@@ -438,8 +438,3 @@ enum Program {
   mtech
   mba
 }
-
-enum DepartmentStatus {
-  ACTIVE
-  INACTIVE
-}
