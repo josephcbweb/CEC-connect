@@ -385,95 +385,116 @@ export const validateStudent = async (req: Request, res: Response) => {
 // Submit admission form (for students)
 export const submitAdmissionForm = async (req: Request, res: Response) => {
   try {
-    const {
-      program,
-      admissionType,
-      personalInfo,
-      parentInfo,
-      addressInfo,
-      educationInfo,
-      entranceInfo,
-      bankInfo,
-      additionalInfo,
-      departmentId,
-    } = req.body;
+    const formData = req.body;
 
     // Generate admission number
     const year = new Date().getFullYear();
-    const count = await prisma.student.count({ where: { program } });
-    const admissionNumber = `${program.toUpperCase()}-${year}-${String(
+    const count = await prisma.student.count({
+      where: { program: formData.program },
+    });
+    const admissionNumber = `${formData.program.toUpperCase()}-${year}-${String(
       count + 1
     ).padStart(3, "0")}`;
+
+    console.log("Received form data:", formData);
 
     const newStudent = await prisma.student.create({
       data: {
         // Personal Info
-        name: personalInfo.name,
-        dateOfBirth: new Date(personalInfo.dateOfBirth),
-        gender: personalInfo.gender,
-        email: personalInfo.email,
-        student_phone_number: personalInfo.phone,
-        aadhaar_number: personalInfo.aadhaar,
-        blood_group: personalInfo.bloodGroup,
-        religion: personalInfo.religion,
-        nationality: personalInfo.nationality || "Indian",
-        mother_tongue: personalInfo.motherTongue,
+        name: formData.name,
+        dateOfBirth: formData.dateOfBirth
+          ? new Date(formData.dateOfBirth)
+          : new Date(),
+        gender: formData.gender,
+        email: formData.email,
+        student_phone_number: formData.phone,
+        aadhaar_number: formData.aadhaar,
+        blood_group: formData.bloodGroup || null,
+        religion: formData.religion || "Not Specified",
+        nationality: formData.nationality || "Indian",
+        mother_tongue: formData.motherTongue || "Not Specified",
 
         // Parent Info
-        fatherName: parentInfo.fatherName,
-        father_phone_number: parentInfo.fatherPhone,
-        motherName: parentInfo.motherName,
-        mother_phone_number: parentInfo.motherPhone,
-        parent_email: parentInfo.parentEmail,
-        annual_family_income: parentInfo.annualFamilyIncome,
+        fatherName: formData.fatherName || null,
+        father_phone_number: formData.fatherPhone || null,
+        motherName: formData.motherName || null,
+        mother_phone_number: formData.motherPhone || null,
+        parent_email: formData.parentEmail || null,
+        annual_family_income: formData.annualFamilyIncome || null,
+        guardian_name: formData.guardianName || null,
+        guardian_relationship: formData.guardianRelationship || null,
+        guardian_email: formData.guardianEmail || null,
 
         // Address Info
-        permanent_address: addressInfo.permanentAddress,
-        contact_address:
-          addressInfo.contactAddress || addressInfo.permanentAddress,
-        state_of_residence: addressInfo.permanentAddressState,
-        local_guardian_address: addressInfo.localGuardianAddress,
-        local_guardian_phone_number: addressInfo.localGuardianPhone,
-        guardian_name: addressInfo.localGuardianName,
+        permanent_address: formData.permanentAddress,
+        contact_address: formData.contactAddress || formData.permanentAddress,
+        state_of_residence:
+          formData.stateOfResidence || formData.permanentAddressState,
+        local_guardian_address: formData.localGuardianAddress || null,
+        local_guardian_phone_number: formData.localGuardianPhone || null,
 
         // Education Info
-        last_institution: educationInfo.examInstitute,
-        qualifying_exam_name: educationInfo.qualifyingExam,
-        qualifying_exam_register_no: educationInfo.examRegisterNumber,
-        physics_score: parseFloat(educationInfo.physicsScore) || 0,
-        chemistry_score: parseFloat(educationInfo.chemistryScore) || 0,
-        maths_score: parseFloat(educationInfo.mathsScore) || 0,
-        percentage: parseFloat(educationInfo.totalPercentage) || 0,
-        tc_number: educationInfo.tcNumber,
-        tc_date: educationInfo.tcDate ? new Date(educationInfo.tcDate) : null,
+        last_institution: formData.qualifyingExamInstitute || "Not Specified",
+        qualifying_exam_name: formData.qualifyingExam,
+        qualifying_exam_register_no: formData.qualifyingExamRegisterNo,
+        physics_score: formData.physicsScore
+          ? parseFloat(formData.physicsScore)
+          : null,
+        chemistry_score: formData.chemistryScore
+          ? parseFloat(formData.chemistryScore)
+          : null,
+        maths_score: formData.mathsScore
+          ? parseFloat(formData.mathsScore)
+          : null,
+        percentage: formData.totalPercentage
+          ? parseFloat(formData.totalPercentage)
+          : null,
+        previous_degree_cgpa_or_total_marks: formData.previousDegreeCGPA
+          ? parseFloat(formData.previousDegreeCGPA)
+          : null,
+        tc_number: formData.tcNumber || null,
+        tc_date: formData.tcDate ? new Date(formData.tcDate) : null,
 
         // Entrance Info
-        entrance_type: entranceInfo.examType,
-        entrance_roll_no: entranceInfo.examRollNumber,
-        entrance_rank: parseInt(entranceInfo.examRank) || null,
-        entrance_total_score: parseFloat(entranceInfo.examScore) || null,
+        entrance_type: formData.entranceExamType || null,
+        entrance_roll_no: formData.entranceExamRollNumber || null,
+        entrance_rank: formData.entranceRank
+          ? parseInt(formData.entranceRank)
+          : null,
+        entrance_total_score: formData.entranceExamScore
+          ? parseFloat(formData.entranceExamScore)
+          : null,
+        keam_subject_total: formData.keamSubjectTotal
+          ? parseFloat(formData.keamSubjectTotal)
+          : null,
 
         // Bank Info
-        account_number: bankInfo.accountNumber,
-        bank_name: bankInfo.bankName,
-        ifsc_code: bankInfo.ifscCode,
-        bank_branch: bankInfo.bankBranch,
+        account_number: formData.bankAccountNumber || null,
+        bank_name: formData.bankName || null,
+        ifsc_code: formData.bankIFSCCode || null,
+        bank_branch: formData.bankBranch || null,
 
         // Additional Info
-        category: additionalInfo.category,
-        admission_quota: additionalInfo.admissionQuota,
+        category: formData.category || "General",
+        admission_quota: formData.admissionQuota || "general",
+        admitted_category: formData.admittedCategory || formData.category,
         is_fee_concession_eligible:
-          additionalInfo.feeConcessionEligible || false,
+          formData.applyForFeeConcession === true ||
+          formData.applyForFeeConcession === "true",
+        hostel_service:
+          formData.hostelService === true || formData.hostelService === "true",
+        bus_service:
+          formData.busService === true || formData.busService === "true",
 
         // System fields
-        program,
-        admission_type: admissionType,
+        program: formData.program,
+        admission_type: formData.admissionType || "regular",
         admission_number: admissionNumber,
         admission_date: new Date(),
         status: AdmissionStatus.pending,
         password: "changeme123", // Default password
-        allotted_branch: additionalInfo.allottedBranch || "Not Assigned",
-        departmentId: departmentId || 1, // Default department
+        allotted_branch: formData.allottedBranch || "Not Assigned",
+        departmentId: formData.departmentId || 1, // Default department
       },
       include: {
         department: true,
