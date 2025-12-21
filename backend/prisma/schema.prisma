@@ -343,6 +343,30 @@ model Certificate {
   @@map("certificates")
 }
 
+model Bus {
+  id             Int       @id @default(autoincrement())
+  busNumber      String    @unique
+  busName        String?
+  routeName      String?
+  totalSeats     Int
+  driverName     String
+  driverPhone    String
+  isActive       Boolean   @default(true)
+  stops          BusStop[]
+  registrationNo String?
+}
+
+model BusStop {
+  id        Int    @id @default(autoincrement())
+  busId     Int
+  stopName  String
+  feeAmount Int
+
+  bus Bus @relation(fields: [busId], references: [id], onDelete: Cascade)
+
+  @@unique([busId, stopName])
+}
+
 enum DepartmentStatus {
   ACTIVE
   INACTIVE
