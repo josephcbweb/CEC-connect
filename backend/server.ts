@@ -1,4 +1,4 @@
-import express from "express";
+import express, { urlencoded } from "express";
 import dotenv from "dotenv";
 import homeRoutes from "./routes/homeRoutes";
 import adminRoutes from "./routes/adminRoutes";
@@ -8,6 +8,7 @@ import certificateRoutes from "./routes/certificateRoutes";
 import authRouter from "./routes/authRouter";
 import departmentRoutes from "./routes/departmentRoutes";
 import admissionRoutes from "./routes/admissionRoutes";
+import busRoutes from './routes/busRoutes';
 import cors from "cors";
 dotenv.config();
 
@@ -22,16 +23,15 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
 app.use("/", homeRoutes);
 app.use("/admin", adminRoutes);
-
 app.use("/students", studentRoutes);
 app.use("/fee", feeRoutes);
 app.use("/api", certificateRoutes);
 app.use("/auth", authRouter);
 app.use("/department", departmentRoutes);
 app.use("/api/admission", admissionRoutes);
+app.use("/bus",busRoutes);
 app.listen(PORT, () => {
   console.log("Server listening on port: ", PORT);
 });
