@@ -131,6 +131,8 @@ model Student {
   bank_branch                         String?
   admitted_category                   String?
   admission_quota                     String?
+  hostel_service                      Boolean         @default(false)
+  bus_service                         Boolean         @default(false)
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
