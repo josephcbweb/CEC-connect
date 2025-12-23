@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -137,28 +131,46 @@ model Student {
   bank_branch                         String?
   admitted_category                   String?
   admission_quota                     String?
+  hostel_service                      Boolean         @default(false)
+  bus_service                         Boolean         @default(false)
+  busId                               Int?            @map("bus_id")
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
   requests                            NoDueRequest[]
   users                               User?           @relation(fields: [advisorId], references: [id])
   department                          Department      @relation(fields: [departmentId], references: [id])
+  bus                                 Bus?            @relation(fields: [busId], references: [id])
 
   @@map("students")
 }
 
 model Department {
-  id              Int         @id @default(autoincrement()) @map("department_id")
-  name            String      @unique @map("department_name")
-  hodId           Int?        @unique @map("hod_id")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
-  department_code String      @unique
+  id              Int              @id @default(autoincrement()) @map("department_id")
+  name            String           @unique @map("department_name")
+  hodId           Int?             @unique @map("hod_id")
+  status          DepartmentStatus @default(ACTIVE)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  department_code String           @unique
   hodDetails      HodDetails?
   noDues          NoDue[]
   students        Student[]
 
   @@map("departments")
+}
+
+model AdmissionWindow {
+  id          Int      @id @default(autoincrement())
+  program     Program
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  isOpen      Boolean  @default(true) @map("is_open")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("admission_windows")
 }
 
 model HodDetails {
@@ -260,11 +272,11 @@ model Invoice {
   dueDate        DateTime      @map("due_date") @db.Date
   status         InvoiceStatus @default(unpaid)
   createdAt      DateTime      @default(now()) @map("created_at")
+  feeStructureId Int?
+  FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
   fee            FeeDetails    @relation(fields: [feeId], references: [id])
   student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   payments       Payment[]
-  FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
-  feeStructureId Int?
 
   @@map("invoices")
 }
@@ -331,6 +343,37 @@ model Certificate {
   student         Student           @relation(fields: [studentId], references: [id])
 
   @@map("certificates")
+}
+
+model Bus {
+  id             Int       @id @default(autoincrement())
+  busNumber      String    @unique
+  busName        String?
+  routeName      String?
+  totalSeats     Int
+  driverName     String
+  driverPhone    String
+  isActive       Boolean   @default(true)
+  stops          BusStop[]
+  registrationNo String?
+
+  students Student[]
+}
+
+model BusStop {
+  id        Int    @id @default(autoincrement())
+  busId     Int
+  stopName  String
+  feeAmount Int
+
+  bus Bus @relation(fields: [busId], references: [id], onDelete: Cascade)
+
+  @@unique([busId, stopName])
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  INACTIVE
 }
 
 enum CertificateType {

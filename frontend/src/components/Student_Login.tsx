@@ -37,6 +37,10 @@ const StudentLogin = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   // State for displaying success/error messages to the user
+  const handleBack = () => {
+    navigate("/");
+  };
+
   const [message, setMessage] = useState<{
     text: string;
     type: "" | "success" | "error";
@@ -115,6 +119,13 @@ const StudentLogin = () => {
         <div className="flex flex-col md:flex-row w-full max-w-6xl shadow-2xl rounded-2xl overflow-hidden bg-white">
           {/* Left Side - Form */}
           <div className="flex flex-col items-center justify-center p-8 md:p-12 w-full md:w-1/2">
+          <button
+  onClick={handleBack}
+  className="self-start mb-6 flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#031D44] transition-colors hover:cursor-pointer"
+>
+  ← Back 
+</button>
+
             {/* Header - Used a div instead of Link to remove router dependency */}
             <div className="w-full text-left mb-8">
               <div
