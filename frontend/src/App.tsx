@@ -15,6 +15,12 @@ import StudentDashboardPage from "./components/student/StudentDashboardPage";
 import StudentFeePage from "./components/student/StudentFeePage";
 import Settings from "./components/settings/Settings";
 import StaffRolesPage from "./components/staff-roles/StaffRolesPage";
+import AdmissionsPage from "./components/admin/admissions/AdmissionsPage";
+import AdmissionSettings from "./components/settings/AdmissionSettings";
+import DepartmentDashboard from "./components/department/DepartmentDashboard";
+import StudentProfile from "./components/student/StudentProfile";
+import BusManagement from "./components/bus/BusManagement";
+import BusDetailsDashboard from "./components/bus/BusDetails";
 
 const App = () => {
   return (
@@ -32,12 +38,18 @@ const App = () => {
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
           <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/staff-roles" element={<StaffRolesPage />} />
+          <Route path="admissions" element={<AdmissionsPage />} />
+          <Route path="admissions/settings" element={<AdmissionSettings />} />
+          <Route path="/admin/departments" element={<DepartmentDashboard />} />
+          <Route path="/admin/bus" element={<BusManagement/>}/>
+          <Route path="/admin/bus/:id" element={<BusDetailsDashboard/>}/>
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>
           <Route index element={<StudentDashboardPage />} />
           <Route path="fees" element={<StudentFeePage />} />
           <Route path="certificates" element={<StudentCertificatePage />} />
+          <Route path="profile/:id" element={<StudentProfile />} />
         </Route>
       </Routes>
     </div>
