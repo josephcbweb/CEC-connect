@@ -88,3 +88,144 @@ export const addBus = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const getBusDetails = async (req: Request, res: Response) => {
+  try {
+    const busId = Number(req.params.busId);
+
+    const bus = await prisma.bus.findUnique({
+      where: { id: busId },
+      include: {
+        stops: {
+          select: {
+            id: true,
+            stopName: true,
+            feeAmount: true
+          }
+        },
+        students: {
+          where: {
+            bus_service: true
+          },
+          select: {
+            id: true,
+            name: true,
+            admission_number: true,
+            student_phone_number: true,
+            department: {
+              select: { name: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!bus) {
+      return res.status(404).json({ message: "Bus not found" });
+    }
+
+    res.status(200).json({
+      busId: bus.id,
+      busName: bus.busName,
+      busNumber: bus.busNumber,
+      capacity: bus.totalSeats,
+      numberOfStudents: bus.students.length,
+      registrationNumber: bus.registrationNo,
+      driverName: bus.driverName,
+      driverPhone: bus.driverPhone,
+      status: bus.isActive ? "Active" : "Inactive",
+      stops: bus.stops,
+      students: bus.students
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const addBusStops = async (req: Request, res: Response) => {
+  try {
+    const { busId, stops } = req.body;
+
+    if (!busId || !Array.isArray(stops) || stops.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "busId and stops array are required",
+      });
+    }
+
+    const formattedStops = stops.map((stop) => ({
+      busId: Number(busId),
+      stopName: stop.stopName.trim(),
+      feeAmount: Number(stop.feeAmount),
+    }));
+
+    const result = await prisma.busStop.createMany({
+      data: formattedStops,
+      skipDuplicates: true,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Bus stops added successfully",
+      insertedCount: result.count,
+    });
+
+  } catch (error) {
+    console.error("Error adding bus stops:", error);
+
+    const message =
+      error instanceof Error ? error.message : "Unknown error occurred";
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to add bus stops",
+      error: message,
+    });
+  }
+};
+
+export const deleteBusStop = async (req: Request, res: Response) => {
+  try {
+    const stopId = Number(req.params.id);
+
+    if (isNaN(stopId)) {
+      return res.status(400).json({
+        message: "Invalid stop ID",
+      });
+    }
+
+    // 🔍 Check if stop exists
+    const existingStop = await prisma.busStop.findUnique({
+      where: { id: stopId },
+    });
+
+    if (!existingStop) {
+      return res.status(404).json({
+        message: "Bus stop not found",
+      });
+    }
+
+    // 🗑 Delete stop
+    await prisma.busStop.delete({
+      where: { id: stopId },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Bus stop deleted successfully",
+    });
+
+  } catch (error) {
+    console.error("Error deleting bus stop:", error);
+
+    const message =
+      error instanceof Error ? error.message : "Unknown error occurred";
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete bus stop",
+      error: message,
+    });
+  }
+};

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import DepartmentTable from "./DepartmentTable";
 import AddDepartmentModal from "./AddDepartmentModal";
 import DepartmentControls from "./DepartmentControls";
-
+import DeleteConfirmModal from "./DeleteDepartmentModal";
 export interface Department {
   id: number;
   name: string;
@@ -15,7 +15,9 @@ export default function DepartmentDashboard() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedDept, setSelectedDept] = useState<Department | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   useEffect(() => {
     fetchDepartments();
   }, []);
@@ -35,13 +37,34 @@ export default function DepartmentDashboard() {
     }
   };
 
+  const handleDeleteClick = (dept: Department) => {
+    setSelectedDept(dept);
+    setDeleteModalOpen(true);
+  };
+  const confirmDeleteDepartment = async () => {
+    if (!selectedDept) return;
+
+    try {
+      setDeleteLoading(true);
+      await fetch(`http://localhost:3000/department/${selectedDept.id}`, {
+        method: "DELETE",
+      });
+      fetchDepartments();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleteLoading(false);
+      setDeleteModalOpen(false);
+      setSelectedDept(null);
+    }
+  };
+
   const handleDeleteDepartment = async (id: number) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this department?"
     );
 
     if (!confirmDelete) return;
-
     try {
       const res = await fetch(`http://localhost:3000/department/${id}`, {
         method: "DELETE",
@@ -86,7 +109,7 @@ export default function DepartmentDashboard() {
         <DepartmentTable
           departments={filteredDepartments}
           loading={loading}
-          onDelete={handleDeleteDepartment}
+          onDelete={handleDeleteClick}
         />
       </div>
 
@@ -94,6 +117,13 @@ export default function DepartmentDashboard() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchDepartments}
+      />
+      <DeleteConfirmModal
+        isOpen={deleteModalOpen}
+        departmentName={selectedDept?.name || ""}
+        loading={deleteLoading}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDeleteDepartment}
       />
     </div>
   );

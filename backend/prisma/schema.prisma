@@ -133,12 +133,14 @@ model Student {
   admission_quota                     String?
   hostel_service                      Boolean         @default(false)
   bus_service                         Boolean         @default(false)
+  busId                               Int?            @map("bus_id")
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
   requests                            NoDueRequest[]
   users                               User?           @relation(fields: [advisorId], references: [id])
   department                          Department      @relation(fields: [departmentId], references: [id])
+  bus                                 Bus?            @relation(fields: [busId], references: [id])
 
   @@map("students")
 }
@@ -354,6 +356,8 @@ model Bus {
   isActive       Boolean   @default(true)
   stops          BusStop[]
   registrationNo String?
+
+  students Student[]
 }
 
 model BusStop {

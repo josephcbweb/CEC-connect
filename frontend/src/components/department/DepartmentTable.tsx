@@ -4,7 +4,7 @@ import type { Department } from "./DepartmentDashboard";
 interface Props {
   departments: Department[];
   loading: boolean;
-  onDelete: (id: number) => void;
+  onDelete: (dept: Department) => void;
 }
 
 export default function DepartmentTable({
@@ -68,7 +68,7 @@ export default function DepartmentTable({
 
               <td className="px-6 py-4">
                 <button
-                  onClick={() => onDelete(dept.id)}
+                  onClick={() => onDelete(dept)}
                   className="text-red-500 hover:text-red-700 hover:cursor-pointer"
                   title="Delete Department"
                 >

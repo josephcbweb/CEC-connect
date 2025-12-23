@@ -18,6 +18,8 @@ import AdmissionsPage from "./components/admin/admissions/AdmissionsPage";
 import AdmissionSettings from "./components/settings/AdmissionSettings";
 import DepartmentDashboard from "./components/department/DepartmentDashboard";
 import StudentProfile from "./components/student/StudentProfile";
+import BusManagement from "./components/bus/BusManagement";
+import BusDetailsDashboard from "./components/bus/BusDetails";
 
 const App = () => {
   return (
@@ -37,6 +39,8 @@ const App = () => {
           <Route path="admissions" element={<AdmissionsPage />} />
           <Route path="admissions/settings" element={<AdmissionSettings />} />
           <Route path="/admin/departments" element={<DepartmentDashboard />} />
+          <Route path="/admin/bus" element={<BusManagement/>}/>
+          <Route path="/admin/bus/:id" element={<BusDetailsDashboard/>}/>
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>
