@@ -9,6 +9,7 @@ import {
   UserCog,
   Settings,
   Settings2Icon,
+  Bus,
 } from "lucide-react";
 import { FaMoneyBill } from "react-icons/fa";
 
@@ -19,6 +20,7 @@ export const sidebarItems = [
   { icon: BookOpen, text: "Certificates", route: "/certificate" },
   { icon: Building, text: "Departments", route: "/departments" },
   { icon: UserPlus, text: "Admissions", route: "/admissions", alert: true },
+  { icon: Bus, text: "College Bus", route: "/bus", alert: true },
   // { icon: GraduationCap, text: "Faculty", route: "/faculty" },
   // { icon: BookCopy, text: "Classes", route: "/classes" },
   { icon: UserCog, text: "Staff & Roles", route: "/staff-roles" },
