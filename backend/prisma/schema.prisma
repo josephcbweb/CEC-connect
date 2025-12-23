@@ -41,12 +41,12 @@ model Role {
 }
 
 model Permission {
-  id              Int              @id @default(autoincrement()) @map("permission_id")
-  name            String           @unique @map("permission_name")
-  description     String?
-  moduleName      String           @map("module")
-  action          String
-  rolePermissions RolePermission[]
+  id          Int              @id @default(autoincrement()) @map("permission_id")
+  name        String           @unique @map("permission_name")
+  description String?
+  moduleName  String           @map("module")
+  action      String
+  roles       RolePermission[]
 
   @@map("permissions")
 }
@@ -465,6 +465,4 @@ enum AdmissionType {
 enum Program {
   btech
   mca
-  mtech
-  mba
 }
