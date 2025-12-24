@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 
+const BUS_FEE_KEY = "BUS_FEE_ENABLED";
+
 export const fetchBus = async (req:Request,res:Response)=>{
     try{
         const buses = await prisma.bus.findMany({
@@ -107,13 +109,16 @@ export const getBusDetails = async (req: Request, res: Response) => {
           where: {
             bus_service: true
           },
-          select: {
-            id: true,
-            name: true,
-            admission_number: true,
-            student_phone_number: true,
+          include: {
             department: {
               select: { name: true }
+            },
+            busStop: {                     // ✅ THIS WAS MISSING
+              select: {
+                id: true,
+                stopName: true,
+                feeAmount: true
+              }
             }
           }
         }
@@ -124,24 +129,36 @@ export const getBusDetails = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Bus not found" });
     }
 
+    /* ---------------- FORMAT RESPONSE ---------------- */
+
+    const formattedStudents = bus.students.map((student) => ({
+      id: student.id,
+      name: student.name,
+      student_phone_number: student.student_phone_number,
+      department: student.department,
+      stopName: student.busStop?.stopName || "Not Assigned",
+      stopFee: student.busStop?.feeAmount || 0
+    }));
+
     res.status(200).json({
       busId: bus.id,
       busName: bus.busName,
       busNumber: bus.busNumber,
       capacity: bus.totalSeats,
-      numberOfStudents: bus.students.length,
+      numberOfStudents: formattedStudents.length,
       registrationNumber: bus.registrationNo,
       driverName: bus.driverName,
       driverPhone: bus.driverPhone,
       status: bus.isActive ? "Active" : "Inactive",
       stops: bus.stops,
-      students: bus.students
+      students: formattedStudents
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 export const addBusStops = async (req: Request, res: Response) => {
   try {
@@ -229,3 +246,47 @@ export const deleteBusStop = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const getBusFeeStatus = async (_req: Request, res: Response) => {
+  try {
+    const setting = await prisma.setting.findUnique({
+      where: { key: BUS_FEE_KEY },
+      select: { enabled: true },
+    });
+
+    return res.status(200).json({
+      enabled: setting?.enabled ?? false,
+    });
+  } catch (error) {
+    console.error("Bus fee status error:", error);
+    return res.status(500).json({ message: "Failed to fetch status" });
+  }
+};
+
+export const toggleBusFee = async (req: Request, res: Response) => {
+  const { enabled } = req.body;
+
+  if (typeof enabled !== "boolean") {
+    return res.status(400).json({ message: "Invalid enabled value" });
+  }
+
+  try {
+    const setting = await prisma.setting.upsert({
+      where: { key: BUS_FEE_KEY },
+      update: { enabled },
+      create: {
+        key: BUS_FEE_KEY,
+        enabled,
+      },
+    });
+
+    return res.status(200).json({
+      message: `Bus fee ${enabled ? "enabled" : "disabled"}`,
+      enabled: setting.enabled,
+    });
+  } catch (error) {
+    console.error("Toggle bus fee error:", error);
+    return res.status(500).json({ message: "Failed to update setting" });
+  }
+};
+

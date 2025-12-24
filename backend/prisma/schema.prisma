@@ -134,6 +134,8 @@ model Student {
   hostel_service                      Boolean         @default(false)
   bus_service                         Boolean         @default(false)
   busId                               Int?            @map("bus_id")
+  busStopId                           Int?            @map("bus_stop_id")
+  currentSemester                     Int             @default(1) @map("current_semester")
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
@@ -141,6 +143,7 @@ model Student {
   users                               User?           @relation(fields: [advisorId], references: [id])
   department                          Department      @relation(fields: [departmentId], references: [id])
   bus                                 Bus?            @relation(fields: [busId], references: [id])
+  busStop                             BusStop?        @relation(fields: [busStopId], references: [id])
 
   @@map("students")
 }
@@ -257,6 +260,7 @@ model FeeDetails {
   amount    Decimal
   dueDate   DateTime  @map("due_date") @db.Date
   createdAt DateTime  @default(now()) @map("created_at")
+  semester  Int?       @map("semester")
   student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
 
@@ -361,12 +365,12 @@ model Bus {
 }
 
 model BusStop {
-  id        Int    @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   busId     Int
   stopName  String
   feeAmount Int
-
-  bus Bus @relation(fields: [busId], references: [id], onDelete: Cascade)
+  students  Student[]
+  bus       Bus       @relation(fields: [busId], references: [id], onDelete: Cascade)
 
   @@unique([busId, stopName])
 }
