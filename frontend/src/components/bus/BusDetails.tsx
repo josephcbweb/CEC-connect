@@ -1,10 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-import { Bus, Users, MapPin, Phone, CreditCard, Plus } from "lucide-react";
+import { Bus, Users, MapPin, Phone, CreditCard } from "lucide-react";
 import BusStatsCard from "./BusStatsCard";
 import StudentTable from "./StudentTable";
 import StopsList from "./StopsList";
+
+const BASE_URL = "http://localhost:3000";
+
+/* ---------------- TYPES ---------------- */
+
+export interface BusStop {
+  id: number;
+  stopName: string;
+  feeAmount: number;
+}
+
+export interface Student {
+  id: number;
+  name: string;
+  student_phone_number: string;
+  department: {
+    name: string;
+  };
+  stopName: string;
+  stopFee: number;
+}
 
 export interface BusData {
   busId: number;
@@ -15,16 +36,12 @@ export interface BusData {
   registrationNumber: string;
   driverName: string;
   driverPhone: string;
-  status: string;
-  stops: { id: number; stopName: string; feeAmount: number }[];
-  students: {
-    id: number;
-    name: string;
-    admission_number: string;
-    student_phone_number: string;
-    department: { name: string };
-  }[];
+  status: "Active" | "Inactive";
+  stops: BusStop[];
+  students: Student[];
 }
+
+/* ---------------- COMPONENT ---------------- */
 
 const BusDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,39 +49,44 @@ const BusDetailsPage = () => {
   const [activeTab, setActiveTab] = useState<"students" | "stops">("students");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(
-          `http://localhost:3000/bus/busDetails/${id}`
-        );
-        setBus(response.data);
-      } catch (err) {
-        console.error("Error fetching bus details", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchBusDetails = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${BASE_URL}/bus/busDetails/${id}`);
+      setBus(res.data);
+    } catch (error) {
+      console.error("Failed to fetch bus details", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchDetails();
+  useEffect(() => {
+    fetchBusDetails();
   }, [id]);
 
-  if (!bus)
-    return <div className="p-10 text-center">Loading Bus Details...</div>;
+  if (loading || !bus) {
+    return (
+      <div className="p-10 text-center text-gray-500">
+        Loading Bus Details...
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">{bus.busName}</h1>
-          <p className="text-gray-500 flex items-center gap-2">
-            <Bus size={16} /> Bus Number:{" "}
+          <p className="text-gray-500 flex items-center gap-2 mt-1">
+            <Bus size={16} />
+            Bus Number:
             <span className="font-semibold text-blue-600">{bus.busNumber}</span>
           </p>
         </div>
-        <div
+
+        <span
           className={`px-4 py-1 rounded-full text-sm font-medium ${
             bus.status === "Active"
               ? "bg-green-100 text-green-700"
@@ -72,15 +94,15 @@ const BusDetailsPage = () => {
           }`}
         >
           ● {bus.status}
-        </div>
+        </span>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <BusStatsCard
           icon={<Users className="text-blue-500" />}
           label="Occupancy"
-          value={`${bus.numberOfStudents} / ${bus.capacity} Seats`}
+          value={`${bus.numberOfStudents} / ${bus.capacity}`}
         />
         <BusStatsCard
           icon={<Phone className="text-orange-500" />}
@@ -100,22 +122,23 @@ const BusDetailsPage = () => {
         />
       </div>
 
-      {/* Tabs Navigation */}
+      {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="flex border-b border-gray-300">
+        <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab("students")}
-            className={`px-6 py-4 font-medium transition-colors${
+            className={`px-6 py-4 font-medium transition-colors ${
               activeTab === "students"
                 ? "border-b-2 border-blue-600 text-blue-600"
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            Student List ({bus.students.length})
+            Students ({bus.students.length})
           </button>
+
           <button
             onClick={() => setActiveTab("stops")}
-            className={`px-6 py-4 font-medium transition-colors${
+            className={`px-6 py-4 font-medium transition-colors ${
               activeTab === "stops"
                 ? "border-b-2 border-blue-600 text-blue-600"
                 : "text-gray-500 hover:text-gray-700"
@@ -132,11 +155,7 @@ const BusDetailsPage = () => {
             <StopsList
               stops={bus.stops}
               busId={bus.busId}
-              refreshBusDetails={() => {
-                axios
-                  .get(`http://localhost:3000/bus/busDetails/${id}`)
-                  .then((res) => setBus(res.data));
-              }}
+              refreshBusDetails={fetchBusDetails}
             />
           )}
         </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { admissionService } from "../../services/admissionService";
 import type { AdmissionWindow } from "../../types/admission";
 
+
 interface ToggleWithConfirmProps {
   label: string;
   helper: string;
@@ -300,6 +301,7 @@ const AdmissionSettings: React.FC = () => {
           </button>
         </div>
       </div>
+      
     </div>
   );
 };

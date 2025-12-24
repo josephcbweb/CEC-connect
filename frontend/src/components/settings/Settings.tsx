@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { admissionService } from "../../services/admissionService";
 import type { AdmissionWindow } from "../../types/admission";
 import { Calendar, AlertCircle, CheckCircle2 } from "lucide-react";
+import SemesterTable from "./SemesterTable";
 
 // Reusable toggle with confirm dialog
 const ToggleWithConfirm: React.FC<{
@@ -478,6 +479,9 @@ const Settings: React.FC = () => {
           <button className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 font-medium transition-all transform hover:scale-105">
             Save Configuration
           </button>
+        </div>
+        <div className="min-h-screen w-full">
+          <SemesterTable />
         </div>
       </div>
 
