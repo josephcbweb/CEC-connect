@@ -136,6 +136,7 @@ model Student {
   busId                               Int?            @map("bus_id")
   busStopId                           Int?            @map("bus_stop_id")
   currentSemester                     Int             @default(1) @map("current_semester")
+  passoutYear                         Int?            @map("passout_year")
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
@@ -261,6 +262,7 @@ model FeeDetails {
   dueDate   DateTime  @map("due_date") @db.Date
   createdAt DateTime  @default(now()) @map("created_at")
   semester  Int?       @map("semester")
+  archived  Boolean   @default(false)
   student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
 

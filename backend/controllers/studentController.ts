@@ -183,3 +183,4 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
     });
   }
 };
+
