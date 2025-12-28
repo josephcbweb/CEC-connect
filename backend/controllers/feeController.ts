@@ -110,7 +110,7 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
               studentId: studentId,
               feeType: feeStructure.name,
               amount: feeStructure.amount,
-              dueDate: new Date(dueDate), // Use the provided due date
+              dueDate: new Date(dueDate),
             },
           });
 
