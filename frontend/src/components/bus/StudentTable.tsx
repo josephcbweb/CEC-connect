@@ -8,7 +8,7 @@ interface Student {
   stopName: string;
   stopFee: number;
 }
-
+// This component displays student of a particular Bus.
 const StudentTable = ({ students }: { students: Student[] }) => (
   <div className="overflow-x-auto">
     <table className="w-full text-left">
