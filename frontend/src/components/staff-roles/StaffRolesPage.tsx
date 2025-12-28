@@ -20,7 +20,7 @@ import {
   Col,
   Badge,
   Tooltip,
-  Breadcrumb
+  Breadcrumb,
 } from "antd";
 import {
   PlusOutlined,
@@ -35,7 +35,7 @@ import {
   UserSwitchOutlined,
   KeyOutlined,
   SearchOutlined,
-  ReloadOutlined
+  ReloadOutlined,
 } from "@ant-design/icons";
 
 const { Column } = Table;
@@ -94,7 +94,7 @@ const StaffRolesPage: React.FC = () => {
   const [roleForm] = Form.useForm();
   const [staffForm] = Form.useForm();
   const [permissionForm] = Form.useForm();
-  
+
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -102,40 +102,45 @@ const StaffRolesPage: React.FC = () => {
   const [staffLoading, setStaffLoading] = useState(false);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("staff");
-  
+
   const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
   const [isStaffModalVisible, setIsStaffModalVisible] = useState(false);
-  const [isPermissionModalVisible, setIsPermissionModalVisible] = useState(false);
-  const [isRolePermissionsModalVisible, setIsRolePermissionsModalVisible] = useState(false);
-  
+  const [isPermissionModalVisible, setIsPermissionModalVisible] =
+    useState(false);
+  const [isRolePermissionsModalVisible, setIsRolePermissionsModalVisible] =
+    useState(false);
+
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
-  const [editingPermission, setEditingPermission] = useState<Permission | null>(null);
-  const [selectedRoleForPermissions, setSelectedRoleForPermissions] = useState<Role | null>(null);
+  const [editingPermission, setEditingPermission] = useState<Permission | null>(
+    null
+  );
+  const [selectedRoleForPermissions, setSelectedRoleForPermissions] =
+    useState<Role | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
 
   const [searchText, setSearchText] = useState("");
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
-    total: 0
+    total: 0,
   });
 
   // API Configuration - DIRECT URL like your fee management
   const API_BASE_URL = "http://localhost:3000";
-  
+
   const getHeaders = () => {
-  const authToken = localStorage.getItem("authToken");
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json'
+    const authToken = localStorage.getItem("authToken");
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (authToken) {
+      headers["Authorization"] = `Bearer ${authToken}`; // Add Bearer prefix
+    }
+
+    return headers;
   };
-  
-  if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`; // Add Bearer prefix
-  }
-  
-  return headers;
-};
 
   // Check authentication
   useEffect(() => {
@@ -152,25 +157,25 @@ const StaffRolesPage: React.FC = () => {
         `${API_BASE_URL}/api/users?page=${page}&limit=10&search=${search}`,
         { headers: getHeaders() }
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setStaff(data.data);
-        setPagination(prev => ({
+        setPagination((prev) => ({
           ...prev,
           current: data.pagination.page,
-          total: data.pagination.total
+          total: data.pagination.total,
         }));
       } else {
         message.error(data.message || "Failed to fetch staff");
       }
     } catch (error) {
-      console.error('Fetch staff error:', error);
+      console.error("Fetch staff error:", error);
       message.error("Failed to fetch staff");
     } finally {
       setStaffLoading(false);
@@ -185,24 +190,24 @@ const StaffRolesPage: React.FC = () => {
         `${API_BASE_URL}/api/roles?page=${page}&limit=10&search=${search}`,
         { headers: getHeaders() }
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       if (data.success) {
         setRoles(data.data);
-        setPagination(prev => ({
+        setPagination((prev) => ({
           ...prev,
           current: data.pagination.page,
-          total: data.pagination.total
+          total: data.pagination.total,
         }));
       } else {
         message.error(data.message || "Failed to fetch roles");
       }
     } catch (error) {
-      console.error('Fetch roles error:', error);
+      console.error("Fetch roles error:", error);
       message.error("Failed to fetch roles");
     } finally {
       setLoading(false);
@@ -217,24 +222,24 @@ const StaffRolesPage: React.FC = () => {
         `${API_BASE_URL}/api/permissions?page=${page}&limit=12&search=${search}`,
         { headers: getHeaders() }
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       if (data.success) {
         setPermissions(data.data);
-        setPagination(prev => ({
+        setPagination((prev) => ({
           ...prev,
           current: data.pagination.page,
-          total: data.pagination.total
+          total: data.pagination.total,
         }));
       } else {
         message.error(data.message || "Failed to fetch permissions");
       }
     } catch (error) {
-      console.error('Fetch permissions error:', error);
+      console.error("Fetch permissions error:", error);
       message.error("Failed to fetch permissions");
     } finally {
       setPermissionsLoading(false);
@@ -265,7 +270,7 @@ const StaffRolesPage: React.FC = () => {
   // Handle Role Operations
   const handleRoleSubmit = async (values: any) => {
     try {
-      const url = editingRole 
+      const url = editingRole
         ? `${API_BASE_URL}/api/roles/${editingRole.id}`
         : `${API_BASE_URL}/api/roles`;
       const method = editingRole ? "PUT" : "POST";
@@ -273,7 +278,7 @@ const StaffRolesPage: React.FC = () => {
       const response = await fetch(url, {
         method,
         headers: getHeaders(),
-        body: JSON.stringify(values)
+        body: JSON.stringify(values),
       });
 
       const data = await response.json();
@@ -288,7 +293,7 @@ const StaffRolesPage: React.FC = () => {
         message.error(data.message);
       }
     } catch (error) {
-      console.error('Error saving role:', error);
+      console.error("Error saving role:", error);
       message.error("Error saving role");
     }
   };
@@ -297,9 +302,9 @@ const StaffRolesPage: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/roles/${id}`, {
         method: "DELETE",
-        headers: getHeaders()
+        headers: getHeaders(),
       });
-      
+
       const data = await response.json();
       if (data.success) {
         message.success("Role deleted successfully");
@@ -308,7 +313,7 @@ const StaffRolesPage: React.FC = () => {
         message.error(data.message);
       }
     } catch (error) {
-      console.error('Error deleting role:', error);
+      console.error("Error deleting role:", error);
       message.error("Error deleting role");
     }
   };
@@ -316,7 +321,7 @@ const StaffRolesPage: React.FC = () => {
   // Handle Staff Operations
   const handleStaffSubmit = async (values: any) => {
     try {
-      const url = editingStaff 
+      const url = editingStaff
         ? `${API_BASE_URL}/api/users/${editingStaff.id}`
         : `${API_BASE_URL}/api/users`;
       const method = editingStaff ? "PUT" : "POST";
@@ -324,7 +329,7 @@ const StaffRolesPage: React.FC = () => {
       const response = await fetch(url, {
         method,
         headers: getHeaders(),
-        body: JSON.stringify(values)
+        body: JSON.stringify(values),
       });
 
       const data = await response.json();
@@ -339,7 +344,7 @@ const StaffRolesPage: React.FC = () => {
         message.error(data.message);
       }
     } catch (error) {
-      console.error('Error saving staff:', error);
+      console.error("Error saving staff:", error);
       message.error("Error saving staff");
     }
   };
@@ -348,9 +353,9 @@ const StaffRolesPage: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
         method: "DELETE",
-        headers: getHeaders()
+        headers: getHeaders(),
       });
-      
+
       const data = await response.json();
       if (data.success) {
         message.success("Staff deactivated successfully");
@@ -359,7 +364,7 @@ const StaffRolesPage: React.FC = () => {
         message.error(data.message);
       }
     } catch (error) {
-      console.error('Error deactivating staff:', error);
+      console.error("Error deactivating staff:", error);
       message.error("Error deactivating staff");
     }
   };
@@ -367,7 +372,7 @@ const StaffRolesPage: React.FC = () => {
   // Handle Permission Operations
   const handlePermissionSubmit = async (values: any) => {
     try {
-      const url = editingPermission 
+      const url = editingPermission
         ? `${API_BASE_URL}/api/permissions/${editingPermission.id}`
         : `${API_BASE_URL}/api/permissions`;
       const method = editingPermission ? "PUT" : "POST";
@@ -375,7 +380,7 @@ const StaffRolesPage: React.FC = () => {
       const response = await fetch(url, {
         method,
         headers: getHeaders(),
-        body: JSON.stringify(values)
+        body: JSON.stringify(values),
       });
 
       const data = await response.json();
@@ -390,7 +395,7 @@ const StaffRolesPage: React.FC = () => {
         message.error(data.message);
       }
     } catch (error) {
-      console.error('Error saving permission:', error);
+      console.error("Error saving permission:", error);
       message.error("Error saving permission");
     }
   };
@@ -399,9 +404,9 @@ const StaffRolesPage: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/permissions/${id}`, {
         method: "DELETE",
-        headers: getHeaders()
+        headers: getHeaders(),
       });
-      
+
       const data = await response.json();
       if (data.success) {
         message.success("Permission deleted successfully");
@@ -410,7 +415,7 @@ const StaffRolesPage: React.FC = () => {
         message.error(data.message);
       }
     } catch (error) {
-      console.error('Error deleting permission:', error);
+      console.error("Error deleting permission:", error);
       message.error("Error deleting permission");
     }
   };
@@ -425,7 +430,7 @@ const StaffRolesPage: React.FC = () => {
         {
           method: "POST",
           headers: getHeaders(),
-          body: JSON.stringify({ permissionIds: selectedPermissions })
+          body: JSON.stringify({ permissionIds: selectedPermissions }),
         }
       );
 
@@ -440,7 +445,7 @@ const StaffRolesPage: React.FC = () => {
         message.error(data.message);
       }
     } catch (error) {
-      console.error('Error updating role permissions:', error);
+      console.error("Error updating role permissions:", error);
       message.error("Error updating role permissions");
     }
   };
@@ -450,7 +455,7 @@ const StaffRolesPage: React.FC = () => {
     if (role) {
       roleForm.setFieldsValue({
         name: role.name,
-        description: role.description
+        description: role.description,
       });
     } else {
       roleForm.resetFields();
@@ -465,11 +470,11 @@ const StaffRolesPage: React.FC = () => {
         username: staffMember.username,
         email: staffMember.email,
         status: staffMember.status,
-        roleIds: staffMember.userRoles.map(ur => ur.role.id)
+        roleIds: staffMember.userRoles.map((ur) => ur.role.id),
       });
     } else {
       staffForm.setFieldsValue({
-        status: 'active'
+        status: "active",
       });
     }
     setIsStaffModalVisible(true);
@@ -482,7 +487,7 @@ const StaffRolesPage: React.FC = () => {
         name: permission.name,
         description: permission.description,
         moduleName: permission.moduleName,
-        action: permission.action
+        action: permission.action,
       });
     } else {
       permissionForm.resetFields();
@@ -492,14 +497,14 @@ const StaffRolesPage: React.FC = () => {
 
   const showRolePermissionsModal = async (role: Role) => {
     setSelectedRoleForPermissions(role);
-    
+
     // Fetch role permissions
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/roles/${role.id}/permissions`,
         { headers: getHeaders() }
       );
-      
+
       const data = await response.json();
       if (data.success) {
         setSelectedPermissions(data.data.map((p: Permission) => p.id));
@@ -507,27 +512,31 @@ const StaffRolesPage: React.FC = () => {
         message.error(data.message);
       }
     } catch (error) {
-      console.error('Failed to fetch role permissions:', error);
+      console.error("Failed to fetch role permissions:", error);
       message.error("Failed to fetch role permissions");
     }
-    
+
     setIsRolePermissionsModalVisible(true);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'green';
-      case 'inactive': return 'red';
-      case 'suspended': return 'orange';
-      default: return 'default';
+      case "active":
+        return "green";
+      case "inactive":
+        return "red";
+      case "suspended":
+        return "orange";
+      default:
+        return "default";
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -562,13 +571,25 @@ const StaffRolesPage: React.FC = () => {
 
   const getRoleBadges = (staffMember: StaffMember) => {
     const badges = [];
-    if (staffMember.advisorDetails) badges.push({ text: 'Advisor', color: 'blue' });
-    if (staffMember.hodDetails) badges.push({ text: 'HOD', color: 'purple' });
-    if (staffMember.principalDetails) badges.push({ text: 'Principal', color: 'gold' });
+    if (staffMember.advisorDetails)
+      badges.push({ text: "Advisor", color: "blue" });
+    if (staffMember.hodDetails) badges.push({ text: "HOD", color: "purple" });
+    if (staffMember.principalDetails)
+      badges.push({ text: "Principal", color: "gold" });
     return badges;
   };
 
-  const permissionmoduleNames = ['students', 'fees', 'certificates', 'no-due', 'users', 'roles', 'settings', 'dashboard', 'reports'];
+  const permissionmoduleNames = [
+    "students",
+    "fees",
+    "certificates",
+    "no-due",
+    "users",
+    "roles",
+    "settings",
+    "dashboard",
+    "reports",
+  ];
 
   if (!token) {
     return null;
@@ -578,9 +599,9 @@ const StaffRolesPage: React.FC = () => {
     <div className="p-6">
       <Breadcrumb
         items={[
-          { title: <HomeOutlined />, href: '/admin' },
-          { title: 'Administration' },
-          { title: 'Staff & Roles' }
+          { title: <HomeOutlined />, href: "/admin" },
+          { title: "Administration" },
+          { title: "Staff & Roles" },
         ]}
         className="mb-4"
       />
@@ -596,10 +617,7 @@ const StaffRolesPage: React.FC = () => {
           </Text>
         </div>
         <div className="flex gap-2">
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={loadData}
-          >
+          <Button icon={<ReloadOutlined />} onClick={loadData}>
             Refresh
           </Button>
         </div>
@@ -648,14 +666,14 @@ const StaffRolesPage: React.FC = () => {
 
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           {/* Staff Tab */}
-          <TabPane 
+          <TabPane
             tab={
               <span>
                 <UserOutlined />
                 Staff Members
                 <Badge count={staff.length} offset={[10, -5]} />
               </span>
-            } 
+            }
             key="staff"
           >
             <Table
@@ -668,48 +686,52 @@ const StaffRolesPage: React.FC = () => {
                 total: pagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total) => `Total ${total} staff members`
+                showTotal: (total) => `Total ${total} staff members`,
               }}
               onChange={handleTableChange}
             >
-              <Column 
-                title="Username" 
-                dataIndex="username" 
+              <Column
+                title="Username"
+                dataIndex="username"
                 key="username"
                 sorter={(a, b) => a.username.localeCompare(b.username)}
               />
-              <Column 
-                title="Email" 
-                dataIndex="email" 
+              <Column
+                title="Email"
+                dataIndex="email"
                 key="email"
                 sorter={(a, b) => a.email.localeCompare(b.email)}
               />
-              <Column 
-                title="Roles & Positions" 
+              <Column
+                title="Roles & Positions"
                 key="roles"
                 render={(_, record: StaffMember) => (
                   <Space direction="vertical" size="small">
                     <Space wrap>
                       {record.userRoles.map((ur, index) => (
-                        <Tag key={index} color="blue">{ur.role.name}</Tag>
+                        <Tag key={index} color="blue">
+                          {ur.role.name}
+                        </Tag>
                       ))}
                     </Space>
                     <Space wrap>
                       {getRoleBadges(record).map((badge, index) => (
-                        <Tag key={index} color={badge.color}>{badge.text}</Tag>
+                        <Tag key={index} color={badge.color}>
+                          {badge.text}
+                        </Tag>
                       ))}
                     </Space>
                   </Space>
                 )}
               />
-              <Column 
-                title="Status" 
-                dataIndex="status" 
+              <Column
+                title="Status"
+                dataIndex="status"
                 key="status"
                 filters={[
-                  { text: 'Active', value: 'active' },
-                  { text: 'Inactive', value: 'inactive' },
-                  { text: 'Suspended', value: 'suspended' }
+                  { text: "Active", value: "active" },
+                  { text: "Inactive", value: "inactive" },
+                  { text: "Suspended", value: "suspended" },
                 ]}
                 onFilter={(value, record) => record.status === value}
                 render={(status) => (
@@ -718,18 +740,23 @@ const StaffRolesPage: React.FC = () => {
                   </Tag>
                 )}
               />
-              <Column 
-                title="Last Login" 
-                dataIndex="lastLogin" 
+              <Column
+                title="Last Login"
+                dataIndex="lastLogin"
                 key="lastLogin"
-                render={(lastLogin) => lastLogin ? formatDate(lastLogin) : 'Never'}
+                render={(lastLogin) =>
+                  lastLogin ? formatDate(lastLogin) : "Never"
+                }
               />
-              <Column 
-                title="Created" 
-                dataIndex="createdAt" 
+              <Column
+                title="Created"
+                dataIndex="createdAt"
                 key="createdAt"
                 render={(createdAt) => formatDate(createdAt)}
-                sorter={(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()}
+                sorter={(a, b) =>
+                  new Date(a.createdAt).getTime() -
+                  new Date(b.createdAt).getTime()
+                }
               />
               <Column
                 title="Actions"
@@ -759,7 +786,7 @@ const StaffRolesPage: React.FC = () => {
                           danger
                           size="small"
                           icon={<DeleteOutlined />}
-                          disabled={record.status === 'inactive'}
+                          disabled={record.status === "inactive"}
                         />
                       </Popconfirm>
                     </Tooltip>
@@ -770,14 +797,14 @@ const StaffRolesPage: React.FC = () => {
           </TabPane>
 
           {/* Roles Tab */}
-          <TabPane 
+          <TabPane
             tab={
               <span>
                 <TeamOutlined />
                 Roles
                 <Badge count={roles.length} offset={[10, -5]} />
               </span>
-            } 
+            }
             key="roles"
           >
             <Table
@@ -790,40 +817,44 @@ const StaffRolesPage: React.FC = () => {
                 total: pagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total) => `Total ${total} roles`
+                showTotal: (total) => `Total ${total} roles`,
               }}
               onChange={handleTableChange}
             >
-              <Column 
-                title="Role Name" 
-                dataIndex="name" 
+              <Column
+                title="Role Name"
+                dataIndex="name"
                 key="name"
                 sorter={(a, b) => a.name.localeCompare(b.name)}
               />
-              <Column 
-                title="Description" 
-                dataIndex="description" 
+              <Column
+                title="Description"
+                dataIndex="description"
                 key="description"
                 ellipsis
               />
-              <Column 
-                title="Users" 
+              <Column
+                title="Users"
                 key="users"
                 render={(_, record: Role) => (
-                  <Tooltip title={`${record._count?.userRoles || 0} users assigned`}>
+                  <Tooltip
+                    title={`${record._count?.userRoles || 0} users assigned`}
+                  >
                     <Badge count={record._count?.userRoles || 0} showZero />
                   </Tooltip>
                 )}
               />
-              <Column 
-                title="Permissions" 
+              <Column
+                title="Permissions"
                 key="permissions"
                 render={(_, record: Role) => (
-                  <Tooltip title={`${record._count?.permissions || 0} permissions`}>
-                    <Badge 
-                      count={record._count?.permissions || 0} 
-                      showZero 
-                      style={{ backgroundColor: '#52c41a' }}
+                  <Tooltip
+                    title={`${record._count?.permissions || 0} permissions`}
+                  >
+                    <Badge
+                      count={record._count?.permissions || 0}
+                      showZero
+                      style={{ backgroundColor: "#52c41a" }}
                     />
                   </Tooltip>
                 )}
@@ -860,14 +891,22 @@ const StaffRolesPage: React.FC = () => {
                         onConfirm={() => handleDeleteRole(record.id)}
                         okText="Yes"
                         cancelText="No"
-                        disabled={record._count?.userRoles ? record._count.userRoles > 0 : false}
+                        disabled={
+                          record._count?.userRoles
+                            ? record._count.userRoles > 0
+                            : false
+                        }
                       >
                         <Button
                           type="link"
                           danger
                           size="small"
                           icon={<DeleteOutlined />}
-                          disabled={record._count?.userRoles ? record._count.userRoles > 0 : false}
+                          disabled={
+                            record._count?.userRoles
+                              ? record._count.userRoles > 0
+                              : false
+                          }
                         />
                       </Popconfirm>
                     </Tooltip>
@@ -878,28 +917,28 @@ const StaffRolesPage: React.FC = () => {
           </TabPane>
 
           {/* Permissions Tab */}
-          <TabPane 
+          <TabPane
             tab={
               <span>
                 <KeyOutlined />
                 Permissions
                 <Badge count={permissions.length} offset={[10, -5]} />
               </span>
-            } 
+            }
             key="permissions"
           >
             <Row gutter={[16, 16]}>
-              {permissions.map(permission => (
+              {permissions.map((permission) => (
                 <Col xs={24} sm={12} md={8} lg={6} key={permission.id}>
                   <Card
                     size="small"
                     title={
                       <div className="flex justify-between items-center">
                         <span className="truncate">{permission.name}</span>
-                        <Badge 
-                          count={permission._count?.roles || 0} 
-                          size="small" 
-                          style={{ backgroundColor: '#1890ff' }}
+                        <Badge
+                          count={permission._count?.roles || 0}
+                          size="small"
+                          style={{ backgroundColor: "#1890ff" }}
                         />
                       </div>
                     }
@@ -914,17 +953,27 @@ const StaffRolesPage: React.FC = () => {
                         <Popconfirm
                           title="Delete this permission?"
                           description="This will remove it from all roles."
-                          onConfirm={() => handleDeletePermission(permission.id)}
+                          onConfirm={() =>
+                            handleDeletePermission(permission.id)
+                          }
                           okText="Yes"
                           cancelText="No"
-                          disabled={permission._count?.roles ? permission._count.roles > 0 : false}
+                          disabled={
+                            permission._count?.roles
+                              ? permission._count.roles > 0
+                              : false
+                          }
                         >
                           <Button
                             type="link"
                             danger
                             size="small"
                             icon={<DeleteOutlined />}
-                            disabled={permission._count?.roles ? permission._count.roles > 0 : false}
+                            disabled={
+                              permission._count?.roles
+                                ? permission._count.roles > 0
+                                : false
+                            }
                           />
                         </Popconfirm>
                       </Space>
@@ -957,7 +1006,9 @@ const StaffRolesPage: React.FC = () => {
               <div className="text-center py-8">
                 <SafetyCertificateOutlined className="text-4xl text-gray-300 mb-4" />
                 <Title level={4}>No permissions found</Title>
-                <Text type="secondary">Create your first permission to get started</Text>
+                <Text type="secondary">
+                  Create your first permission to get started
+                </Text>
               </div>
             )}
           </TabPane>
@@ -977,31 +1028,27 @@ const StaffRolesPage: React.FC = () => {
         okText={editingRole ? "Update" : "Create"}
         cancelText="Cancel"
       >
-        <Form
-          form={roleForm}
-          layout="vertical"
-          onFinish={handleRoleSubmit}
-        >
+        <Form form={roleForm} layout="vertical" onFinish={handleRoleSubmit}>
           <Form.Item
             name="name"
             label="Role Name"
             rules={[
-              { required: true, message: 'Please enter role name' },
-              { pattern: /^[a-z_]+$/, message: 'Use lowercase letters and underscores only' }
+              { required: true, message: "Please enter role name" },
+              {
+                pattern: /^[a-z_]+$/,
+                message: "Use lowercase letters and underscores only",
+              },
             ]}
           >
-            <Input 
-              placeholder="Enter role name (e.g., admin, advisor, hod)" 
+            <Input
+              placeholder="Enter role name (e.g., admin, advisor, hod)"
               disabled={!!editingRole}
             />
           </Form.Item>
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <Input.TextArea 
-              placeholder="Enter role description" 
-              rows={3} 
+          <Form.Item name="description" label="Description">
+            <Input.TextArea
+              placeholder="Enter role description"
+              rows={3}
               maxLength={200}
               showCount
             />
@@ -1023,24 +1070,20 @@ const StaffRolesPage: React.FC = () => {
         okText={editingStaff ? "Update" : "Create"}
         cancelText="Cancel"
       >
-        <Form
-          form={staffForm}
-          layout="vertical"
-          onFinish={handleStaffSubmit}
-        >
+        <Form form={staffForm} layout="vertical" onFinish={handleStaffSubmit}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="username"
                 label="Username"
                 rules={[
-                  { required: true, message: 'Please enter username' },
-                  { min: 3, message: 'Username must be at least 3 characters' }
+                  { required: true, message: "Please enter username" },
+                  { min: 3, message: "Username must be at least 3 characters" },
                 ]}
               >
-                <Input 
-                  prefix={<UserOutlined />} 
-                  placeholder="Enter username" 
+                <Input
+                  prefix={<UserOutlined />}
+                  placeholder="Enter username"
                   disabled={!!editingStaff}
                 />
               </Form.Item>
@@ -1050,64 +1093,62 @@ const StaffRolesPage: React.FC = () => {
                 name="email"
                 label="Email"
                 rules={[
-                  { required: true, message: 'Please enter email' },
-                  { type: 'email', message: 'Please enter valid email' }
+                  { required: true, message: "Please enter email" },
+                  { type: "email", message: "Please enter valid email" },
                 ]}
               >
-                <Input 
-                  prefix={<MailOutlined />} 
-                  placeholder="Enter email" 
+                <Input
+                  prefix={<MailOutlined />}
+                  placeholder="Enter email"
                   type="email"
                 />
               </Form.Item>
             </Col>
           </Row>
-          
+
           {!editingStaff && (
             <Form.Item
               name="password"
               label="Password"
               rules={[
-                { required: true, message: 'Please enter password' },
-                { min: 6, message: 'Password must be at least 6 characters' }
+                { required: true, message: "Please enter password" },
+                { min: 6, message: "Password must be at least 6 characters" },
               ]}
             >
-              <Input.Password 
-                prefix={<LockOutlined />} 
-                placeholder="Enter password" 
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="Enter password"
               />
             </Form.Item>
           )}
-          
+
           <Form.Item
             name="roleIds"
             label="Roles"
-            rules={[{ required: true, message: 'Please select at least one role' }]}
+            rules={[
+              { required: true, message: "Please select at least one role" },
+            ]}
           >
-            <Select 
-              mode="multiple" 
+            <Select
+              mode="multiple"
               placeholder="Select roles"
-              options={roles.map(role => ({
+              options={roles.map((role) => ({
                 label: role.name,
                 value: role.id,
-                description: role.description
+                description: role.description,
               }))}
               optionRender={(option) => (
                 <div>
                   <div>{option.label}</div>
-                  <div style={{ fontSize: '12px', color: '#999' }}>
-                    {option.data.description || 'No description'}
+                  <div style={{ fontSize: "12px", color: "#999" }}>
+                    {option.data.description || "No description"}
                   </div>
                 </div>
               )}
             />
           </Form.Item>
-          
-          <Form.Item
-            name="status"
-            label="Status"
-            initialValue="active"
-          >
+
+          <Form.Item name="status" label="Status" initialValue="active">
             <Select>
               <Option value="active">Active</Option>
               <Option value="inactive">Inactive</Option>
@@ -1139,23 +1180,29 @@ const StaffRolesPage: React.FC = () => {
             name="name"
             label="Permission Name"
             rules={[
-              { required: true, message: 'Please enter permission name' },
-              { pattern: /^[a-z_]+$/, message: 'Use lowercase letters and underscores only' }
+              { required: true, message: "Please enter permission name" },
+              {
+                pattern: /^[a-z:]+$/,
+                message: "Use lowercase letters and colon only",
+              },
             ]}
           >
-            <Input placeholder="Enter permission name (e.g., view_students, create_fees)" />
+            <Input placeholder="Enter permission name (e.g., view:students, create:fees)" />
           </Form.Item>
-          
+
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="moduleName"
                 label="Module"
-                rules={[{ required: true, message: 'Please select module' }]}
+                rules={[{ required: true, message: "Please select module" }]}
               >
-                <Select 
+                <Select
                   placeholder="Select module"
-                  options={permissionmoduleNames.map(moduleName => ({ label: moduleName, value: moduleName }))}
+                  options={permissionmoduleNames.map((moduleName) => ({
+                    label: moduleName,
+                    value: moduleName,
+                  }))}
                   showSearch
                 />
               </Form.Item>
@@ -1164,7 +1211,7 @@ const StaffRolesPage: React.FC = () => {
               <Form.Item
                 name="action"
                 label="Action"
-                rules={[{ required: true, message: 'Please select action' }]}
+                rules={[{ required: true, message: "Please select action" }]}
               >
                 <Select placeholder="Select action">
                   <Option value="create">Create</Option>
@@ -1180,19 +1227,22 @@ const StaffRolesPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          
+
           <Form.Item
             name="description"
             label="Description"
             rules={[
-              { required: true, message: 'Please enter permission description' },
-              { min: 5, message: 'Description must be at least 5 characters' },
-              { max: 200, message: 'Description cannot exceed 200 characters' }
+              {
+                required: true,
+                message: "Please enter permission description",
+              },
+              { min: 5, message: "Description must be at least 5 characters" },
+              { max: 200, message: "Description cannot exceed 200 characters" },
             ]}
           >
-            <Input.TextArea 
-              placeholder="Enter permission description (what this permission allows)" 
-              rows={3} 
+            <Input.TextArea
+              placeholder="Enter permission description (what this permission allows)"
+              rows={3}
               maxLength={200}
               showCount
             />
@@ -1221,83 +1271,112 @@ const StaffRolesPage: React.FC = () => {
               <Tag color="blue">{selectedRoleForPermissions.name}</Tag>
               {selectedRoleForPermissions.description && (
                 <>
-                  <Text strong className="ml-4">Description: </Text>
+                  <Text strong className="ml-4">
+                    Description:{" "}
+                  </Text>
                   <Text>{selectedRoleForPermissions.description}</Text>
                 </>
               )}
             </div>
-            
-            <Text className="block mb-3">Select permissions for this role:</Text>
-            
+
+            <Text className="block mb-3">
+              Select permissions for this role:
+            </Text>
+
             <div className="max-h-96 overflow-y-auto border rounded p-4">
               {/* Group permissions by moduleName */}
-              {Array.from(new Set(permissions.map(p => p.moduleName))).map(moduleName => {
-                const modulePermissions = permissions.filter(p => p.moduleName === moduleName);
-                const allModuleSelected = modulePermissions.every(p => 
-                  selectedPermissions.includes(p.id)
-                );
-                const someModuleSelected = modulePermissions.some(p => 
-                  selectedPermissions.includes(p.id)
-                );
+              {Array.from(new Set(permissions.map((p) => p.moduleName))).map(
+                (moduleName) => {
+                  const modulePermissions = permissions.filter(
+                    (p) => p.moduleName === moduleName
+                  );
+                  const allModuleSelected = modulePermissions.every((p) =>
+                    selectedPermissions.includes(p.id)
+                  );
+                  const someModuleSelected = modulePermissions.some((p) =>
+                    selectedPermissions.includes(p.id)
+                  );
 
-                return (
-                  <div key={moduleName} className="mb-6">
-                    <div className="flex items-center mb-2 pb-2 border-b">
-                      <Checkbox
-                        indeterminate={someModuleSelected && !allModuleSelected}
-                        checked={allModuleSelected}
-                        onChange={(e) => {
-                          const modulePermissionIds = modulePermissions.map(p => p.id);
-                          if (e.target.checked) {
-                            // Add all module permissions
-                            setSelectedPermissions(prev => 
-                              Array.from(new Set([...prev, ...modulePermissionIds]))
-                            );
-                          } else {
-                            // Remove all module permissions
-                            setSelectedPermissions(prev => 
-                              prev.filter(id => !modulePermissionIds.includes(id))
-                            );
+                  return (
+                    <div key={moduleName} className="mb-6">
+                      <div className="flex items-center mb-2 pb-2 border-b">
+                        <Checkbox
+                          indeterminate={
+                            someModuleSelected && !allModuleSelected
                           }
-                        }}
-                      >
-                        <Text strong className="ml-2 text-lg">
-                          {moduleName.charAt(0).toUpperCase() + moduleName.slice(1)} Module
-                        </Text>
-                      </Checkbox>
-                    </div>
-                    
-                    <Row gutter={[16, 8]}>
-                      {modulePermissions.map(permission => (
-                        <Col span={12} key={permission.id}>
-                          <Checkbox
-                            checked={selectedPermissions.includes(permission.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedPermissions([...selectedPermissions, permission.id]);
-                              } else {
-                                setSelectedPermissions(selectedPermissions.filter(id => id !== permission.id));
-                              }
-                            }}
-                          >
-                            <div className="ml-2">
-                              <div className="font-medium">{permission.name}</div>
-                              <div className="text-sm text-gray-500">
-                               <Tag color="green" className="text-xs">
-                                  {permission.action}
-                                </Tag>
-                                {permission.description}
+                          checked={allModuleSelected}
+                          onChange={(e) => {
+                            const modulePermissionIds = modulePermissions.map(
+                              (p) => p.id
+                            );
+                            if (e.target.checked) {
+                              // Add all module permissions
+                              setSelectedPermissions((prev) =>
+                                Array.from(
+                                  new Set([...prev, ...modulePermissionIds])
+                                )
+                              );
+                            } else {
+                              // Remove all module permissions
+                              setSelectedPermissions((prev) =>
+                                prev.filter(
+                                  (id) => !modulePermissionIds.includes(id)
+                                )
+                              );
+                            }
+                          }}
+                        >
+                          <Text strong className="ml-2 text-lg">
+                            {moduleName.charAt(0).toUpperCase() +
+                              moduleName.slice(1)}{" "}
+                            Module
+                          </Text>
+                        </Checkbox>
+                      </div>
+
+                      <Row gutter={[16, 8]}>
+                        {modulePermissions.map((permission) => (
+                          <Col span={12} key={permission.id}>
+                            <Checkbox
+                              checked={selectedPermissions.includes(
+                                permission.id
+                              )}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedPermissions([
+                                    ...selectedPermissions,
+                                    permission.id,
+                                  ]);
+                                } else {
+                                  setSelectedPermissions(
+                                    selectedPermissions.filter(
+                                      (id) => id !== permission.id
+                                    )
+                                  );
+                                }
+                              }}
+                            >
+                              <div className="ml-2">
+                                <div className="font-medium">
+                                  {permission.name}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  <Tag color="green" className="text-xs">
+                                    {permission.action}
+                                  </Tag>
+                                  {permission.description}
+                                </div>
                               </div>
-                            </div>
-                          </Checkbox>
-                        </Col>
-                      ))}
-                    </Row>
-                  </div>
-                );
-              })}
+                            </Checkbox>
+                          </Col>
+                        ))}
+                      </Row>
+                    </div>
+                  );
+                }
+              )}
             </div>
-            
+
             <div className="mt-4 p-3 bg-gray-50 rounded">
               <Text strong>Selected: </Text>
               <Tag color="blue">{selectedPermissions.length} permissions</Tag>
