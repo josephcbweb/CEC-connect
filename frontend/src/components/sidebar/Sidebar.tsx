@@ -65,6 +65,7 @@ const Sidebar = () => {
             collapsed={collapsed}
             onClick={() => {
               localStorage.removeItem("authToken");
+              localStorage.removeItem("user");
               navigate("/signup");
             }}
           />

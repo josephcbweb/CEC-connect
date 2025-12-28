@@ -1,13 +1,12 @@
 // controllers/roleController.ts
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
-import { RolePermission } from "@prisma/client"; // Import the type
 
 // GET all roles
 export const getAllRoles = async (req: Request, res: Response) => {
   try {
-    const { page = '1', limit = '10', search = '' } = req.query;
-    
+    const { page = "1", limit = "10", search = "" } = req.query;
+
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
@@ -15,8 +14,8 @@ export const getAllRoles = async (req: Request, res: Response) => {
     const where: any = {};
     if (search) {
       where.OR = [
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { description: { contains: search as string, mode: 'insensitive' } }
+        { name: { contains: search as string, mode: "insensitive" } },
+        { description: { contains: search as string, mode: "insensitive" } },
       ];
     }
 
@@ -27,20 +26,20 @@ export const getAllRoles = async (req: Request, res: Response) => {
           _count: {
             select: {
               userRoles: true,
-              permissions: true
-            }
+              permissions: true,
+            },
           },
           permissions: {
             include: {
-              permission: true
-            }
-          }
+              permission: true,
+            },
+          },
         },
         skip,
         take: limitNum,
-        orderBy: { name: 'asc' }
+        orderBy: { name: "asc" },
       }),
-      prisma.role.count({ where })
+      prisma.role.count({ where }),
     ]);
 
     res.status(200).json({
@@ -50,14 +49,14 @@ export const getAllRoles = async (req: Request, res: Response) => {
         page: pageNum,
         limit: limitNum,
         total,
-        pages: Math.ceil(total / limitNum)
-      }
+        pages: Math.ceil(total / limitNum),
+      },
     });
   } catch (error) {
-    console.error('Error fetching roles:', error);
+    console.error("Error fetching roles:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching roles'
+      message: "Error fetching roles",
     });
   }
 };
@@ -72,31 +71,31 @@ export const getRolePermissions = async (req: Request, res: Response) => {
       include: {
         permissions: {
           include: {
-            permission: true
-          }
-        }
-      }
+            permission: true,
+          },
+        },
+      },
     });
 
     if (!role) {
       return res.status(404).json({
         success: false,
-        message: 'Role not found'
+        message: "Role not found",
       });
     }
 
     // Type the permissions correctly
-    const permissions = role.permissions.map(rp => rp.permission);
+    const permissions = role.permissions.map((rp) => rp.permission);
 
     res.status(200).json({
       success: true,
-      data: permissions
+      data: permissions,
     });
   } catch (error) {
-    console.error('Error fetching role permissions:', error);
+    console.error("Error fetching role permissions:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching role permissions'
+      message: "Error fetching role permissions",
     });
   }
 };
@@ -110,19 +109,19 @@ export const updateRolePermissions = async (req: Request, res: Response) => {
     if (!permissionIds || !Array.isArray(permissionIds)) {
       return res.status(400).json({
         success: false,
-        message: 'permissionIds array is required'
+        message: "permissionIds array is required",
       });
     }
 
     // Check if role exists
     const existingRole = await prisma.role.findUnique({
-      where: { id: roleId }
+      where: { id: roleId },
     });
 
     if (!existingRole) {
       return res.status(404).json({
         success: false,
-        message: 'Role not found'
+        message: "Role not found",
       });
     }
 
@@ -130,44 +129,44 @@ export const updateRolePermissions = async (req: Request, res: Response) => {
     const permissions = await prisma.permission.findMany({
       where: {
         id: {
-          in: permissionIds
-        }
-      }
+          in: permissionIds,
+        },
+      },
     });
 
     if (permissions.length !== permissionIds.length) {
       return res.status(400).json({
         success: false,
-        message: 'One or more permissions not found'
+        message: "One or more permissions not found",
       });
     }
 
     // Delete existing role permissions
     await prisma.rolePermission.deleteMany({
-      where: { roleId }
+      where: { roleId },
     });
 
     // Create new role permissions
     if (permissionIds.length > 0) {
       const rolePermissionData = permissionIds.map((permissionId: number) => ({
         roleId,
-        permissionId
+        permissionId,
       }));
 
       await prisma.rolePermission.createMany({
-        data: rolePermissionData
+        data: rolePermissionData,
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Role permissions updated successfully'
+      message: "Role permissions updated successfully",
     });
   } catch (error) {
-    console.error('Error updating role permissions:', error);
+    console.error("Error updating role permissions:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating role permissions'
+      message: "Error updating role permissions",
     });
   }
 };
@@ -180,39 +179,39 @@ export const createRole = async (req: Request, res: Response) => {
     if (!name) {
       return res.status(400).json({
         success: false,
-        message: 'Role name is required'
+        message: "Role name is required",
       });
     }
 
     // Check if role exists
     const existingRole = await prisma.role.findUnique({
-      where: { name }
+      where: { name },
     });
 
     if (existingRole) {
       return res.status(400).json({
         success: false,
-        message: 'Role already exists'
+        message: "Role already exists",
       });
     }
 
     const role = await prisma.role.create({
       data: {
         name,
-        description
-      }
+        description,
+      },
     });
 
     res.status(201).json({
       success: true,
       data: role,
-      message: 'Role created successfully'
+      message: "Role created successfully",
     });
   } catch (error) {
-    console.error('Error creating role:', error);
+    console.error("Error creating role:", error);
     res.status(500).json({
       success: false,
-      message: 'Error creating role'
+      message: "Error creating role",
     });
   }
 };
@@ -225,13 +224,13 @@ export const updateRole = async (req: Request, res: Response) => {
 
     // Check if role exists
     const existingRole = await prisma.role.findUnique({
-      where: { id: roleId }
+      where: { id: roleId },
     });
 
     if (!existingRole) {
       return res.status(404).json({
         success: false,
-        message: 'Role not found'
+        message: "Role not found",
       });
     }
 
@@ -239,20 +238,20 @@ export const updateRole = async (req: Request, res: Response) => {
       where: { id: roleId },
       data: {
         name,
-        description
-      }
+        description,
+      },
     });
 
     res.status(200).json({
       success: true,
       data: role,
-      message: 'Role updated successfully'
+      message: "Role updated successfully",
     });
   } catch (error) {
-    console.error('Error updating role:', error);
+    console.error("Error updating role:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating role'
+      message: "Error updating role",
     });
   }
 };
@@ -268,16 +267,16 @@ export const deleteRole = async (req: Request, res: Response) => {
       include: {
         _count: {
           select: {
-            userRoles: true
-          }
-        }
-      }
+            userRoles: true,
+          },
+        },
+      },
     });
 
     if (!existingRole) {
       return res.status(404).json({
         success: false,
-        message: 'Role not found'
+        message: "Role not found",
       });
     }
 
@@ -285,23 +284,23 @@ export const deleteRole = async (req: Request, res: Response) => {
     if (existingRole._count.userRoles > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot delete role with assigned users'
+        message: "Cannot delete role with assigned users",
       });
     }
 
     await prisma.role.delete({
-      where: { id: roleId }
+      where: { id: roleId },
     });
 
     res.status(200).json({
       success: true,
-      message: 'Role deleted successfully'
+      message: "Role deleted successfully",
     });
   } catch (error) {
-    console.error('Error deleting role:', error);
+    console.error("Error deleting role:", error);
     res.status(500).json({
       success: false,
-      message: 'Error deleting role'
+      message: "Error deleting role",
     });
   }
 };

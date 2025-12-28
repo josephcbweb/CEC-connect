@@ -2,26 +2,25 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcrypt";
-import { User, UserRole, Role, AdvisorDetails, HodDetails, PrincipalDetails } from "@prisma/client";
 
 // GET all users (staff)
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const { page = '1', limit = '10', search = '', status = '' } = req.query;
-    
+    const { page = "1", limit = "10", search = "", status = "" } = req.query;
+
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = {};
-    
+
     if (search) {
       where.OR = [
-        { username: { contains: search as string, mode: 'insensitive' } },
-        { email: { contains: search as string, mode: 'insensitive' } }
+        { username: { contains: search as string, mode: "insensitive" } },
+        { email: { contains: search as string, mode: "insensitive" } },
       ];
     }
-    
+
     if (status) {
       where.status = status;
     }
@@ -32,18 +31,18 @@ export const getAllUsers = async (req: Request, res: Response) => {
         include: {
           userRoles: {
             include: {
-              role: true
-            }
+              role: true,
+            },
           },
           advisorDetails: true,
           hodDetails: true,
-          principalDetails: true
+          principalDetails: true,
         },
         skip,
         take: limitNum,
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       }),
-      prisma.user.count({ where })
+      prisma.user.count({ where }),
     ]);
 
     res.status(200).json({
@@ -53,14 +52,14 @@ export const getAllUsers = async (req: Request, res: Response) => {
         page: pageNum,
         limit: limitNum,
         total,
-        pages: Math.ceil(total / limitNum)
-      }
+        pages: Math.ceil(total / limitNum),
+      },
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error("Error fetching users:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching users'
+      message: "Error fetching users",
     });
   }
 };
@@ -68,29 +67,26 @@ export const getAllUsers = async (req: Request, res: Response) => {
 // POST create user
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { username, email, password, roleIds, status = 'active' } = req.body;
+    const { username, email, password, roleIds, status = "active" } = req.body;
 
     if (!username || !email || !password || !roleIds) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email, password, and roleIds are required'
+        message: "Username, email, password, and roleIds are required",
       });
     }
 
     // Check if user exists
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [
-          { username },
-          { email }
-        ]
-      }
+        OR: [{ username }, { email }],
+      },
     });
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Username or email already exists'
+        message: "Username or email already exists",
       });
     }
 
@@ -107,17 +103,17 @@ export const createUser = async (req: Request, res: Response) => {
         status,
         userRoles: {
           create: roleIds.map((roleId: number) => ({
-            roleId
-          }))
-        }
+            roleId,
+          })),
+        },
       },
       include: {
         userRoles: {
           include: {
-            role: true
-          }
-        }
-      }
+            role: true,
+          },
+        },
+      },
     });
 
     // Remove password hash from response
@@ -126,13 +122,13 @@ export const createUser = async (req: Request, res: Response) => {
     res.status(201).json({
       success: true,
       data: userWithoutPassword,
-      message: 'User created successfully'
+      message: "User created successfully",
     });
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error("Error creating user:", error);
     res.status(500).json({
       success: false,
-      message: 'Error creating user'
+      message: "Error creating user",
     });
   }
 };
@@ -145,20 +141,20 @@ export const updateUser = async (req: Request, res: Response) => {
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
 
     if (!existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     const updateData: any = {
       username,
       email,
-      status
+      status,
     };
 
     // Update password if provided
@@ -174,17 +170,17 @@ export const updateUser = async (req: Request, res: Response) => {
       include: {
         userRoles: {
           include: {
-            role: true
-          }
-        }
-      }
+            role: true,
+          },
+        },
+      },
     });
 
     // Update roles if provided
     if (roleIds && Array.isArray(roleIds)) {
       // Delete existing roles
       await prisma.userRole.deleteMany({
-        where: { userId }
+        where: { userId },
       });
 
       // Create new roles
@@ -192,8 +188,8 @@ export const updateUser = async (req: Request, res: Response) => {
         await prisma.userRole.createMany({
           data: roleIds.map((roleId: number) => ({
             userId,
-            roleId
-          }))
+            roleId,
+          })),
         });
       }
 
@@ -203,10 +199,10 @@ export const updateUser = async (req: Request, res: Response) => {
         include: {
           userRoles: {
             include: {
-              role: true
-            }
-          }
-        }
+              role: true,
+            },
+          },
+        },
       });
 
       // Remove password hash from response
@@ -215,7 +211,7 @@ export const updateUser = async (req: Request, res: Response) => {
       return res.status(200).json({
         success: true,
         data: userWithoutPassword,
-        message: 'User updated successfully'
+        message: "User updated successfully",
       });
     }
 
@@ -225,13 +221,13 @@ export const updateUser = async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       data: userWithoutPassword,
-      message: 'User updated successfully'
+      message: "User updated successfully",
     });
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error("Error updating user:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating user'
+      message: "Error updating user",
     });
   }
 };
@@ -243,31 +239,31 @@ export const deleteUser = async (req: Request, res: Response) => {
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
 
     if (!existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     // Soft delete - set status to inactive
     await prisma.user.update({
       where: { id: userId },
-      data: { status: 'inactive' }
+      data: { status: "inactive" },
     });
 
     res.status(200).json({
       success: true,
-      message: 'User deactivated successfully'
+      message: "User deactivated successfully",
     });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error("Error deleting user:", error);
     res.status(500).json({
       success: false,
-      message: 'Error deleting user'
+      message: "Error deleting user",
     });
   }
 };
