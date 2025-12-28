@@ -352,7 +352,8 @@ export const assignBusFees = async (req: Request, res: Response) => {
                 studentId: student.id,
                 amount,
                 dueDate: new Date(dueDate),
-                status: 'unpaid'
+                status: 'unpaid',
+                feeStructureId:2,
               }
             }
           }
