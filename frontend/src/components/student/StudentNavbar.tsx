@@ -8,9 +8,11 @@ interface StudentWithFees extends Student {
 }
 interface StudentNavbarProps {
   studentData: StudentWithFees | null;
+  isRegistrationOpen: boolean;
 }
 export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   studentData,
+  isRegistrationOpen,
 }) => {
   const navigate = useNavigate();
   const handleProfileClick = () => {
@@ -47,6 +49,18 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
             >
               Dashboard
             </NavLink>
+            {isRegistrationOpen && (
+              <NavLink
+                to="/student/register"
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                  pathname == "/student/register"
+                    ? "border-b-teal-600 text-teal-700"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Registration
+              </NavLink>
+            )}
             <NavLink
               to="/student/fees"
               className={`block px-3 py-2 rounded-md text-base font-medium ${

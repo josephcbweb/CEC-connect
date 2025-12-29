@@ -61,6 +61,7 @@ class AuthService {
     );
     const tokenWithUser = {
       user: {
+        id: user.id,
         name: user.username,
         email: user.email,
         role: roles,

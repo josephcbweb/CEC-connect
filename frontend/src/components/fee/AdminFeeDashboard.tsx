@@ -53,9 +53,6 @@ const AdminFeesDashboard: React.FC = () => {
     navigate("/signup");
     return;
   }
-  const tokenData = jwtDecode<{ userId: string; userName: string }>(token);
-
-  const adminId = tokenData.userId;
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);

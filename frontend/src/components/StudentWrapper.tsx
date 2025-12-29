@@ -14,6 +14,7 @@ const StudentLayout: React.FC = () => {
   const [studentData, setStudentData] = useState<StudentWithFees | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("studentAuthToken");
@@ -49,12 +50,30 @@ const StudentLayout: React.FC = () => {
       }
     };
 
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/settings");
+        const data = await res.json();
+        // data is an array of settings
+        const setting = Array.isArray(data)
+          ? data.find((s: any) => s.key === "noDueRequestEnabled")
+          : null;
+        setIsRegistrationOpen(setting ? setting.enabled : false);
+      } catch (err) {
+        console.error("Failed to fetch settings", err);
+      }
+    };
+
     fetchStudentData();
-  }, []);
+    fetchSettings();
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
-      <StudentNavbar studentData={studentData} />
+      <StudentNavbar
+        studentData={studentData}
+        isRegistrationOpen={isRegistrationOpen}
+      />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading && (
           <div className="text-center py-20">
@@ -75,7 +94,7 @@ const StudentLayout: React.FC = () => {
           </div>
         )}
         {!loading && !error && studentData && (
-          <Outlet context={{ studentData }} />
+          <Outlet context={{ studentData, isRegistrationOpen }} />
         )}
       </main>
     </div>
