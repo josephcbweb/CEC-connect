@@ -4,6 +4,7 @@ import {
   getStudents,
   getStudentProfile,
   updateStudentProfile,
+  getAllBusRoutes,
 } from "../controllers/studentController";
 
 const router = express.Router();

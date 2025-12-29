@@ -137,10 +137,12 @@ model Student {
   busId                               Int?            @map("bus_id")
   busStopId                           Int?            @map("bus_stop_id")
   currentSemester                     Int             @default(1) @map("current_semester")
+  passoutYear                         Int?            @map("passout_year")
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
   requests                            NoDueRequest[]
+  busRequests                         BusRequest[]
   users                               User?           @relation(fields: [advisorId], references: [id])
   department                          Department      @relation(fields: [departmentId], references: [id])
   bus                                 Bus?            @relation(fields: [busId], references: [id])
@@ -331,7 +333,7 @@ model FeeDetails {
   dueDate   DateTime  @map("due_date") @db.Date
   createdAt DateTime  @default(now()) @map("created_at")
   semester  Int?      @map("semester")
-  archived  Boolean?
+  archived  Boolean   @default(false)
   student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
 
@@ -446,7 +448,20 @@ model BusStop {
   @@unique([busId, stopName])
 }
 
-// --- ENUMS ---
+model BusRequest {
+  id          Int           @id @default(autoincrement())
+  studentId   Int           @map("student_id")
+  busId       Int           @map("bus_id")
+  busStopId   Int           @map("bus_stop_id")
+  status      RequestStatus @default(pending) // Uses your existing enum
+  requestDate DateTime      @default(now()) @map("request_date")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  comment     String?
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@map("bus_requests")
+}
 
 enum DepartmentStatus {
   ACTIVE

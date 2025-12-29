@@ -247,46 +247,251 @@ export const deleteBusStop = async (req: Request, res: Response) => {
   }
 };
 
-export const getBusFeeStatus = async (_req: Request, res: Response) => {
+export const fetchBusStudents = async (req: Request, res: Response) => {
   try {
-    const setting = await prisma.setting.findUnique({
-      where: { key: BUS_FEE_KEY },
-      select: { enabled: true },
-    });
-
-    return res.status(200).json({
-      enabled: setting?.enabled ?? false,
-    });
-  } catch (error) {
-    console.error("Bus fee status error:", error);
-    return res.status(500).json({ message: "Failed to fetch status" });
-  }
-};
-
-export const toggleBusFee = async (req: Request, res: Response) => {
-  const { enabled } = req.body;
-
-  if (typeof enabled !== "boolean") {
-    return res.status(400).json({ message: "Invalid enabled value" });
-  }
-
-  try {
-    const setting = await prisma.setting.upsert({
-      where: { key: BUS_FEE_KEY },
-      update: { enabled },
-      create: {
-        key: BUS_FEE_KEY,
-        enabled,
+    const students = await prisma.student.findMany({
+      where: {
+        bus_service: true,
+        busId: {
+          not: null,
+        },
+      },
+      select: {
+        id: true, // Added ID to select block
+        name: true,
+        currentSemester: true,
+        student_phone_number: true,
+        bus: {
+          select: {
+            busName: true,
+          },
+        },
+        department: {
+          select: {
+            department_code: true,
+          },
+        },
       },
     });
 
-    return res.status(200).json({
-      message: `Bus fee ${enabled ? "enabled" : "disabled"}`,
-      enabled: setting.enabled,
-    });
-  } catch (error) {
-    console.error("Toggle bus fee error:", error);
-    return res.status(500).json({ message: "Failed to update setting" });
+    // Converting students to a single level object
+    const modifiedStudent = students.map((s) => ({
+      id: s.id, // Included ID here
+      name: s.name,
+      semester: s.currentSemester,
+      phoneNumber: s.student_phone_number,
+      busName: s.bus?.busName ?? "No Bus Assigned",
+      departmentCode: s.department.department_code,
+    }));
+
+    return res.status(200).json(modifiedStudent);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch students" });
   }
 };
 
+export const getUniqueSemester = async(req:Request,res:Response)=>{
+  try{
+    const semesters = await prisma.student.groupBy({
+    by:['currentSemester'],
+    orderBy:{currentSemester: 'asc' },
+  });
+  res.json(semesters.map(s => s.currentSemester));
+  }
+  catch (error) {
+    res.status(500).json({ error: "Failed to fetch semesters" });
+  }
+};
+
+export const assignBusFees = async (req: Request, res: Response) => {
+  const { semester, dueDate, feeName } = req.body;
+
+  try {
+    // 1. Validation: Check if there is already an active (unarchived) batch for this semester
+    const activeBatchExists = await prisma.feeDetails.findFirst({
+      where: {
+        semester: parseInt(semester),
+        archived: false,
+        feeType: { contains: 'Bus Fee' }
+      }
+    });
+
+    if (activeBatchExists && semester !== 'all') {
+      return res.status(400).json({ 
+        message: `Cannot assign new fees. Please archive the existing active batch for Semester ${semester} first.` 
+      });
+    }
+
+    // 2. Fetch students
+    const students = await prisma.student.findMany({
+      where: {
+        bus_service: true,
+        busStopId: { not: null },
+        ...(semester !== 'all' ? { currentSemester: parseInt(semester) } : {})
+      },
+      include: { busStop: true }
+    });
+
+    if (!students.length) return res.status(404).json({ message: "No students found." });
+
+    // 3. Create records in transaction
+    await prisma.$transaction(
+      students.map((student) => {
+        const amount = student.busStop?.feeAmount || 0;
+        return prisma.feeDetails.create({
+          data: {
+            studentId: student.id,
+            feeType: feeName,
+            amount,
+            dueDate: new Date(dueDate),
+            semester: student.currentSemester,
+            archived: false, // Default state
+            invoices: {
+              create: {
+                studentId: student.id,
+                amount,
+                dueDate: new Date(dueDate),
+                status: 'unpaid',
+                feeStructureId:2,
+              }
+            }
+          }
+        });
+      })
+    );
+
+    res.status(201).json({ message: `Assigned fees to ${students.length} students.` });
+  } catch (error) {
+    res.status(500).json({ error: "Transaction failed." });
+  }
+};
+
+export const getFeeBatches = async (_req: Request, res: Response) => {
+  try {
+    const batches = await prisma.feeDetails.groupBy({
+      by: ['feeType', 'semester', 'dueDate'],
+      where: {
+        feeType: { contains: 'Bus Fee' },
+        archived: false // ONLY fetch active batches
+      },
+      _count: { id: true },
+      orderBy: { dueDate: 'desc' }
+    });
+
+    const formattedBatches = batches.map((batch, index) => ({
+      id: index,
+      feeName: batch.feeType,
+      semester: batch.semester,
+      dueDate: batch.dueDate,
+      studentCount: batch._count.id
+    }));
+
+    res.json(formattedBatches);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch active fee batches" });
+  }
+};
+// 2. Fetch specific student payment statuses for a chosen group
+
+export const getBatchDetails = async (req: Request, res: Response) => {
+  const { semester, feeName, dueDate } = req.query;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Normalize time for comparison
+
+  try {
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        dueDate: new Date(dueDate as string),
+        fee: {
+          feeType: feeName as string,
+          semester: parseInt(semester as string),
+        }
+      },
+      include: {
+        student: {
+          select: {
+            name: true,
+            busStop: { select: { stopName: true } }
+          }
+        }
+      },
+      orderBy: { student: { name: 'asc' } }
+    });
+
+    // Map the status dynamically based on the current date
+    const updatedDetails = invoices.map(inv => {
+      const isPastDue = today > new Date(inv.dueDate);
+      let displayStatus = inv.status;
+
+      // If database says unpaid but date is passed, show as overdue
+      if (inv.status === 'unpaid' && isPastDue) {
+        displayStatus = 'overdue' as any; 
+      }
+
+      return { ...inv, status: displayStatus };
+    });
+
+    res.json(updatedDetails);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch details" });
+  }
+};
+
+export const updatePaymentStatus = async (req: Request, res: Response) => {
+  const { id } = req.params; 
+  const { status } = req.body;
+
+  // Debugging: Log what the backend actually receives
+  console.log("Updating Invoice ID:", id, "to Status:", status);
+
+  if (!id || isNaN(parseInt(id))) {
+    return res.status(400).json({ error: "Valid Invoice ID is required" });
+  }
+
+  try {
+    const updatedInvoice = await prisma.invoice.update({
+      where: { 
+        id: parseInt(id) 
+      },
+      data: { 
+        status: status // This must match your Enum (paid, unpaid, etc.)
+      },
+    });
+
+    res.status(200).json(updatedInvoice);
+  } catch (error: any) {
+    console.error("Prisma Update Error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const archiveFeeBatch = async (req: Request, res: Response) => {
+  const { feeName, semester, dueDate } = req.body;
+
+  try {
+    // Update all records that belong to this specific "Batch"
+    const updateCount = await prisma.feeDetails.updateMany({
+      where: {
+        feeType: feeName,
+        semester: parseInt(semester),
+        dueDate: new Date(dueDate),
+        archived: false // Only update ones that aren't already archived
+      },
+      data: {
+        archived: true
+      }
+    });
+
+    if (updateCount.count === 0) {
+      return res.status(404).json({ message: "No active batch found matching these criteria." });
+    }
+
+    res.status(200).json({ 
+      message: `Successfully archived ${updateCount.count} records for ${feeName} (S${semester}).` 
+    });
+  } catch (error) {
+    console.error("Archive Error:", error);
+    res.status(500).json({ error: "Failed to archive the fee batch." });
+  }
+};
