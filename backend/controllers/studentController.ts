@@ -183,3 +183,24 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
     });
   }
 };
+
+
+export const getAllBusRoutes = async (req: Request, res: Response) => {
+  try {
+    const routes = await prisma.bus.findMany({
+      where: { isActive: true },
+      include: {
+        stops: {
+          select: {
+            id: true,
+            stopName: true,
+            feeAmount: true
+          }
+        }
+      }
+    });
+    res.status(200).json(routes);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch bus routes" });
+  }
+};
