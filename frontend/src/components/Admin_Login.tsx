@@ -74,8 +74,8 @@ const Login = () => {
       if (response.ok) {
         // 2. Login successful: Store JWT token in localStorage
         if (data.token) {
-          localStorage.setItem("authToken", data.token);
-          localStorage.setItem("user", data.user);
+          localStorage.setItem("authToken", data.token.token);
+          localStorage.setItem("user", JSON.stringify(data.token.user));
           setMessage({
             text: "Login successful! Your session token has been stored in local storage.",
             type: "success",
