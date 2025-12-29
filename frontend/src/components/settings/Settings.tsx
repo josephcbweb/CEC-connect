@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { admissionService } from "../../services/admissionService";
 import type { AdmissionWindow } from "../../types/admission";
-import { Calendar, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Calendar, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import SemesterTable from "./SemesterTable";
+import { Link } from "react-router-dom";
 
 // Reusable toggle with confirm dialog
 const ToggleWithConfirm: React.FC<{
@@ -94,8 +95,46 @@ const Settings: React.FC = () => {
     description: "",
   });
 
-  // Helper function to check if admission window is currently open based on dates
-  const isWindowOpen = (startDate: string, endDate: string): boolean => {
+  useEffect(() => {
+    fetchSettings();
+    fetchWindows();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/settings");
+      if (res.ok) {
+        const data = await res.json();
+        const noDueSetting = data.find(
+          (s: any) => s.key === "noDueRequestEnabled"
+        );
+        if (noDueSetting) setNoDueRequestEnabled(noDueSetting.enabled);
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings", error);
+    }
+  };
+
+  const handleToggleNoDue = async (value: boolean) => {
+    try {
+      const res = await fetch("http://localhost:3000/settings/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "noDueRequestEnabled", value }),
+      });
+      if (res.ok) {
+        setNoDueRequestEnabled(value);
+        showMessage(
+          "success",
+          `No Due Request ${value ? "enabled" : "disabled"}`
+        );
+      }
+    } catch (error) {
+      console.error("Failed to toggle setting", error);
+      showMessage("error", "Failed to update setting");
+    }
+  };
+  const isWindowOpen = (startDate: string, endDate: string) => {
     const now = new Date();
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -236,12 +275,39 @@ const Settings: React.FC = () => {
         <h2 className="text-lg font-semibold text-gray-800 mb-3">
           General Settings
         </h2>
-        <ToggleWithConfirm
-          label="Enable No Due Request"
-          helper="This will enable the No Due Request button for the students and the relevant settings for the staff."
-          value={noDueRequestEnabled}
-          onChange={setNoDueRequestEnabled}
-        />
+        <div className="space-y-4">
+          <ToggleWithConfirm
+            label="Enable No Due Request"
+            helper="This will enable the No Due Request button for the students and the relevant settings for the staff. Disabling will archive current requests."
+            value={noDueRequestEnabled}
+            onChange={handleToggleNoDue}
+          />
+
+          {/* Due Configuration Link */}
+          <div
+            className={`bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-center justify-between transition-all ${
+              !noDueRequestEnabled
+                ? "opacity-50 pointer-events-none"
+                : "hover:shadow-md"
+            }`}
+          >
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                Due Configuration
+              </div>
+              <div className="text-xs text-gray-600 mt-1">
+                Configure automatic dues (Library, Hostel, etc.) for each
+                semester.
+              </div>
+            </div>
+            <Link
+              to="/admin/settings/dues"
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors"
+            >
+              Manage Dues <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Admission Management */}

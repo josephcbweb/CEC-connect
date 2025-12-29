@@ -10,6 +10,7 @@ import {
   Settings,
   Settings2Icon,
   Bus,
+  CheckCircle,
 } from "lucide-react";
 import { FaMoneyBill } from "react-icons/fa";
 
@@ -19,6 +20,8 @@ export const sidebarItems = [
   { icon: FaMoneyBill, text: "Fee Management", route: "/fee" },
   { icon: BookOpen, text: "Certificates", route: "/certificate" },
   { icon: Building, text: "Departments", route: "/departments" },
+  { icon: BookCopy, text: "Courses", route: "/courses" },
+  { icon: CheckCircle, text: "Due Management", route: "/dues" },
   { icon: UserPlus, text: "Admissions", route: "/admissions", alert: true },
   { icon: Bus, text: "College Bus", route: "/bus", alert: true },
   // { icon: GraduationCap, text: "Faculty", route: "/faculty" },

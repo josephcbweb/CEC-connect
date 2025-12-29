@@ -9,9 +9,36 @@ const Sidebar = () => {
   const location = useLocation();
   const [activeItem, setActiveItem] = useState(location.pathname);
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+      const user = JSON.parse(userString);
+      // user.role is an array of strings based on AuthService
+      if (user.role && Array.isArray(user.role)) {
+        if (user.role.includes("Librarian")) {
+          setUserRole("Librarian");
+        } else {
+          setUserRole("Admin"); // Default or other roles
+        }
+      } else {
+        setUserRole("Admin");
+      }
+    }
+  }, []);
+
   useEffect(() => {
     setActiveItem(location.pathname);
   }, [location.pathname]);
+
+  const filteredItems = sidebarItems.filter((item) => {
+    if (userRole === "Librarian") {
+      return item.text === "Due Management";
+    }
+    return true;
+  });
+
   return (
     <aside className="h-screen sticky top-0">
       <nav
@@ -43,7 +70,7 @@ const Sidebar = () => {
         </div>
 
         <ul className="flex-1 px-3 mt-5">
-          {sidebarItems.map((item, index) => (
+          {filteredItems.map((item, index) => (
             <SidebarItem
               key={index}
               icon={item.icon}

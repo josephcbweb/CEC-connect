@@ -7,20 +7,35 @@ export const toggleSettings = async (req: Request, res: Response) => {
     const { name, value } = req.body;
     const setting = await prisma.setting.upsert({
       where: { key: name },
-      update: { key: name, enabled: value },
+      update: { enabled: value },
       create: { key: name, enabled: value },
     });
-    if (setting) {
-      setting.value = value;
+
+    // If disabling noDueRequest, archive all pending requests
+    if (name === "noDueRequestEnabled" && value === false) {
+      await prisma.noDueRequest.updateMany({
+        where: { status: "pending", isArchived: false },
+        data: { isArchived: true },
+      });
     }
-    res.status(200).json({ name, value });
+
+    res.status(200).json(setting);
   } catch (error) {
-    console.error("Error creating fee structure:", error);
-    res.status(500).json({ error: "Failed to create fee structure." });
+    console.error("Error toggling setting:", error);
+    res.status(500).json({ error: "Failed to toggle setting." });
   }
 };
 
-export async function getSemesterStats(req:Request,res:Response) {
+export const getSettings = async (req: Request, res: Response) => {
+  try {
+    const settings = await prisma.setting.findMany();
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch settings" });
+  }
+};
+
+export async function getSemesterStats(req: Request, res: Response) {
   try {
     const semesterStats = await prisma.student.groupBy({
       by: ["currentSemester"],
@@ -45,7 +60,6 @@ export async function getSemesterStats(req:Request,res:Response) {
     throw new Error("Failed to fetch semester statistics");
   }
 }
-
 
 export async function promoteStudents(req: Request, res: Response) {
   try {
