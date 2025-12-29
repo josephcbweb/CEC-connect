@@ -19,8 +19,12 @@ import AdmissionsPage from "./components/admin/admissions/AdmissionsPage";
 import AdmissionSettings from "./components/settings/AdmissionSettings";
 import DepartmentDashboard from "./components/department/DepartmentDashboard";
 import StudentProfile from "./components/student/StudentProfile";
+import SemesterRegister from "./components/student/SemesterRegister";
 import BusManagement from "./components/bus/BusManagement";
 import BusDetailsDashboard from "./components/bus/BusDetails";
+import CourseManager from "./components/admin/courses/CourseManager";
+import DueSettings from "./components/settings/DueSettings";
+import DueManager from "./components/noDue/DueManager";
 
 const App = () => {
   return (
@@ -37,16 +41,20 @@ const App = () => {
           <Route path="/admin/fee" element={<AdminFeesPage />} />
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
           <Route path="/admin/settings" element={<Settings />} />
+          <Route path="/admin/settings/dues" element={<DueSettings />} />
           <Route path="/admin/staff-roles" element={<StaffRolesPage />} />
           <Route path="admissions" element={<AdmissionsPage />} />
           <Route path="admissions/settings" element={<AdmissionSettings />} />
           <Route path="/admin/departments" element={<DepartmentDashboard />} />
-          <Route path="/admin/bus" element={<BusManagement/>}/>
-          <Route path="/admin/bus/:id" element={<BusDetailsDashboard/>}/>
+          <Route path="/admin/bus" element={<BusManagement />} />
+          <Route path="/admin/bus/:id" element={<BusDetailsDashboard />} />{" "}
+          <Route path="/admin/courses" element={<CourseManager />} />{" "}
+          <Route path="/admin/dues" element={<DueManager />} />{" "}
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>
           <Route index element={<StudentDashboardPage />} />
+          <Route path="register" element={<SemesterRegister />} />
           <Route path="fees" element={<StudentFeePage />} />
           <Route path="certificates" element={<StudentCertificatePage />} />
           <Route path="profile/:id" element={<StudentProfile />} />
