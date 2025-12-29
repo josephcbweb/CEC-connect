@@ -68,6 +68,19 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
             >
               Certificates
             </NavLink>
+
+            {/* Link to Bus application Form */}
+            <NavLink
+              to="/student/busApplication"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/certificates"
+                  ? "border-b-teal-600 text-teal-700"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Bus Application
+            </NavLink>
+
             <span className="text-gray-500">|</span>
             <div
               onClick={handleProfileClick}

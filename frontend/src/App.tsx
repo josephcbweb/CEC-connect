@@ -21,6 +21,7 @@ import DepartmentDashboard from "./components/department/DepartmentDashboard";
 import StudentProfile from "./components/student/StudentProfile";
 import BusManagement from "./components/bus/BusManagement";
 import BusDetailsDashboard from "./components/bus/BusDetails";
+import BusRequest from "./components/student/BusRequestPage";
 
 const App = () => {
   return (
@@ -49,6 +50,7 @@ const App = () => {
           <Route index element={<StudentDashboardPage />} />
           <Route path="fees" element={<StudentFeePage />} />
           <Route path="certificates" element={<StudentCertificatePage />} />
+          <Route path="busApplication" element={<BusRequest />} />
           <Route path="profile/:id" element={<StudentProfile />} />
         </Route>
       </Routes>
