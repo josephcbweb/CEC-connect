@@ -62,22 +62,36 @@ export const getStudentFeeDetails = async (req: Request, res: Response) => {
   }
 };
 
-export const getStudentProfile = async (req:Request,res:Response) => {
-  
+export const getStudentProfile = async (req: Request, res: Response) => {
+
   const studentId = parseInt(req.params.id);
-  if(isNaN(studentId)){
-    return res.status(400).json({error:"Invalid student ID"});
+  if (isNaN(studentId)) {
+    return res.status(400).json({ error: "Invalid student ID" });
   }
-  try{
+  try {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
-      include:{
-        department:true,//to get department name
+      include: {
+        department: true,//to get department name
+        bus: true,
+        busStop: true,
       },
     });
-    if(!student){
+    if (!student) {
       return res.status(404).json({ error: "Student not found" });
     }
+    // Fetch pending bus request
+    const pendingBusRequest = await prisma.busRequest.findFirst({
+      where: {
+        studentId: student.id,
+        status: 'pending'
+      },
+      include: {
+        bus: true,
+        busStop: true
+      }
+    });
+
     console.log(student);
     const formattedStudent = {
       name: student.name,
@@ -117,12 +131,27 @@ export const getStudentProfile = async (req:Request,res:Response) => {
       accountNumber: student.account_number,
       bankName: student.bank_name,
       bankBranch: student.bank_branch,
+
+      // Bus Service Info
+      bus_service: student.bus_service,
+      busDetails: student.bus ? {
+        busName: student.bus.busName,
+        busNumber: student.bus.busNumber,
+        stopName: student.busStop?.stopName,
+        feeAmount: student.busStop?.feeAmount
+      } : null,
+      pendingBusRequest: pendingBusRequest ? {
+        id: pendingBusRequest.id,
+        busName: pendingBusRequest.bus.busName,
+        stopName: pendingBusRequest.busStop.stopName,
+        status: pendingBusRequest.status
+      } : null
     };
     console.log(formattedStudent);
     return res.status(200).json(formattedStudent);
-  }catch(error) {
-    console.log(`Error fetching student details:`,error);
-    return res.status(500).json({error:`Failed to fetch student details`});
+  } catch (error) {
+    console.log(`Error fetching student details:`, error);
+    return res.status(500).json({ error: `Failed to fetch student details` });
   }
 }
 
@@ -202,5 +231,42 @@ export const getAllBusRoutes = async (req: Request, res: Response) => {
     res.status(200).json(routes);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch bus routes" });
+  }
+};
+
+export const requestBusService = async (req: Request, res: Response) => {
+  try {
+    const { studentId, busId, busStopId } = req.body;
+
+    if (!studentId || !busId || !busStopId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Check if request already exists
+    const existingRequest = await prisma.busRequest.findFirst({
+      where: {
+        studentId: Number(studentId),
+        status: "pending"
+      }
+    });
+
+    if (existingRequest) {
+      return res.status(409).json({ message: "You already have a pending request." });
+    }
+
+    const request = await prisma.busRequest.create({
+      data: {
+        studentId: Number(studentId),
+        busId: Number(busId),
+        busStopId: Number(busStopId),
+        status: "pending"
+      }
+    });
+
+    res.status(201).json({ message: "Bus service requested successfully", request });
+
+  } catch (error) {
+    console.error("Error requesting bus service:", error);
+    res.status(500).json({ message: "Failed to request bus service" });
   }
 };

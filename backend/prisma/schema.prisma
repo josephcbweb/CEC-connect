@@ -44,8 +44,8 @@ model Permission {
   id          Int              @id @default(autoincrement()) @map("permission_id")
   name        String           @unique @map("permission_name")
   description String?
-  moduleName  String           @map("module")
   action      String
+  moduleName  String           @map("module")
   roles       RolePermission[]
 
   @@map("permissions")
@@ -116,7 +116,6 @@ model Student {
   qualifying_exam_name                String
   qualifying_exam_register_no         String
   percentage                          Float?
-  passout_year                        Int?
   previous_degree_cgpa_or_total_marks Float?
   physics_score                       Float?
   chemistry_score                     Float?
@@ -132,21 +131,21 @@ model Student {
   bank_branch                         String?
   admitted_category                   String?
   admission_quota                     String?
-  hostel_service                      Boolean         @default(false)
   bus_service                         Boolean         @default(false)
+  hostel_service                      Boolean         @default(false)
   busId                               Int?            @map("bus_id")
   busStopId                           Int?            @map("bus_stop_id")
   currentSemester                     Int             @default(1) @map("current_semester")
-  passoutYear                         Int?            @map("passout_year")
+  passout_year                        Int?
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
   requests                            NoDueRequest[]
-  busRequests                         BusRequest[]
   users                               User?           @relation(fields: [advisorId], references: [id])
-  department                          Department      @relation(fields: [departmentId], references: [id])
   bus                                 Bus?            @relation(fields: [busId], references: [id])
   busStop                             BusStop?        @relation(fields: [busStopId], references: [id])
+  busRequests                         BusRequest[]
+  department                          Department      @relation(fields: [departmentId], references: [id])
 
   @@map("students")
 }
@@ -155,15 +154,14 @@ model Department {
   id              Int              @id @default(autoincrement()) @map("department_id")
   name            String           @unique @map("department_name")
   hodId           Int?             @unique @map("hod_id")
-  status          DepartmentStatus @default(ACTIVE)
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
   department_code String           @unique
+  status          DepartmentStatus @default(ACTIVE)
+  courses         Course[]
   hodDetails      HodDetails?
   noDues          NoDue[]
   students        Student[]
-  // --- ADDED RELATION ---
-  courses         Course[]
 
   @@map("departments")
 }
@@ -208,46 +206,42 @@ model PrincipalDetails {
 }
 
 model NoDueRequest {
-  id             Int                   @id @default(autoincrement()) @map("request_id")
-  studentId      Int                   @map("student_id")
-  reason         String
-  requestDate    DateTime              @default(now()) @map("request_date")
-  status         RequestStatus         @default(pending)
-  workflowStatus RequestWorkflowStatus @default(submitted) @map("workflow_status")
-  updatedAt      DateTime              @updatedAt @map("updated_at")
-  // --- ADDED FIELDS ---
-  targetSemester Int                   @default(1) @map("target_semester")
-  isArchived     Boolean               @default(false) @map("is_archived")
-
-  student          Student           @relation(fields: [studentId], references: [id])
-  noDues           NoDue[]
+  id               Int                   @id @default(autoincrement()) @map("request_id")
+  studentId        Int                   @map("student_id")
+  reason           String
+  requestDate      DateTime              @default(now()) @map("request_date")
+  status           RequestStatus         @default(pending)
+  workflowStatus   RequestWorkflowStatus @default(submitted) @map("workflow_status")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  isArchived       Boolean               @default(false) @map("is_archived")
+  targetSemester   Int                   @default(1) @map("target_semester")
   courseSelections CourseSelection[]
+  student          Student               @relation(fields: [studentId], references: [id])
+  noDues           NoDue[]
 
   @@map("no_due_requests")
 }
 
 model ServiceDepartment {
-  id        Int      @id @default(autoincrement()) @map("service_dept_id")
-  name      String   @unique
-  code      String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  noDues     NoDue[]
+  id         Int                @id @default(autoincrement()) @map("service_dept_id")
+  name       String             @unique
+  code       String             @unique
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
   dueConfigs DueConfiguration[]
+  noDues     NoDue[]
 
   @@map("service_departments")
 }
 
 model DueConfiguration {
-  id                  Int       @id @default(autoincrement()) @map("config_id")
+  id                  Int                @id @default(autoincrement()) @map("config_id")
   semester            Int
-  serviceDepartmentId Int?      @map("service_department_id")
-  name                String? // For custom dues or overriding name
-  dueDate             DateTime? @map("due_date")
-  isActive            Boolean   @default(true) @map("is_active")
-
-  serviceDepartment ServiceDepartment? @relation(fields: [serviceDepartmentId], references: [id])
+  serviceDepartmentId Int?               @map("service_department_id")
+  name                String?
+  dueDate             DateTime?          @map("due_date")
+  isActive            Boolean            @default(true) @map("is_active")
+  serviceDepartment   ServiceDepartment? @relation(fields: [serviceDepartmentId], references: [id])
 
   @@unique([semester, serviceDepartmentId, name])
   @@map("due_configurations")
@@ -257,16 +251,14 @@ model NoDue {
   id                  Int                @id @default(autoincrement()) @map("no_due_id")
   requestId           Int                @map("request_id")
   departmentId        Int?               @map("department_id")
-  serviceDepartmentId Int?               @map("service_department_id")
   status              NoDueStatus        @default(pending)
   comments            String?
   updatedAt           DateTime           @updatedAt @map("updated_at")
+  serviceDepartmentId Int?               @map("service_department_id")
   approvals           NoDueApproval[]
   department          Department?        @relation(fields: [departmentId], references: [id])
-  serviceDepartment   ServiceDepartment? @relation(fields: [serviceDepartmentId], references: [id])
   request             NoDueRequest       @relation(fields: [requestId], references: [id])
-  course              Course?            @relation(fields: [courseId], references: [id])
-  courseId            Int?
+  serviceDepartment   ServiceDepartment? @relation(fields: [serviceDepartmentId], references: [id])
 
   @@map("no_dues")
 }
@@ -284,32 +276,27 @@ model NoDueApproval {
   @@map("no_due_approvals")
 }
 
-// --- NEW TABLES FOR COURSE MANAGEMENT ---
-
 model Course {
-  id           Int            @id @default(autoincrement()) @map("course_id")
+  id           Int               @id @default(autoincrement()) @map("course_id")
   name         String
-  code         String         @unique
+  code         String            @unique
   type         CourseType
-  category     CourseCategory @default(CORE)
-  departmentId Int            @map("department_id")
-  semester     Int // The semester this course belongs to
-  isActive     Boolean        @default(true) @map("is_active")
-
-  department Department        @relation(fields: [departmentId], references: [id])
-  selections CourseSelection[]
-  noDues     NoDue[]
+  departmentId Int               @map("department_id")
+  semester     Int
+  isActive     Boolean           @default(true) @map("is_active")
+  category     CourseCategory    @default(CORE)
+  selections   CourseSelection[]
+  department   Department        @relation(fields: [departmentId], references: [id])
 
   @@map("courses")
 }
 
 model CourseSelection {
-  id        Int @id @default(autoincrement()) @map("selection_id")
-  requestId Int @map("request_id")
-  courseId  Int @map("course_id")
-
-  request NoDueRequest @relation(fields: [requestId], references: [id])
-  course  Course       @relation(fields: [courseId], references: [id])
+  id        Int          @id @default(autoincrement()) @map("selection_id")
+  requestId Int          @map("request_id")
+  courseId  Int          @map("course_id")
+  course    Course       @relation(fields: [courseId], references: [id])
+  request   NoDueRequest @relation(fields: [requestId], references: [id])
 
   @@unique([requestId, courseId])
   @@map("course_selections")
@@ -333,7 +320,7 @@ model FeeDetails {
   dueDate   DateTime  @map("due_date") @db.Date
   createdAt DateTime  @default(now()) @map("created_at")
   semester  Int?      @map("semester")
-  archived  Boolean   @default(false)
+  archived  Boolean?
   student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
 
@@ -423,42 +410,42 @@ model Certificate {
 }
 
 model Bus {
-  id             Int       @id @default(autoincrement())
-  busNumber      String    @unique
+  id             Int          @id @default(autoincrement())
+  busNumber      String       @unique
   busName        String?
   routeName      String?
   totalSeats     Int
   driverName     String
   driverPhone    String
-  isActive       Boolean   @default(true)
-  stops          BusStop[]
+  isActive       Boolean      @default(true)
   registrationNo String?
-
-  students Student[]
+  stops          BusStop[]
+  students       Student[]
+  busRequests    BusRequest[]
 }
 
 model BusStop {
-  id        Int       @id @default(autoincrement())
-  busId     Int
-  stopName  String
-  feeAmount Int
-  students  Student[]
-  bus       Bus       @relation(fields: [busId], references: [id], onDelete: Cascade)
+  id          Int          @id @default(autoincrement())
+  busId       Int
+  stopName    String
+  feeAmount   Int
+  bus         Bus          @relation(fields: [busId], references: [id], onDelete: Cascade)
+  students    Student[]
+  busRequests BusRequest[]
 
   @@unique([busId, stopName])
 }
 
 model BusRequest {
-  id          Int           @id @default(autoincrement())
-  studentId   Int           @map("student_id")
-  busId       Int           @map("bus_id")
-  busStopId   Int           @map("bus_stop_id")
-  status      RequestStatus @default(pending) // Uses your existing enum
-  requestDate DateTime      @default(now()) @map("request_date")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  comment     String?
-
-  student Student @relation(fields: [studentId], references: [id])
+  id        Int           @id @default(autoincrement())
+  studentId Int           @map("student_id")
+  busId     Int           @map("bus_id")
+  busStopId Int           @map("bus_stop_id")
+  status    RequestStatus @default(pending)
+  createdAt DateTime      @default(now()) @map("created_at")
+  student   Student       @relation(fields: [studentId], references: [id])
+  bus       Bus           @relation(fields: [busId], references: [id])
+  busStop   BusStop       @relation(fields: [busStopId], references: [id])
 
   @@map("bus_requests")
 }
