@@ -4,6 +4,7 @@ import {
   AdmissionStatus,
   AdmissionType,
   Program,
+  RequestStatus,
 } from "../generated/prisma/enums";
 
 // Get all admissions with filtering and pagination
@@ -485,6 +486,18 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
           formData.hostelService === true || formData.hostelService === "true",
         bus_service:
           formData.busService === true || formData.busService === "true",
+        busRequests:
+          (formData.busService === true || formData.busService === "true") &&
+          formData.busId &&
+          formData.busStopId
+            ? {
+                create: {
+                  busId: parseInt(formData.busId),
+                  busStopId: parseInt(formData.busStopId),
+                  status: RequestStatus.pending,
+                },
+              }
+            : undefined,
 
         // System fields
         program: formData.program,

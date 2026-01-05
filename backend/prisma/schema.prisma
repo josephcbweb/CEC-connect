@@ -320,7 +320,7 @@ model FeeDetails {
   dueDate   DateTime  @map("due_date") @db.Date
   createdAt DateTime  @default(now()) @map("created_at")
   semester  Int?      @map("semester")
-  archived  Boolean?
+  archived  Boolean?  @default(false)
   student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
 
