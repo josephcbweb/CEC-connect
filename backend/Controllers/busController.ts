@@ -1,27 +1,28 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+// import { RequestStatus } from "@prisma/client";
 
 const BUS_FEE_KEY = "BUS_FEE_ENABLED";
 
-export const fetchBus = async (req:Request,res:Response)=>{
-    try{
-        const buses = await prisma.bus.findMany({
-            orderBy:{
-                busNumber : "asc",
-            }
-        });
-        return res.status(200).json({
-        count: buses.length,
-        buses,
-        });
-    }
-    catch (error) {
-        console.error("Error fetching buses:", error);
+export const fetchBus = async (req: Request, res: Response) => {
+  try {
+    const buses = await prisma.bus.findMany({
+      orderBy: {
+        busNumber: "asc",
+      }
+    });
+    return res.status(200).json({
+      count: buses.length,
+      buses,
+    });
+  }
+  catch (error) {
+    console.error("Error fetching buses:", error);
 
-        return res.status(500).json({
-        message: "Failed to fetch bus list",
-        });
-    }
+    return res.status(500).json({
+      message: "Failed to fetch bus list",
+    });
+  }
 }
 
 export const addBus = async (req: Request, res: Response) => {
@@ -291,13 +292,13 @@ export const fetchBusStudents = async (req: Request, res: Response) => {
   }
 };
 
-export const getUniqueSemester = async(req:Request,res:Response)=>{
-  try{
+export const getUniqueSemester = async (req: Request, res: Response) => {
+  try {
     const semesters = await prisma.student.groupBy({
-    by:['currentSemester'],
-    orderBy:{currentSemester: 'asc' },
-  });
-  res.json(semesters.map(s => s.currentSemester));
+      by: ['currentSemester'],
+      orderBy: { currentSemester: 'asc' },
+    });
+    res.json(semesters.map(s => s.currentSemester));
   }
   catch (error) {
     res.status(500).json({ error: "Failed to fetch semesters" });
@@ -318,8 +319,8 @@ export const assignBusFees = async (req: Request, res: Response) => {
     });
 
     if (activeBatchExists && semester !== 'all') {
-      return res.status(400).json({ 
-        message: `Cannot assign new fees. Please archive the existing active batch for Semester ${semester} first.` 
+      return res.status(400).json({
+        message: `Cannot assign new fees. Please archive the existing active batch for Semester ${semester} first.`
       });
     }
 
@@ -353,7 +354,7 @@ export const assignBusFees = async (req: Request, res: Response) => {
                 amount,
                 dueDate: new Date(dueDate),
                 status: 'unpaid',
-                feeStructureId:2,
+                feeStructureId: 2,
               }
             }
           }
@@ -426,7 +427,7 @@ export const getBatchDetails = async (req: Request, res: Response) => {
 
       // If database says unpaid but date is passed, show as overdue
       if (inv.status === 'unpaid' && isPastDue) {
-        displayStatus = 'overdue' as any; 
+        displayStatus = 'overdue' as any;
       }
 
       return { ...inv, status: displayStatus };
@@ -439,7 +440,7 @@ export const getBatchDetails = async (req: Request, res: Response) => {
 };
 
 export const updatePaymentStatus = async (req: Request, res: Response) => {
-  const { id } = req.params; 
+  const { id } = req.params;
   const { status } = req.body;
 
   // Debugging: Log what the backend actually receives
@@ -451,10 +452,10 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
 
   try {
     const updatedInvoice = await prisma.invoice.update({
-      where: { 
-        id: parseInt(id) 
+      where: {
+        id: parseInt(id)
       },
-      data: { 
+      data: {
         status: status // This must match your Enum (paid, unpaid, etc.)
       },
     });
@@ -487,11 +488,89 @@ export const archiveFeeBatch = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "No active batch found matching these criteria." });
     }
 
-    res.status(200).json({ 
-      message: `Successfully archived ${updateCount.count} records for ${feeName} (S${semester}).` 
+    res.status(200).json({
+      message: `Successfully archived ${updateCount.count} records for ${feeName} (S${semester}).`
     });
   } catch (error) {
     console.error("Archive Error:", error);
     res.status(500).json({ error: "Failed to archive the fee batch." });
+  }
+};
+
+export const getBusRequests = async (req: Request, res: Response) => {
+  try {
+    const requests = await prisma.busRequest.findMany({
+      where: { status: "pending" },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            admission_number: true,
+            department: { select: { name: true } }
+          }
+        },
+        bus: { select: { busName: true, busNumber: true } },
+        busStop: { select: { stopName: true, feeAmount: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(requests);
+  } catch (error) {
+    console.error("Error fetching bus requests:", error);
+    res.status(500).json({ message: "Failed to fetch bus requests" });
+  }
+};
+
+export const updateBusRequestStatus = async (req: Request, res: Response) => {
+  const { requestId } = req.params;
+  const { status } = req.body; // 'approved' or 'rejected'
+
+  if (!requestId || !status) {
+    return res.status(400).json({ message: "Request ID and status are required" });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Get the request
+      const request = await tx.busRequest.findUnique({
+        where: { id: Number(requestId) },
+        include: { busStop: true } // Need fee if we were doing more, but mainly need ids
+      });
+
+      if (!request) {
+        throw new Error("Request not found");
+      }
+
+      if (request.status !== "pending") {
+        throw new Error("Request is not pending");
+      }
+
+      // 2. Update request status
+      const updatedRequest = await tx.busRequest.update({
+        where: { id: Number(requestId) },
+        data: { status: status as any }
+      });
+
+      // 3. If approved, update Student record
+      if (status === "approved") {
+        await tx.student.update({
+          where: { id: request.studentId },
+          data: {
+            bus_service: true,
+            busId: request.busId,
+            busStopId: request.busStopId
+          }
+        });
+      }
+
+      return updatedRequest;
+    });
+
+    res.json({ message: `Request ${status} successfully`, result });
+
+  } catch (error: any) {
+    console.error("Error updating bus request:", error);
+    res.status(500).json({ message: error.message || "Failed to update status" });
   }
 };

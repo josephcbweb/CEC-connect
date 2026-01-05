@@ -6,7 +6,8 @@ import axios from "axios";
 import BusTable from "./BusTable";
 import AddBusModal from "./AddBusModal";
 import BusStudentList from "./BusStudentList";
-import BusFeeManager from "./BusFeeManager"; // Make sure to create this file based on the previous response
+import BusFeeManager from "./BusFeeManager";
+import BusRequestsTab from "./BusRequestsTab";
 
 export interface Bus {
   id: number;
@@ -70,14 +71,13 @@ const BusListPage = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl px-4">
+        <div className="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl px-4 overflow-x-auto">
           <button
             onClick={() => setActiveTab("buses")}
-            className={`py-4 px-6 font-semibold text-sm transition-all relative ${
-              activeTab === "buses"
-                ? "text-violet-600"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
+            className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${activeTab === "buses"
+              ? "text-violet-600"
+              : "text-gray-400 hover:text-gray-600"
+              }`}
           >
             Bus List
             {activeTab === "buses" && (
@@ -86,12 +86,24 @@ const BusListPage = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab("requests")}
+            className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${activeTab === "requests"
+              ? "text-violet-600"
+              : "text-gray-400 hover:text-gray-600"
+              }`}
+          >
+            Requests
+            {activeTab === "requests" && (
+              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-600" />
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab("students")}
-            className={`py-4 px-6 font-semibold text-sm transition-all relative ${
-              activeTab === "students"
-                ? "text-violet-600"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
+            className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${activeTab === "students"
+              ? "text-violet-600"
+              : "text-gray-400 hover:text-gray-600"
+              }`}
           >
             Student List
             {activeTab === "students" && (
@@ -101,11 +113,10 @@ const BusListPage = () => {
 
           <button
             onClick={() => setActiveTab("busFee")}
-            className={`py-4 px-6 font-semibold text-sm transition-all relative ${
-              activeTab === "busFee"
-                ? "text-violet-600"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
+            className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${activeTab === "busFee"
+              ? "text-violet-600"
+              : "text-gray-400 hover:text-gray-600"
+              }`}
           >
             Bus Fee
             {activeTab === "busFee" && (
@@ -131,14 +142,21 @@ const BusListPage = () => {
             </div>
           )}
 
-          {/* 2. STUDENT LIST TAB */}
+          {/* 2. REQUESTS TAB */}
+          {activeTab === "requests" && (
+            <div className="animate-in fade-in duration-500">
+              <BusRequestsTab />
+            </div>
+          )}
+
+          {/* 3. STUDENT LIST TAB */}
           {activeTab === "students" && (
             <div className="animate-in fade-in duration-500">
               <BusStudentList />
             </div>
           )}
 
-          {/* 3. BUS FEE TAB */}
+          {/* 4. BUS FEE TAB */}
           {activeTab === "busFee" && (
             <div className="animate-in fade-in duration-500">
               <BusFeeManager />
@@ -160,3 +178,4 @@ const BusListPage = () => {
 };
 
 export default BusListPage;
+
