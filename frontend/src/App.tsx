@@ -26,6 +26,8 @@ import BusRequest from "./components/student/BusRequestPage";
 import CourseManager from "./components/admin/courses/CourseManager";
 import DueSettings from "./components/settings/DueSettings";
 import DueManager from "./components/noDue/DueManager";
+import BatchRegistry from "./components/admin/batches/BatchRegistry";
+import BatchDetail from "./components/admin/batches/BatchDetail";
 
 const App = () => {
   return (
@@ -51,6 +53,8 @@ const App = () => {
           <Route path="/admin/bus/:id" element={<BusDetailsDashboard />} />{" "}
           <Route path="/admin/courses" element={<CourseManager />} />{" "}
           <Route path="/admin/dues" element={<DueManager />} />{" "}
+          <Route path="/admin/batches" element={<BatchRegistry />} />
+          <Route path="/admin/batches/:id" element={<BatchDetail />} />
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>

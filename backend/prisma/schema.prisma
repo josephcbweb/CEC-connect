@@ -487,8 +487,8 @@ model BatchDepartment {
 }
 
 model Class {
-  id              Int    @id @default(autoincrement()) @map("class_id")
-  name            String // e.g., "A", "B"
+  id   Int    @id @default(autoincrement()) @map("class_id")
+  name String // e.g., "A", "B"
 
   batchDepartmentId Int             @map("batch_dept_id")
   batchDepartment   BatchDepartment @relation(fields: [batchDepartmentId], references: [id])
