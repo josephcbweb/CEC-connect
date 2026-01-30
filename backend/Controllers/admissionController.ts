@@ -212,11 +212,18 @@ export const getAdmissionWindows = async (req: Request, res: Response) => {
     });
 
     const now = new Date();
+    // Normalize dates to include full days (start of day to end of day)
+    const startOfDay = (d: Date) => { const nd = new Date(d); nd.setHours(0,0,0,0); return nd; };
+    const endOfDay = (d: Date) => { const nd = new Date(d); nd.setHours(23,59,59,999); return nd; };
     // Dynamically calculate status for the frontend
-    const processedWindows = windows.map(window => ({
-      ...window,
-      isOpen: window.isOpen && now >= new Date(window.startDate) && now <= new Date(window.endDate)
-    }));
+    const processedWindows = windows.map(window => {
+      const start = startOfDay(new Date(window.startDate));
+      const end = endOfDay(new Date(window.endDate));
+      return {
+        ...window,
+        isOpen: window.isOpen && now >= start && now <= end
+      };
+    });
 
     res.json({ success: true, data: processedWindows });
   } catch (error) {
@@ -239,9 +246,13 @@ export const updateAdmissionWindow = async (req: Request, res: Response) => {
     const now = new Date();
 
     // Re-validate isOpen: Must be true only if within date range
+    const startOfDay = (d: Date) => { const nd = new Date(d); nd.setHours(0,0,0,0); return nd; };
+    const endOfDay = (d: Date) => { const nd = new Date(d); nd.setHours(23,59,59,999); return nd; };
+    const ns = startOfDay(newStart);
+    const ne = endOfDay(newEnd);
     const validatedIsOpen = isOpen !== undefined 
-      ? (isOpen && now >= newStart && now <= newEnd) 
-      : (current.isOpen && now >= newStart && now <= newEnd);
+      ? (isOpen && now >= ns && now <= ne) 
+      : (current.isOpen && now >= ns && now <= ne);
 
     const updatedWindow = await prisma.admissionWindow.update({
       where: { id: parseInt(id) },
@@ -265,29 +276,45 @@ export const deleteAdmissionWindow = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    // Use a transaction with custom timeouts to prevent P2028
     await prisma.$transaction(async (tx) => {
+      // 1. Fetch window to get the linked batchId
       const window = await tx.admissionWindow.findUnique({
         where: { id: parseInt(id) },
         select: { batchId: true }
       });
 
-      if (window?.batchId) {
-        // Synchronize batch status on deletion
+      if (!window) {
+        throw new Error("Admission window not found");
+      }
+
+      // 2. Activate the Batch (UPCOMING -> ACTIVE)
+      if (window.batchId) {
         await tx.batch.update({
           where: { id: window.batchId },
-          data: { status: "GRADUATED" } // Moves it out of the active registry
+          data: { status: "ACTIVE" },
         });
       }
 
+      // 3. Delete the AdmissionWindow record
       await tx.admissionWindow.delete({
         where: { id: parseInt(id) },
       });
+    }, {
+      maxWait: 10000, // Wait 10s for a connection
+      timeout: 20000  // Allow 20s for the work to finish
     });
 
-    res.json({ success: true, message: "Admission window deleted and batch status updated." });
-  } catch (error) {
+    res.json({ 
+      success: true, 
+      message: "Admission finalized: Batch is now ACTIVE and window removed." 
+    });
+  } catch (error: any) {
     console.error("Error deleting admission window:", error);
-    res.status(500).json({ success: false, error: "Failed to delete admission window" });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || "Failed to finalize admission" 
+    });
   }
 };
 
@@ -396,10 +423,13 @@ export const checkAdmissionStatus = async (req: Request, res: Response) => {
       admissionsOpen: {},
     };
 
+    const startOfDay = (d: Date) => { const nd = new Date(d); nd.setHours(0,0,0,0); return nd; };
+    const endOfDay = (d: Date) => { const nd = new Date(d); nd.setHours(23,59,59,999); return nd; };
+
     windows.forEach((window) => {
-      const isWithinDateRange =
-        currentDate >= new Date(window.startDate) &&
-        currentDate <= new Date(window.endDate);
+      const start = startOfDay(new Date(window.startDate));
+      const end = endOfDay(new Date(window.endDate));
+      const isWithinDateRange = currentDate >= start && currentDate <= end;
       const isOpen = window.isOpen && isWithinDateRange;
 
       status.admissionsOpen[window.program] = {

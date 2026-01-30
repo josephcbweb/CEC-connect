@@ -16,6 +16,7 @@ import settingsRoutes from "./routes/settingsRoutes";
 import courseRoutes from "./routes/courseRoutes";
 import noDueRoutes from "./routes/noDueRoutes";
 import staffRoutes from "./routes/staffRoutes";
+import batchRoutes from "./routes/batchRoutes";
 import cors from "cors";
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use("/settings", settingsRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/nodue", noDueRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api", batchRoutes);
 app.listen(PORT, () => {
   console.log("Server listening on port: ", PORT);
 });
