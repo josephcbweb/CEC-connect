@@ -1,13 +1,21 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import DepartmentTable from "./DepartmentTable";
 import AddDepartmentModal from "./AddDepartmentModal";
 import DepartmentControls from "./DepartmentControls";
 import DeleteConfirmModal from "./DeleteDepartmentModal";
+import ChangeHodModal from "./ChangeHodModal";
+
 export interface Department {
   id: number;
   name: string;
   department_code: string;
   status: "ACTIVE" | "INACTIVE";
+  hodDetails?: {
+    user?: {
+      username: string;
+      email: string;
+    };
+  };
 }
 
 export default function DepartmentDashboard() {
@@ -16,8 +24,10 @@ export default function DepartmentDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [changeHodModalOpen, setChangeHodModalOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
   useEffect(() => {
     fetchDepartments();
   }, []);
@@ -25,9 +35,7 @@ export default function DepartmentDashboard() {
   const fetchDepartments = async () => {
     try {
       setLoading(true);
-      const res = await fetch(
-        "http://localhost:3000/department/alldepartments"
-      );
+      const res = await fetch("http://localhost:3000/api/departments");
       const data = await res.json();
       setDepartments(data);
     } catch (err) {
@@ -41,12 +49,18 @@ export default function DepartmentDashboard() {
     setSelectedDept(dept);
     setDeleteModalOpen(true);
   };
+
+  const handleChangeHodClick = (dept: Department) => {
+    setSelectedDept(dept);
+    setChangeHodModalOpen(true);
+  };
+
   const confirmDeleteDepartment = async () => {
     if (!selectedDept) return;
 
     try {
       setDeleteLoading(true);
-      await fetch(`http://localhost:3000/department/${selectedDept.id}`, {
+      await fetch(`http://localhost:3000/api/departments/${selectedDept.id}`, {
         method: "DELETE",
       });
       fetchDepartments();
@@ -56,31 +70,6 @@ export default function DepartmentDashboard() {
       setDeleteLoading(false);
       setDeleteModalOpen(false);
       setSelectedDept(null);
-    }
-  };
-
-  const handleDeleteDepartment = async (id: number) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this department?"
-    );
-
-    if (!confirmDelete) return;
-    try {
-      const res = await fetch(`http://localhost:3000/department/${id}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message);
-        return;
-      }
-
-      fetchDepartments(); // refresh table
-    } catch (error) {
-      console.error(error);
-      alert("Failed to delete department");
     }
   };
 
@@ -110,6 +99,7 @@ export default function DepartmentDashboard() {
           departments={filteredDepartments}
           loading={loading}
           onDelete={handleDeleteClick}
+          onChangeHod={handleChangeHodClick}
         />
       </div>
 
@@ -125,6 +115,16 @@ export default function DepartmentDashboard() {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={confirmDeleteDepartment}
       />
+
+      {selectedDept && (
+        <ChangeHodModal
+          isOpen={changeHodModalOpen}
+          onClose={() => setChangeHodModalOpen(false)}
+          onSuccess={fetchDepartments}
+          departmentId={selectedDept.id}
+          departmentName={selectedDept.name}
+        />
+      )}
     </div>
   );
 }

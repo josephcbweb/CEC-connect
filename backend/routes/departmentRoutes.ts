@@ -1,11 +1,18 @@
 import express from "express";
-import { Router } from "express";
-import { addDepartment, deleteDepartment, getDepartment } from "../controllers/departmentController";
+import {
+    addDepartment,
+    deleteDepartment,
+    getDepartment,
+    getEligibleFaculty,
+    updateDepartmentHod,
+} from "../controllers/departmentController";
 
 const router = express.Router();
 
-router.get("/alldepartments",getDepartment);
-router.post("/alldepartments",addDepartment);
-router.delete("/:id",deleteDepartment);
+router.get("/", getDepartment);
+router.post("/", addDepartment);
+router.delete("/:id", deleteDepartment);
+router.put("/:id/hod", updateDepartmentHod);
+router.get("/faculty/eligible", getEligibleFaculty);
 
 export default router;

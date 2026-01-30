@@ -40,7 +40,7 @@ app.use("/students", studentRoutes);
 app.use("/fee", feeRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/auth", authRouter);
-app.use("/department", departmentRoutes);
+app.use("/api/departments", departmentRoutes);
 app.use("/api/admission", admissionRoutes);
 app.use("/bus", busRoutes);
 app.use("/settings", settingsRoutes);
