@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { admissionService } from "../../services/admissionService";
 import type { AdmissionWindow } from "../../types/admission";
-import { Calendar, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import {
+  Calendar,
+  AlertCircle,
+  CheckCircle2,
+  ArrowRight,
+  X,
+} from "lucide-react";
 import SemesterTable from "./SemesterTable";
 import { Link } from "react-router-dom";
 
@@ -85,20 +91,45 @@ const ToggleWithConfirm: React.FC<{
 const Settings: React.FC = () => {
   const [noDueRequestEnabled, setNoDueRequestEnabled] = useState(false);
   const [windows, setWindows] = useState<AdmissionWindow[]>([]);
+  const [departments, setDepartments] = useState<
+    { id: number; name: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const [newWindow, setNewWindow] = useState({
     program: "btech",
     startDate: "",
     endDate: "",
     description: "",
+    batchName: "",
+    startYear: "",
+    endYear: "",
+    departmentIds: [] as number[],
   });
 
   useEffect(() => {
     fetchSettings();
     fetchWindows();
+    fetchDepartments();
   }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/api/departments");
+      if (res.ok) {
+        const data = await res.json();
+        setDepartments(data || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch departments", error);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -106,7 +137,7 @@ const Settings: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         const noDueSetting = data.find(
-          (s: any) => s.key === "noDueRequestEnabled"
+          (s: any) => s.key === "noDueRequestEnabled",
         );
         if (noDueSetting) setNoDueRequestEnabled(noDueSetting.enabled);
       }
@@ -126,7 +157,7 @@ const Settings: React.FC = () => {
         setNoDueRequestEnabled(value);
         showMessage(
           "success",
-          `No Due Request ${value ? "enabled" : "disabled"}`
+          `No Due Request ${value ? "enabled" : "disabled"}`,
         );
       }
     } catch (error) {
@@ -134,20 +165,13 @@ const Settings: React.FC = () => {
       showMessage("error", "Failed to update setting");
     }
   };
+
   const isWindowOpen = (startDate: string, endDate: string) => {
     const now = new Date();
     const start = new Date(startDate);
     const end = new Date(endDate);
     return now >= start && now <= end;
   };
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
-
-  useEffect(() => {
-    fetchWindows();
-  }, []);
 
   const fetchWindows = async () => {
     try {
@@ -169,7 +193,7 @@ const Settings: React.FC = () => {
 
   const handleWindowUpdate = async (
     id: number,
-    data: Partial<AdmissionWindow>
+    data: Partial<AdmissionWindow>,
   ) => {
     try {
       setSaving(true);
@@ -185,14 +209,19 @@ const Settings: React.FC = () => {
   };
 
   const handleCreateWindow = async () => {
-    if (!newWindow.startDate || !newWindow.endDate) {
-      showMessage("error", "Please fill in all required fields");
+    const { startDate, endDate, batchName, departmentIds, startYear, endYear } =
+      newWindow;
+
+    if (!startDate || !endDate || !batchName || departmentIds.length === 0) {
+      showMessage(
+        "error",
+        "Please fill in all required fields and select departments",
+      );
       return;
     }
 
-    // Validate that end date is after start date
-    const start = new Date(newWindow.startDate);
-    const end = new Date(newWindow.endDate);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
     if (end <= start) {
       showMessage("error", "End date must be after start date");
       return;
@@ -200,9 +229,16 @@ const Settings: React.FC = () => {
 
     try {
       setSaving(true);
-      // Calculate isOpen based on current date
-      const isOpen = isWindowOpen(newWindow.startDate, newWindow.endDate);
-      await admissionService.createAdmissionWindow({ ...newWindow, isOpen });
+      const isOpen = isWindowOpen(startDate, endDate);
+
+      const payload = {
+        ...newWindow,
+        startYear: parseInt(startYear),
+        endYear: parseInt(endYear),
+        isOpen,
+      };
+
+      await admissionService.createAdmissionWindow(payload);
       await fetchWindows();
       showMessage("success", "Admission window created successfully");
       setShowCreateModal(false);
@@ -211,12 +247,16 @@ const Settings: React.FC = () => {
         startDate: "",
         endDate: "",
         description: "",
+        batchName: "",
+        startYear: new Date().getFullYear().toString(),
+        endYear: (new Date().getFullYear() + 4).toString(),
+        departmentIds: [],
       });
     } catch (error: any) {
       console.error("Error creating window:", error);
       showMessage(
         "error",
-        error.response?.data?.error || "Failed to create admission window"
+        error.response?.data?.error || "Failed to create admission window",
       );
     } finally {
       setSaving(false);
@@ -226,7 +266,7 @@ const Settings: React.FC = () => {
   const handleDeleteWindow = async (window: AdmissionWindow) => {
     if (
       !confirm(
-        `Are you sure you want to delete the ${window.program.toUpperCase()} admission window? This action cannot be undone.`
+        `Are you sure you want to delete the ${window.program.toUpperCase()} admission window? This action cannot be undone.`,
       )
     ) {
       return;
@@ -283,7 +323,6 @@ const Settings: React.FC = () => {
             onChange={handleToggleNoDue}
           />
 
-          {/* Due Configuration Link */}
           <div
             className={`bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-center justify-between transition-all ${
               !noDueRequestEnabled
@@ -337,9 +376,6 @@ const Settings: React.FC = () => {
             <p className="text-gray-500 font-medium">
               No admission windows configured
             </p>
-            <p className="text-sm text-gray-400 mt-2 mb-4">
-              Create an admission window to start managing applications
-            </p>
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 font-medium transition-all transform hover:scale-105"
@@ -362,6 +398,10 @@ const Settings: React.FC = () => {
                         <Calendar className="w-5 h-5 text-teal-600" />
                         {window.program} Admissions
                       </h3>
+                      {/* Added Batch Display here while keeping original layout */}
+                      <div className="text-sm font-medium text-teal-700 mt-1">
+                        Batch: {(window as any).batch?.name || "N/A"}
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">
                         {window.description ||
                           `Manage ${window.program.toUpperCase()} admission window`}
@@ -406,7 +446,7 @@ const Settings: React.FC = () => {
                         if (new Date(newStartDate) >= new Date(endDate)) {
                           showMessage(
                             "error",
-                            "Start date must be before end date"
+                            "Start date must be before end date",
                           );
                           return;
                         }
@@ -431,7 +471,7 @@ const Settings: React.FC = () => {
                         if (new Date(newEndDate) <= new Date(startDate)) {
                           showMessage(
                             "error",
-                            "End date must be after start date"
+                            "End date must be after start date",
                           );
                           return;
                         }
@@ -443,24 +483,6 @@ const Settings: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all disabled:opacity-50"
                     />
                   </div>
-                </div>
-
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description (shown to students)
-                  </label>
-                  <textarea
-                    value={window.description || ""}
-                    onChange={(e) =>
-                      handleWindowUpdate(window.id, {
-                        description: e.target.value,
-                      })
-                    }
-                    disabled={saving}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all disabled:opacity-50"
-                    rows={2}
-                    placeholder={`${window.program.toUpperCase()} admissions for 2025-26 batch`}
-                  />
                 </div>
 
                 <div className="mt-4 flex items-center justify-between gap-3">
@@ -495,67 +517,43 @@ const Settings: React.FC = () => {
       </div>
 
       {/* System Configuration */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          System Configuration
-        </h2>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-5 space-y-4 transition-all hover:shadow-md">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Max Applications Per Day
-            </label>
-            <input
-              type="number"
-              defaultValue={100}
-              className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-              placeholder="100"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Set to 0 to disable limit
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Auto-approve Rank Below
-            </label>
-            <input
-              type="number"
-              defaultValue={0}
-              className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-              placeholder="1000"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Set to 0 to disable auto-approval
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="emailNotif"
-              className="rounded transition-all"
-              defaultChecked
-            />
-            <label htmlFor="emailNotif" className="text-sm text-gray-700">
-              Enable Email Notifications for status changes
-            </label>
-          </div>
-
-          <button className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 font-medium transition-all transform hover:scale-105">
-            Save Configuration
-          </button>
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-5 space-y-4 transition-all hover:shadow-md">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Max Applications Per Day
+          </label>
+          <input
+            type="number"
+            defaultValue={100}
+            className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+            placeholder="100"
+          />
         </div>
-        <div className="min-h-screen w-full">
-          <SemesterTable />
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="emailNotif"
+            className="rounded transition-all"
+            defaultChecked
+          />
+          <label htmlFor="emailNotif" className="text-sm text-gray-700">
+            Enable Email Notifications for status changes
+          </label>
         </div>
+        <button className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 font-medium transition-all transform hover:scale-105">
+          Save Configuration
+        </button>
+      </div>
+
+      <div className="min-h-screen w-full">
+        <SemesterTable />
       </div>
 
       {/* Create Admission Window Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in backdrop-blur-sm">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl animate-scale-in">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl animate-scale-in max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
               <h2 className="text-xl font-semibold text-gray-900">
                 Create New Admission Window
               </h2>
@@ -563,26 +561,106 @@ const Settings: React.FC = () => {
                 onClick={() => setShowCreateModal(false)}
                 className="text-gray-400 hover:text-gray-600 text-2xl transition-colors"
               >
-                ×
+                &times;
               </button>
             </div>
             <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Batch Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2024-2028"
+                    value={newWindow.batchName}
+                    onChange={(e) =>
+                      setNewWindow({ ...newWindow, batchName: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Program *
+                  </label>
+                  <select
+                    value={newWindow.program}
+                    onChange={(e) =>
+                      setNewWindow({ ...newWindow, program: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  >
+                    <option value="btech">B.Tech</option>
+                    <option value="mtech">M.Tech</option>
+                    <option value="mca">MCA</option>
+                    <option value="mba">MBA</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Year *
+                  </label>
+                  <input
+                    type="number"
+                    value={newWindow.startYear}
+                    onChange={(e) =>
+                      setNewWindow({ ...newWindow, startYear: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    End Year *
+                  </label>
+                  <input
+                    type="number"
+                    value={newWindow.endYear}
+                    onChange={(e) =>
+                      setNewWindow({ ...newWindow, endYear: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Program *
+                  Departments for this Batch *
                 </label>
-                <select
-                  value={newWindow.program}
-                  onChange={(e) =>
-                    setNewWindow({ ...newWindow, program: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="btech">B.Tech</option>
-                  <option value="mtech">M.Tech</option>
-                  <option value="mca">MCA</option>
-                  <option value="mba">MBA</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2 bg-gray-50 p-4 rounded-md border border-gray-200 max-h-40 overflow-y-auto">
+                  {departments.length > 0 ? (
+                    departments.map((dept) => (
+                      <label
+                        key={dept.id}
+                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-white p-1 rounded transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={newWindow.departmentIds.includes(dept.id)}
+                          onChange={(e) => {
+                            const ids = e.target.checked
+                              ? [...newWindow.departmentIds, dept.id]
+                              : newWindow.departmentIds.filter(
+                                  (id) => id !== dept.id,
+                                );
+                            setNewWindow({ ...newWindow, departmentIds: ids });
+                          }}
+                          className="rounded text-teal-600 focus:ring-teal-500"
+                        />
+                        {dept.name}
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-500 italic col-span-2 text-center py-2">
+                      No departments found. Check API connection.
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -632,23 +710,21 @@ const Settings: React.FC = () => {
 
               <div className="text-xs text-gray-500 bg-blue-50 border-l-4 border-blue-400 p-3 rounded">
                 ℹ️ The admission window will automatically open/close based on
-                the configured date range. Students can only submit applications
-                when the current date falls within the start and end dates.
+                the configured date range.
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowCreateModal(false)}
-                disabled={saving}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateWindow}
                 disabled={saving}
-                className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors flex items-center gap-2"
               >
                 {saving && (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -661,27 +737,12 @@ const Settings: React.FC = () => {
       )}
 
       <style>{`
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes scale-in {
-          from { transform: scale(0.9); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        @keyframes slide-in {
-          from { transform: translateY(-10px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-        .animate-scale-in {
-          animation: scale-in 0.3s ease-out;
-        }
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out;
-        }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scale-in { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes slide-in { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-fade-in { animation: fade-in 0.3s ease-out; }
+        .animate-scale-in { animation: scale-in 0.3s ease-out; }
+        .animate-slide-in { animation: slide-in 0.3s ease-out; }
       `}</style>
     </div>
   );

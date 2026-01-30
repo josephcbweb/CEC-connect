@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import {
-  AdmissionStatus,
+  StudentStatus,
   AdmissionType,
   Program,
   RequestStatus,
@@ -85,10 +85,10 @@ export const getStats = async (req: Request, res: Response) => {
   try {
     const [total, pending, approved, rejected, waitlisted] = await Promise.all([
       prisma.student.count(),
-      prisma.student.count({ where: { status: AdmissionStatus.pending } }),
-      prisma.student.count({ where: { status: AdmissionStatus.approved } }),
-      prisma.student.count({ where: { status: AdmissionStatus.rejected } }),
-      prisma.student.count({ where: { status: AdmissionStatus.waitlisted } }),
+      prisma.student.count({ where: { status: StudentStatus.pending } }),
+      prisma.student.count({ where: { status: StudentStatus.approved } }),
+      prisma.student.count({ where: { status: StudentStatus.rejected } }),
+      prisma.student.count({ where: { status: StudentStatus.waitlisted } }),
     ]);
 
     // Program-wise stats
@@ -174,7 +174,7 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status, comments } = req.body;
 
-    if (!Object.values(AdmissionStatus).includes(status)) {
+    if (!Object.values(StudentStatus).includes(status)) {
       return res
         .status(400)
         .json({ success: false, error: "Invalid status value" });
@@ -207,15 +207,21 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
 export const getAdmissionWindows = async (req: Request, res: Response) => {
   try {
     const windows = await prisma.admissionWindow.findMany({
+      include: { batch: true }, // Crucial for displaying batch name in frontend
       orderBy: { program: "asc" },
     });
 
-    res.json({ success: true, data: windows });
+    const now = new Date();
+    // Dynamically calculate status for the frontend
+    const processedWindows = windows.map(window => ({
+      ...window,
+      isOpen: window.isOpen && now >= new Date(window.startDate) && now <= new Date(window.endDate)
+    }));
+
+    res.json({ success: true, data: processedWindows });
   } catch (error) {
     console.error("Error fetching admission windows:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to fetch admission windows" });
+    res.status(500).json({ success: false, error: "Failed to fetch admission windows" });
   }
 };
 
@@ -225,26 +231,32 @@ export const updateAdmissionWindow = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { isOpen, startDate, endDate, description } = req.body;
 
+    const current = await prisma.admissionWindow.findUnique({ where: { id: parseInt(id) } });
+    if (!current) return res.status(404).json({ success: false, error: "Window not found" });
+
+    const newStart = startDate ? new Date(startDate) : current.startDate;
+    const newEnd = endDate ? new Date(endDate) : current.endDate;
+    const now = new Date();
+
+    // Re-validate isOpen: Must be true only if within date range
+    const validatedIsOpen = isOpen !== undefined 
+      ? (isOpen && now >= newStart && now <= newEnd) 
+      : (current.isOpen && now >= newStart && now <= newEnd);
+
     const updatedWindow = await prisma.admissionWindow.update({
       where: { id: parseInt(id) },
       data: {
-        isOpen,
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
+        isOpen: validatedIsOpen,
+        startDate: newStart,
+        endDate: newEnd,
         description,
       },
     });
 
-    res.json({
-      success: true,
-      message: "Admission window updated successfully",
-      data: updatedWindow,
-    });
+    res.json({ success: true, data: updatedWindow });
   } catch (error) {
     console.error("Error updating admission window:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to update admission window" });
+    res.status(500).json({ success: false, error: "Failed to update admission window" });
   }
 };
 
@@ -253,59 +265,123 @@ export const deleteAdmissionWindow = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    await prisma.admissionWindow.delete({
-      where: { id: parseInt(id) },
+    await prisma.$transaction(async (tx) => {
+      const window = await tx.admissionWindow.findUnique({
+        where: { id: parseInt(id) },
+        select: { batchId: true }
+      });
+
+      if (window?.batchId) {
+        // Synchronize batch status on deletion
+        await tx.batch.update({
+          where: { id: window.batchId },
+          data: { status: "GRADUATED" } // Moves it out of the active registry
+        });
+      }
+
+      await tx.admissionWindow.delete({
+        where: { id: parseInt(id) },
+      });
     });
 
-    res.json({
-      success: true,
-      message: "Admission window deleted successfully",
-    });
+    res.json({ success: true, message: "Admission window deleted and batch status updated." });
   } catch (error) {
     console.error("Error deleting admission window:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to delete admission window" });
+    res.status(500).json({ success: false, error: "Failed to delete admission window" });
   }
 };
 
 // Create admission window
 export const createAdmissionWindow = async (req: Request, res: Response) => {
   try {
-    const { program, startDate, endDate, description, isOpen } = req.body;
+    const { 
+      program, 
+      startDate, 
+      endDate, 
+      description, 
+      isOpen,
+      batchName,      
+      startYear,      
+      endYear,        
+      departmentIds   
+    } = req.body;
 
-    // Check if window already exists for this program
-    const existing = await prisma.admissionWindow.findFirst({
-      where: { program },
-    });
-
-    if (existing) {
+    // 1. Basic validation
+    if (!batchName || !startYear || !endYear || !departmentIds || !Array.isArray(departmentIds)) {
       return res.status(400).json({
         success: false,
-        error: `Admission window for ${program.toUpperCase()} already exists`,
+        error: "Batch details and at least one department are required.",
       });
     }
 
-    const newWindow = await prisma.admissionWindow.create({
-      data: {
-        program,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        description,
-        isOpen: isOpen ?? false,
-      },
+    // 2. Run the transaction with increased timeout settings
+    const result = await prisma.$transaction(async (tx) => {
+      
+      // Check if window already exists for this program
+      const existingWindow = await tx.admissionWindow.findFirst({
+        where: { program },
+      });
+
+      if (existingWindow) {
+        // Throwing error inside transaction triggers automatic rollback
+        throw new Error(`Admission window for ${program.toUpperCase()} already exists`);
+      }
+
+      // Create the Batch and link Departments
+      const newBatch = await tx.batch.create({
+        data: {
+          name: batchName,
+          startYear: Number(startYear),
+          endYear: Number(endYear),
+          status: "UPCOMING",
+          batchDepartments: {
+            create: departmentIds.map((deptId: number) => ({
+              departmentId: Number(deptId),
+            })),
+          },
+        },
+      });
+
+      // Create the Admission Window
+      const newWindow = await tx.admissionWindow.create({
+  data: {
+    program,
+    startDate: new Date(startDate),
+    endDate: new Date(endDate),
+    description,
+    isOpen: isOpen ?? false,
+    batchId: newBatch.id // Ensure this link is present
+  },
+});
+
+      return { newBatch, newWindow };
+    }, {
+      // P2028 FIX: Give the engine more time to acquire a connection and finish
+      maxWait: 10000, // default is 2s, increased to 10s
+      timeout: 20000, // default is 5s, increased to 20s
     });
 
     res.status(201).json({
       success: true,
-      message: "Admission window created successfully",
-      data: newWindow,
+      message: "Admission window opened and Batch initialized successfully",
+      data: result,
     });
-  } catch (error) {
-    console.error("Error creating admission window:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to create admission window" });
+
+  } catch (error: any) {
+    console.error("Error setting up admission:", error);
+    
+    // Handle the specific transaction timeout error for better UX
+    if (error.code === 'P2028') {
+      return res.status(504).json({
+        success: false,
+        error: "Database is busy. Please try again in a few seconds.",
+      });
+    }
+
+    res.status(error.message?.includes("already exists") ? 400 : 500).json({
+      success: false,
+      error: error.message || "Failed to setup admission window and batch",
+    });
   }
 };
 
@@ -387,6 +463,16 @@ export const validateStudent = async (req: Request, res: Response) => {
 export const submitAdmissionForm = async (req: Request, res: Response) => {
   try {
     const formData = req.body;
+
+    const activeBatch = await prisma.batch.findFirst({
+      where: {
+        status: "UPCOMING", // Or logic to find the batch linked to the open window
+      }
+    });
+
+    if (!activeBatch) {
+      return res.status(400).json({ success: false, error: "No active admission batch found." });
+    }
 
     // Generate admission number
     const year = new Date().getFullYear();
@@ -504,7 +590,7 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
         admission_type: formData.admissionType || "regular",
         admission_number: admissionNumber,
         admission_date: new Date(),
-        status: AdmissionStatus.pending,
+        status: StudentStatus.pending,
         password: "changeme123", // Default password
         allotted_branch: formData.allottedBranch || "Not Assigned",
         departmentId: formData.departmentId || 1, // Default department
@@ -575,7 +661,7 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
         .json({ success: false, error: "Invalid student IDs" });
     }
 
-    if (!Object.values(AdmissionStatus).includes(status)) {
+    if (!Object.values(StudentStatus).includes(status)) {
       return res
         .status(400)
         .json({ success: false, error: "Invalid status value" });

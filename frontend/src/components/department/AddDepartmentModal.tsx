@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, Building2, Hash } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Building2, Hash, User } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -7,20 +7,45 @@ interface Props {
   onSuccess: () => void;
 }
 
+interface Faculty {
+  id: number;
+  username: string;
+  email: string;
+}
+
 export default function AddDepartmentModal({
   isOpen,
   onClose,
   onSuccess,
 }: Props) {
-  const [formData, setFormData] = useState({ name: "", code: "" });
+  const [formData, setFormData] = useState({ name: "", code: "", hodId: "" });
   const [loading, setLoading] = useState(false);
+  const [facultyList, setFacultyList] = useState<Faculty[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchEligibleFaculty();
+    }
+  }, [isOpen]);
+
+  const fetchEligibleFaculty = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/api/departments/faculty/eligible");
+      if (res.ok) {
+        const data = await res.json();
+        setFacultyList(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch faculty", error);
+    }
+  };
 
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.code) return;
     setLoading(true);
-    const res = await fetch("http://localhost:3000/department/alldepartments", {
+    const res = await fetch("http://localhost:3000/api/departments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
@@ -29,7 +54,7 @@ export default function AddDepartmentModal({
     if (res.ok) {
       onSuccess();
       onClose();
-      setFormData({ name: "", code: "" });
+      setFormData({ name: "", code: "", hodId: "" });
     }
     setLoading(false);
   };
@@ -45,7 +70,7 @@ export default function AddDepartmentModal({
             </div>
             <h2 className="text-xl font-semibold text-gray-900">Add Department</h2>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
           >
@@ -88,6 +113,30 @@ export default function AddDepartmentModal({
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all placeholder:text-gray-400"
               />
+            </div>
+          </div>
+
+          {/* HOD Selection */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700 ml-1">
+              Assign HOD (Optional)
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <User className="w-5 h-5" />
+              </div>
+              <select
+                value={formData.hodId}
+                onChange={(e) => setFormData({ ...formData, hodId: e.target.value })}
+                className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all bg-white"
+              >
+                <option value="">Select a faculty member...</option>
+                {facultyList.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.username} ({f.email})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
