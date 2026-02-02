@@ -103,7 +103,8 @@ model Student {
   local_guardian_address              String?
   local_guardian_phone_number         String?
   program                             Program
-  departmentId                        Int            @map("department_id")
+  departmentId                        Int?           @map("department_id")
+  preferredDepartmentId               Int?           @map("preferred_department_id")
   status                              StudentStatus  @default(pending)
   admission_number                    String?        @unique
   admission_date                      DateTime?
@@ -148,24 +149,26 @@ model Student {
   bus                                 Bus?           @relation(fields: [busId], references: [id])
   busStop                             BusStop?       @relation(fields: [busStopId], references: [id])
   busRequests                         BusRequest[]
-  department                          Department     @relation(fields: [departmentId], references: [id])
+  department                          Department?    @relation("StudentDepartment", fields: [departmentId], references: [id])
+  preferredDepartment                 Department?    @relation("StudentPreferredDepartment", fields: [preferredDepartmentId], references: [id])
 
   @@map("students")
 }
 
 model Department {
-  id               Int               @id @default(autoincrement()) @map("department_id")
-  name             String            @unique @map("department_name")
-  hodId            Int?              @unique @map("hod_id")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  department_code  String            @unique
-  status           DepartmentStatus  @default(ACTIVE)
-  courses          Course[]
-  hodDetails       HodDetails?
-  noDues           NoDue[]
-  students         Student[]
-  batchDepartments BatchDepartment[]
+  id                  Int               @id @default(autoincrement()) @map("department_id")
+  name                String            @unique @map("department_name")
+  hodId               Int?              @unique @map("hod_id")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  department_code     String            @unique
+  status              DepartmentStatus  @default(ACTIVE)
+  courses             Course[]
+  hodDetails          HodDetails?
+  noDues              NoDue[]
+  students            Student[]         @relation("StudentDepartment")
+  preferredByStudents Student[]         @relation("StudentPreferredDepartment")
+  batchDepartments    BatchDepartment[]
 
   @@map("departments")
 }

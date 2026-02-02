@@ -49,11 +49,11 @@ export interface AdmissionStudent {
   bank_branch?: string;
   category?: string;
   admission_quota?: string;
-  department: {
+  department?: {
     id: number;
     name: string;
     department_code: string;
-  };
+  } | null;
   createdAt: string;
   updatedAt: string;
 }

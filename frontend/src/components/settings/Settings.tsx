@@ -37,16 +37,14 @@ const ToggleWithConfirm: React.FC<{
       <button
         onClick={openConfirm}
         disabled={loading}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          value ? "bg-teal-600" : "bg-gray-300"
-        } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value ? "bg-teal-600" : "bg-gray-300"
+          } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
         aria-pressed={value}
         aria-label={label}
       >
         <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-            value ? "translate-x-5" : "translate-x-1"
-          }`}
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${value ? "translate-x-5" : "translate-x-1"
+            }`}
         />
       </button>
 
@@ -294,11 +292,10 @@ const Settings: React.FC = () => {
         </h1>
         {message && (
           <div
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg animate-slide-in ${
-              message.type === "success"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg animate-slide-in ${message.type === "success"
                 ? "bg-green-100 text-green-800"
                 : "bg-red-100 text-red-800"
-            }`}
+              }`}
           >
             {message.type === "success" ? (
               <CheckCircle2 className="w-4 h-4" />
@@ -324,11 +321,10 @@ const Settings: React.FC = () => {
           />
 
           <div
-            className={`bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-center justify-between transition-all ${
-              !noDueRequestEnabled
+            className={`bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-center justify-between transition-all ${!noDueRequestEnabled
                 ? "opacity-50 pointer-events-none"
                 : "hover:shadow-md"
-            }`}
+              }`}
           >
             <div>
               <div className="text-sm font-medium text-gray-900">
@@ -408,18 +404,16 @@ const Settings: React.FC = () => {
                       </p>
                     </div>
                     <div
-                      className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        isWindowOpen(window.startDate, window.endDate)
+                      className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all ${isWindowOpen(window.startDate, window.endDate)
                           ? "bg-green-100 text-green-800 animate-pulse"
                           : "bg-gray-100 text-gray-800"
-                      }`}
+                        }`}
                     >
                       <span
-                        className={`w-2 h-2 rounded-full mr-2 ${
-                          isWindowOpen(window.startDate, window.endDate)
+                        className={`w-2 h-2 rounded-full mr-2 ${isWindowOpen(window.startDate, window.endDate)
                             ? "bg-green-600"
                             : "bg-gray-600"
-                        }`}
+                          }`}
                       ></span>
                       {isWindowOpen(window.startDate, window.endDate)
                         ? "Open"
@@ -646,8 +640,8 @@ const Settings: React.FC = () => {
                             const ids = e.target.checked
                               ? [...newWindow.departmentIds, dept.id]
                               : newWindow.departmentIds.filter(
-                                  (id) => id !== dept.id,
-                                );
+                                (id) => id !== dept.id,
+                              );
                             setNewWindow({ ...newWindow, departmentIds: ids });
                           }}
                           className="rounded text-teal-600 focus:ring-teal-500"

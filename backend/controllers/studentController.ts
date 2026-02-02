@@ -25,7 +25,6 @@ const calculateYear = (admissionDate: Date | null): number | null => {
   return hasCompletedYear ? yearsElapsed + 1 : yearsElapsed;
 };
 
-
 export const getStudentFeeDetails = async (req: Request, res: Response) => {
   try {
     const studentId = parseInt(req.params.id);
@@ -56,14 +55,13 @@ export const getStudentFeeDetails = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(
       `Error fetching fee details for student ID ${req.params.id}:`,
-      error
+      error,
     );
     res.status(500).json({ error: "Failed to retrieve fee details." });
   }
 };
 
 export const getStudentProfile = async (req: Request, res: Response) => {
-
   const studentId = parseInt(req.params.id);
   if (isNaN(studentId)) {
     return res.status(400).json({ error: "Invalid student ID" });
@@ -72,7 +70,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
-        department: true,//to get department name
+        department: true, //to get department name
         bus: true,
         busStop: true,
       },
@@ -84,12 +82,12 @@ export const getStudentProfile = async (req: Request, res: Response) => {
     const pendingBusRequest = await prisma.busRequest.findFirst({
       where: {
         studentId: student.id,
-        status: 'pending'
+        status: "pending",
       },
       include: {
         bus: true,
-        busStop: true
-      }
+        busStop: true,
+      },
     });
 
     console.log(student);
@@ -98,7 +96,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
       email: student.email,
       dateOfBirth: student.dateOfBirth,
       program: student.program,
-      department: student.department.name,
+      department: student.department?.name || "Not Assigned",
       year: calculateYear(student.admission_date),
 
       gender: student.gender,
@@ -134,18 +132,22 @@ export const getStudentProfile = async (req: Request, res: Response) => {
 
       // Bus Service Info
       bus_service: student.bus_service,
-      busDetails: student.bus ? {
-        busName: student.bus.busName,
-        busNumber: student.bus.busNumber,
-        stopName: student.busStop?.stopName,
-        feeAmount: student.busStop?.feeAmount
-      } : null,
-      pendingBusRequest: pendingBusRequest ? {
-        id: pendingBusRequest.id,
-        busName: pendingBusRequest.bus.busName,
-        stopName: pendingBusRequest.busStop.stopName,
-        status: pendingBusRequest.status
-      } : null
+      busDetails: student.bus
+        ? {
+            busName: student.bus.busName,
+            busNumber: student.bus.busNumber,
+            stopName: student.busStop?.stopName,
+            feeAmount: student.busStop?.feeAmount,
+          }
+        : null,
+      pendingBusRequest: pendingBusRequest
+        ? {
+            id: pendingBusRequest.id,
+            busName: pendingBusRequest.bus.busName,
+            stopName: pendingBusRequest.busStop.stopName,
+            status: pendingBusRequest.status,
+          }
+        : null,
     };
     console.log(formattedStudent);
     return res.status(200).json(formattedStudent);
@@ -153,7 +155,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
     console.log(`Error fetching student details:`, error);
     return res.status(500).json({ error: `Failed to fetch student details` });
   }
-}
+};
 
 export const updateStudentProfile = async (req: Request, res: Response) => {
   try {
@@ -213,7 +215,6 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getAllBusRoutes = async (req: Request, res: Response) => {
   try {
     const routes = await prisma.bus.findMany({
@@ -223,10 +224,10 @@ export const getAllBusRoutes = async (req: Request, res: Response) => {
           select: {
             id: true,
             stopName: true,
-            feeAmount: true
-          }
-        }
-      }
+            feeAmount: true,
+          },
+        },
+      },
     });
     res.status(200).json(routes);
   } catch (error) {
@@ -246,12 +247,14 @@ export const requestBusService = async (req: Request, res: Response) => {
     const existingRequest = await prisma.busRequest.findFirst({
       where: {
         studentId: Number(studentId),
-        status: "pending"
-      }
+        status: "pending",
+      },
     });
 
     if (existingRequest) {
-      return res.status(409).json({ message: "You already have a pending request." });
+      return res
+        .status(409)
+        .json({ message: "You already have a pending request." });
     }
 
     const request = await prisma.busRequest.create({
@@ -259,12 +262,13 @@ export const requestBusService = async (req: Request, res: Response) => {
         studentId: Number(studentId),
         busId: Number(busId),
         busStopId: Number(busStopId),
-        status: "pending"
-      }
+        status: "pending",
+      },
     });
 
-    res.status(201).json({ message: "Bus service requested successfully", request });
-
+    res
+      .status(201)
+      .json({ message: "Bus service requested successfully", request });
   } catch (error) {
     console.error("Error requesting bus service:", error);
     res.status(500).json({ message: "Failed to request bus service" });
