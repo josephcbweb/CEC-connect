@@ -130,24 +130,22 @@ const CourseManager = () => {
                   <td className="px-6 py-4 text-slate-600">{course.name}</td>
                   <td className="px-6 py-4">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        course.type === "LAB"
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${course.type === "LAB"
                           ? "bg-purple-50 text-purple-700"
                           : "bg-blue-50 text-blue-700"
-                      }`}
+                        }`}
                     >
                       {course.type}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        course.category === "CORE"
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${course.category === "CORE"
                           ? "bg-indigo-50 text-indigo-700"
                           : course.category === "ELECTIVE"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-rose-50 text-rose-700"
-                      }`}
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-rose-50 text-rose-700"
+                        }`}
                     >
                       {course.category}
                     </span>
@@ -160,11 +158,10 @@ const CourseManager = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        course.isActive
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${course.isActive
                           ? "bg-emerald-50 text-emerald-700"
                           : "bg-slate-100 text-slate-600"
-                      }`}
+                        }`}
                     >
                       {course.isActive ? "Active" : "Inactive"}
                     </span>

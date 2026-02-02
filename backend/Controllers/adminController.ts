@@ -32,7 +32,13 @@ export const fetchStats = async (req: Request, res: Response) => {
 
 export const fetchAllStudents = async (req: Request, res: Response) => {
   try {
+    // Only fetch students that are approved (active students)
+    // Pending students should be viewed in the Admissions section
     const students = await prisma.student.findMany({
+      where: {
+        status: "approved", // Only show approved/active students
+        classId: { not: null }, // Only show students assigned to a class
+      },
       select: {
         id: true,
         name: true,
@@ -42,6 +48,11 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
           select: {
             name: true,
             department_code: true,
+          },
+        },
+        class: {
+          select: {
+            name: true,
           },
         },
       },
@@ -68,13 +79,14 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
         program: student.program,
         department:
           student.department?.department_code || student.department?.name,
+        class: student.class?.name || null,
         year,
       };
     });
 
     // ✅ Extract unique programs
     const uniquePrograms = Array.from(
-      new Set(students.map((s) => s.program).filter(Boolean))
+      new Set(students.map((s) => s.program).filter(Boolean)),
     );
 
     res.json({
@@ -150,7 +162,7 @@ export const getStudentDetails = async (req: Request, res: Response) => {
         email: student.email,
         dateOfBirth: student.dateOfBirth,
         program: student.program,
-        department: student.department.name,
+        department: student.department?.name || "Not Assigned",
         year: calculateYear(student.admission_date),
         gender: student.gender,
         bloodGroup: student.blood_group,

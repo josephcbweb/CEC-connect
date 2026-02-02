@@ -17,14 +17,13 @@ export interface AdmissionFilters {
 }
 
 export const admissionService = {
-  // Get admissions list
   getAdmissions: async (params: AdmissionFilters) => {
     const response = await axios.get(
       `${API_BASE}/api/admission/admin/admissions`,
       {
         params,
         headers: getAuthHeader(),
-      }
+      },
     );
     return response.data;
   },
@@ -35,7 +34,7 @@ export const admissionService = {
       `${API_BASE}/api/admission/admin/admissions/${id}`,
       {
         headers: getAuthHeader(),
-      }
+      },
     );
     return response.data;
   },
@@ -45,7 +44,7 @@ export const admissionService = {
     const response = await axios.put(
       `${API_BASE}/api/admission/admin/admissions/${id}/status`,
       { status, comments },
-      { headers: getAuthHeader() }
+      { headers: getAuthHeader() },
     );
     return response.data;
   },
@@ -55,7 +54,7 @@ export const admissionService = {
     const response = await axios.post(
       `${API_BASE}/api/admission/admin/admissions/bulk-update`,
       { ids, status },
-      { headers: getAuthHeader() }
+      { headers: getAuthHeader() },
     );
     return response.data;
   },
@@ -66,7 +65,7 @@ export const admissionService = {
       `${API_BASE}/api/admission/admin/admission-windows`,
       {
         headers: getAuthHeader(),
-      }
+      },
     );
     return response.data;
   },
@@ -82,7 +81,7 @@ export const admissionService = {
     const response = await axios.post(
       `${API_BASE}/api/admission/admin/admission-windows`,
       data,
-      { headers: getAuthHeader() }
+      { headers: getAuthHeader() },
     );
     return response.data;
   },
@@ -92,7 +91,7 @@ export const admissionService = {
     const response = await axios.put(
       `${API_BASE}/api/admission/admin/admission-windows/${id}`,
       data,
-      { headers: getAuthHeader() }
+      { headers: getAuthHeader() },
     );
     return response.data;
   },
@@ -101,7 +100,7 @@ export const admissionService = {
   deleteAdmissionWindow: async (id: number) => {
     const response = await axios.delete(
       `${API_BASE}/api/admission/admin/admission-windows/${id}`,
-      { headers: getAuthHeader() }
+      { headers: getAuthHeader() },
     );
     return response.data;
   },
@@ -133,7 +132,7 @@ export const admissionService = {
   submitAdmissionForm: async (formData: any) => {
     const response = await axios.post(
       `${API_BASE}/api/admission/submit`,
-      formData
+      formData,
     );
     return response.data;
   },
@@ -141,7 +140,81 @@ export const admissionService = {
   // Get admission by number (public)
   getAdmissionByNumber: async (admissionNumber: string) => {
     const response = await axios.get(
-      `${API_BASE}/api/admission/check/${admissionNumber}`
+      `${API_BASE}/api/admission/check/${admissionNumber}`,
+    );
+    return response.data;
+  },
+
+  // === Class Assignment APIs ===
+
+  // Get approved students ready for class assignment
+  getApprovedStudentsForAssignment: async (params?: {
+    program?: string;
+    page?: number;
+    limit?: number;
+    preferredDepartmentId?: number;
+  }) => {
+    const response = await axios.get(
+      `${API_BASE}/api/admission/admin/approved-students`,
+      {
+        params,
+        headers: getAuthHeader(),
+      },
+    );
+    return response.data;
+  },
+
+  // Get batches with classes (for assignment)
+  getBatchesForAssignment: async () => {
+    const response = await axios.get(
+      `${API_BASE}/api/admission/admin/batches`,
+      {
+        headers: getAuthHeader(),
+      },
+    );
+    return response.data;
+  },
+
+  // Get classes for a specific batch
+  getClassesForBatch: async (batchId: number) => {
+    const response = await axios.get(
+      `${API_BASE}/api/admission/admin/batches/${batchId}/classes`,
+      {
+        headers: getAuthHeader(),
+      },
+    );
+    return response.data;
+  },
+
+  // Assign single student to class
+  assignStudentToClass: async (studentId: number, classId: number) => {
+    const response = await axios.post(
+      `${API_BASE}/api/admission/admin/assign-student`,
+      { studentId, classId },
+      { headers: getAuthHeader() },
+    );
+    return response.data;
+  },
+
+  // Auto-assign students to classes (distribute evenly)
+  autoAssignStudents: async (
+    studentIds: number[],
+    batchDepartmentId: number,
+  ) => {
+    const response = await axios.post(
+      `${API_BASE}/api/admission/admin/auto-assign`,
+      { studentIds, batchDepartmentId },
+      { headers: getAuthHeader() },
+    );
+    return response.data;
+  },
+
+  // Bulk assign students to a specific class
+  bulkAssignToClass: async (studentIds: number[], classId: number) => {
+    const response = await axios.post(
+      `${API_BASE}/api/admission/admin/bulk-assign`,
+      { studentIds, classId },
+      { headers: getAuthHeader() },
     );
     return response.data;
   },

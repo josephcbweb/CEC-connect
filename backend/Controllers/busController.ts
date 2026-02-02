@@ -9,21 +9,20 @@ export const fetchBus = async (req: Request, res: Response) => {
     const buses = await prisma.bus.findMany({
       orderBy: {
         busNumber: "asc",
-      }
+      },
     });
     return res.status(200).json({
       count: buses.length,
       buses,
     });
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error fetching buses:", error);
 
     return res.status(500).json({
       message: "Failed to fetch bus list",
     });
   }
-}
+};
 
 export const addBus = async (req: Request, res: Response) => {
   console.log("Add Bus API hit");
@@ -40,12 +39,7 @@ export const addBus = async (req: Request, res: Response) => {
     } = req.body;
 
     // 🔹 Basic validation
-    if (
-      !busNumber ||
-      !totalSeats ||
-      !driverName ||
-      !driverPhone
-    ) {
+    if (!busNumber || !totalSeats || !driverName || !driverPhone) {
       return res.status(400).json({
         message: "Required fields are missing",
       });
@@ -82,7 +76,6 @@ export const addBus = async (req: Request, res: Response) => {
     });
 
     return res.status(201).json(bus);
-
   } catch (error) {
     console.error("Error adding bus:", error);
 
@@ -103,27 +96,28 @@ export const getBusDetails = async (req: Request, res: Response) => {
           select: {
             id: true,
             stopName: true,
-            feeAmount: true
-          }
+            feeAmount: true,
+          },
         },
         students: {
           where: {
-            bus_service: true
+            bus_service: true,
           },
           include: {
             department: {
-              select: { name: true }
+              select: { name: true },
             },
-            busStop: {                     // ✅ THIS WAS MISSING
+            busStop: {
+              // ✅ THIS WAS MISSING
               select: {
                 id: true,
                 stopName: true,
-                feeAmount: true
-              }
-            }
-          }
-        }
-      }
+                feeAmount: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!bus) {
@@ -138,7 +132,7 @@ export const getBusDetails = async (req: Request, res: Response) => {
       student_phone_number: student.student_phone_number,
       department: student.department,
       stopName: student.busStop?.stopName || "Not Assigned",
-      stopFee: student.busStop?.feeAmount || 0
+      stopFee: student.busStop?.feeAmount || 0,
     }));
 
     res.status(200).json({
@@ -152,14 +146,13 @@ export const getBusDetails = async (req: Request, res: Response) => {
       driverPhone: bus.driverPhone,
       status: bus.isActive ? "Active" : "Inactive",
       stops: bus.stops,
-      students: formattedStudents
+      students: formattedStudents,
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 export const addBusStops = async (req: Request, res: Response) => {
   try {
@@ -188,7 +181,6 @@ export const addBusStops = async (req: Request, res: Response) => {
       message: "Bus stops added successfully",
       insertedCount: result.count,
     });
-
   } catch (error) {
     console.error("Error adding bus stops:", error);
 
@@ -233,7 +225,6 @@ export const deleteBusStop = async (req: Request, res: Response) => {
       success: true,
       message: "Bus stop deleted successfully",
     });
-
   } catch (error) {
     console.error("Error deleting bus stop:", error);
 
@@ -282,7 +273,7 @@ export const fetchBusStudents = async (req: Request, res: Response) => {
       semester: s.currentSemester,
       phoneNumber: s.student_phone_number,
       busName: s.bus?.busName ?? "No Bus Assigned",
-      departmentCode: s.department.department_code,
+      departmentCode: s.department?.department_code || "N/A",
     }));
 
     return res.status(200).json(modifiedStudent);
@@ -295,12 +286,11 @@ export const fetchBusStudents = async (req: Request, res: Response) => {
 export const getUniqueSemester = async (req: Request, res: Response) => {
   try {
     const semesters = await prisma.student.groupBy({
-      by: ['currentSemester'],
-      orderBy: { currentSemester: 'asc' },
+      by: ["currentSemester"],
+      orderBy: { currentSemester: "asc" },
     });
-    res.json(semesters.map(s => s.currentSemester));
-  }
-  catch (error) {
+    res.json(semesters.map((s) => s.currentSemester));
+  } catch (error) {
     res.status(500).json({ error: "Failed to fetch semesters" });
   }
 };
@@ -314,13 +304,13 @@ export const assignBusFees = async (req: Request, res: Response) => {
       where: {
         semester: parseInt(semester),
         archived: false,
-        feeType: { contains: 'Bus Fee' }
-      }
+        feeType: { contains: "Bus Fee" },
+      },
     });
 
-    if (activeBatchExists && semester !== 'all') {
+    if (activeBatchExists && semester !== "all") {
       return res.status(400).json({
-        message: `Cannot assign new fees. Please archive the existing active batch for Semester ${semester} first.`
+        message: `Cannot assign new fees. Please archive the existing active batch for Semester ${semester} first.`,
       });
     }
 
@@ -329,12 +319,13 @@ export const assignBusFees = async (req: Request, res: Response) => {
       where: {
         bus_service: true,
         busStopId: { not: null },
-        ...(semester !== 'all' ? { currentSemester: parseInt(semester) } : {})
+        ...(semester !== "all" ? { currentSemester: parseInt(semester) } : {}),
       },
-      include: { busStop: true }
+      include: { busStop: true },
     });
 
-    if (!students.length) return res.status(404).json({ message: "No students found." });
+    if (!students.length)
+      return res.status(404).json({ message: "No students found." });
 
     // 3. Create records in transaction
     await prisma.$transaction(
@@ -353,16 +344,18 @@ export const assignBusFees = async (req: Request, res: Response) => {
                 studentId: student.id,
                 amount,
                 dueDate: new Date(dueDate),
-                status: 'unpaid',
+                status: "unpaid",
                 feeStructureId: 2,
-              }
-            }
-          }
+              },
+            },
+          },
         });
-      })
+      }),
     );
 
-    res.status(201).json({ message: `Assigned fees to ${students.length} students.` });
+    res
+      .status(201)
+      .json({ message: `Assigned fees to ${students.length} students.` });
   } catch (error) {
     res.status(500).json({ error: "Transaction failed." });
   }
@@ -371,13 +364,13 @@ export const assignBusFees = async (req: Request, res: Response) => {
 export const getFeeBatches = async (_req: Request, res: Response) => {
   try {
     const batches = await prisma.feeDetails.groupBy({
-      by: ['feeType', 'semester', 'dueDate'],
+      by: ["feeType", "semester", "dueDate"],
       where: {
-        feeType: { contains: 'Bus Fee' },
-        archived: false // ONLY fetch active batches
+        feeType: { contains: "Bus Fee" },
+        archived: false, // ONLY fetch active batches
       },
       _count: { id: true },
-      orderBy: { dueDate: 'desc' }
+      orderBy: { dueDate: "desc" },
     });
 
     const formattedBatches = batches.map((batch, index) => ({
@@ -385,7 +378,7 @@ export const getFeeBatches = async (_req: Request, res: Response) => {
       feeName: batch.feeType,
       semester: batch.semester,
       dueDate: batch.dueDate,
-      studentCount: batch._count.id
+      studentCount: batch._count.id,
     }));
 
     res.json(formattedBatches);
@@ -407,27 +400,27 @@ export const getBatchDetails = async (req: Request, res: Response) => {
         fee: {
           feeType: feeName as string,
           semester: parseInt(semester as string),
-        }
+        },
       },
       include: {
         student: {
           select: {
             name: true,
-            busStop: { select: { stopName: true } }
-          }
-        }
+            busStop: { select: { stopName: true } },
+          },
+        },
       },
-      orderBy: { student: { name: 'asc' } }
+      orderBy: { student: { name: "asc" } },
     });
 
     // Map the status dynamically based on the current date
-    const updatedDetails = invoices.map(inv => {
+    const updatedDetails = invoices.map((inv) => {
       const isPastDue = today > new Date(inv.dueDate);
       let displayStatus = inv.status;
 
       // If database says unpaid but date is passed, show as overdue
-      if (inv.status === 'unpaid' && isPastDue) {
-        displayStatus = 'overdue' as any;
+      if (inv.status === "unpaid" && isPastDue) {
+        displayStatus = "overdue" as any;
       }
 
       return { ...inv, status: displayStatus };
@@ -453,10 +446,10 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
   try {
     const updatedInvoice = await prisma.invoice.update({
       where: {
-        id: parseInt(id)
+        id: parseInt(id),
       },
       data: {
-        status: status // This must match your Enum (paid, unpaid, etc.)
+        status: status, // This must match your Enum (paid, unpaid, etc.)
       },
     });
 
@@ -477,19 +470,21 @@ export const archiveFeeBatch = async (req: Request, res: Response) => {
         feeType: feeName,
         semester: parseInt(semester),
         dueDate: new Date(dueDate),
-        archived: false // Only update ones that aren't already archived
+        archived: false, // Only update ones that aren't already archived
       },
       data: {
-        archived: true
-      }
+        archived: true,
+      },
     });
 
     if (updateCount.count === 0) {
-      return res.status(404).json({ message: "No active batch found matching these criteria." });
+      return res
+        .status(404)
+        .json({ message: "No active batch found matching these criteria." });
     }
 
     res.status(200).json({
-      message: `Successfully archived ${updateCount.count} records for ${feeName} (S${semester}).`
+      message: `Successfully archived ${updateCount.count} records for ${feeName} (S${semester}).`,
     });
   } catch (error) {
     console.error("Archive Error:", error);
@@ -507,13 +502,13 @@ export const getBusRequests = async (req: Request, res: Response) => {
             id: true,
             name: true,
             admission_number: true,
-            department: { select: { name: true } }
-          }
+            department: { select: { name: true } },
+          },
         },
         bus: { select: { busName: true, busNumber: true } },
-        busStop: { select: { stopName: true, feeAmount: true } }
+        busStop: { select: { stopName: true, feeAmount: true } },
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
     res.json(requests);
   } catch (error) {
@@ -527,7 +522,9 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
   const { status } = req.body; // 'approved' or 'rejected'
 
   if (!requestId || !status) {
-    return res.status(400).json({ message: "Request ID and status are required" });
+    return res
+      .status(400)
+      .json({ message: "Request ID and status are required" });
   }
 
   try {
@@ -535,7 +532,7 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
       // 1. Get the request
       const request = await tx.busRequest.findUnique({
         where: { id: Number(requestId) },
-        include: { busStop: true } // Need fee if we were doing more, but mainly need ids
+        include: { busStop: true }, // Need fee if we were doing more, but mainly need ids
       });
 
       if (!request) {
@@ -549,7 +546,7 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
       // 2. Update request status
       const updatedRequest = await tx.busRequest.update({
         where: { id: Number(requestId) },
-        data: { status: status as any }
+        data: { status: status as any },
       });
 
       // 3. If approved, update Student record
@@ -559,8 +556,8 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
           data: {
             bus_service: true,
             busId: request.busId,
-            busStopId: request.busStopId
-          }
+            busStopId: request.busStopId,
+          },
         });
       }
 
@@ -568,9 +565,10 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
     });
 
     res.json({ message: `Request ${status} successfully`, result });
-
   } catch (error: any) {
     console.error("Error updating bus request:", error);
-    res.status(500).json({ message: error.message || "Failed to update status" });
+    res
+      .status(500)
+      .json({ message: error.message || "Failed to update status" });
   }
 };

@@ -13,6 +13,13 @@ import {
   submitAdmissionForm,
   getAdmissionByNumber,
   bulkUpdateStatus,
+  getApprovedStudentsForAssignment,
+  getClassesForBatch,
+  getUpcomingBatches,
+  assignStudentToClass,
+  autoAssignStudentsToClasses,
+  bulkAssignToClass,
+  getPublicDepartments,
 } from "../controllers/admissionController";
 
 const router = express.Router();
@@ -22,6 +29,7 @@ router.get("/status", checkAdmissionStatus);
 router.post("/validate", validateStudent);
 router.post("/submit", submitAdmissionForm);
 router.get("/check/:admissionNumber", getAdmissionByNumber);
+router.get("/departments", getPublicDepartments);
 
 // Admin routes (protected - add auth middleware in production)
 router.get("/admin/admissions", getAdmissions);
@@ -33,5 +41,13 @@ router.get("/admin/admission-windows", getAdmissionWindows);
 router.post("/admin/admission-windows", createAdmissionWindow);
 router.put("/admin/admission-windows/:id", updateAdmissionWindow);
 router.delete("/admin/admission-windows/:id", deleteAdmissionWindow);
+
+// Class assignment routes
+router.get("/admin/approved-students", getApprovedStudentsForAssignment);
+router.get("/admin/batches", getUpcomingBatches);
+router.get("/admin/batches/:batchId/classes", getClassesForBatch);
+router.post("/admin/assign-student", assignStudentToClass);
+router.post("/admin/auto-assign", autoAssignStudentsToClasses);
+router.post("/admin/bulk-assign", bulkAssignToClass);
 
 export default router;
