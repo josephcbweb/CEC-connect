@@ -26,7 +26,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     name: "",
     code: "",
     type: "THEORY",
-    category: "CORE",
+    category: "ELECTIVE",
     departmentId: "",
     semester: "1",
     staffId: "",
@@ -181,7 +181,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     setFormData({ ...formData, category: e.target.value })
                   }
                 >
-                  <option value="CORE">Core</option>
                   <option value="ELECTIVE">Elective</option>
                   <option value="HONOURS">Honours</option>
                 </select>
