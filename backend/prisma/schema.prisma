@@ -27,6 +27,7 @@ model User {
   principalDetails      PrincipalDetails?
   students              Student[]
   userRoles             UserRole[]
+  promotionHistories    PromotionHistory[]
 
   @@map("users")
 }
@@ -618,4 +619,38 @@ enum CourseCategory {
   CORE
   ELECTIVE
   HONOURS
+}
+
+model GraduatedStudent {
+  id                                  Int       @id @default(autoincrement()) @map("graduated_student_id")
+  originalStudentId                   Int       @map("original_student_id")
+  name                                String
+  email                               String?
+  dateOfBirth                         DateTime? @map("date_of_birth")
+  gender                              Gender
+  student_phone_number                String
+  aadhaar_number                      String
+  program                             Program
+  departmentId                        Int?      @map("department_id")
+  admission_number                    String?
+  admission_date                      DateTime?
+  passout_year                        Int?
+  graduatedAt                         DateTime  @default(now()) @map("graduated_at")
+  archivedBy                          Int?      @map("archived_by")
+  allotted_branch                     String
+
+  @@map("graduated_students")
+}
+
+model PromotionHistory {
+  id                Int      @id @default(autoincrement()) @map("promotion_id")
+  promotionDate     DateTime @default(now()) @map("promotion_date")
+  semesterType      String   @map("semester_type") // "ODD" or "EVEN"
+  adminId           Int      @map("admin_id")
+  promotionDetails  Json     @map("promotion_details") // Stores details of which semesters were promoted and counts
+  canUndo           Boolean  @default(true) @map("can_undo")
+  undoAt            DateTime? @map("undo_at")
+  admin             User     @relation(fields: [adminId], references: [id])
+
+  @@map("promotion_history")
 }

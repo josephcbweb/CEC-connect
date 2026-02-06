@@ -72,6 +72,13 @@ async function main(): Promise<void> {
   await prisma.hodDetails.deleteMany({});
   await prisma.advisorDetails.deleteMany({});
   await prisma.serviceDepartment.deleteMany({});
+  
+  // Cleanup Batches and Classes
+  await prisma.class.deleteMany({});
+  await prisma.batchDepartment.deleteMany({});
+  await prisma.admissionWindow.deleteMany({});
+  await prisma.batch.deleteMany({});
+
   await prisma.department.deleteMany({});
   await prisma.user.deleteMany({});
 
@@ -282,6 +289,8 @@ async function main(): Promise<void> {
     let successCount = 0;
     let errorCount = 0;
 
+    const targetSemesters = [1, 3, 5, 7];
+
     for (const row of studentsFromCsv) {
       try {
         const departmentName = row.allottedBranch?.toLowerCase();
@@ -345,10 +354,21 @@ async function main(): Promise<void> {
           row.qualifyingExamRegisterNo ||
           `UNKNOWN-${row.admissionNumber || successCount}`;
 
+        // Determine Semester
+        const semester = targetSemesters[successCount % targetSemesters.length];
+
+        // Adjust admission date based on semester
+        let admissionDate = parseCustomDate(row.admissionDate);
+        if (admissionDate && semester > 1) {
+            const yearsToSubtract = Math.floor((semester - 1) / 2);
+            admissionDate.setFullYear(admissionDate.getFullYear() - yearsToSubtract);
+        }
+
         const studentData: any = {
           department: {
             connect: { id: department.id },
           },
+          currentSemester: semester,
           name: row.name || "Unknown Student",
           password:
             "$2a$10$Cvpbg91lGoW83LCUlOTaO.sqclvlvYiAxTnO5e1yLmMXX.MM4q.Uy",
@@ -389,7 +409,7 @@ async function main(): Promise<void> {
           local_guardian_address: row.localGuardianAddress || null,
           local_guardian_phone_number: row.localGuardianPhoneNumber || null,
           admission_number: row.admissionNumber || null,
-          admission_date: parseCustomDate(row.admissionDate),
+          admission_date: admissionDate,
           category: row.category?.toLowerCase() || null,
           is_fee_concession_eligible:
             row.isFeeConcessionEligible?.toString().toLowerCase() === "true",

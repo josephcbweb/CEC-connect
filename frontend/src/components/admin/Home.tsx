@@ -15,6 +15,8 @@ import {
   Line,
 } from "recharts";
 import type { Student, Invoice } from "../../types"; // Assuming types are in a shared location
+import PromotionModal from "./PromotionModal";
+import axios from "axios";
 
 // --- Helper Types for Analytics ---
 interface AnalyticsData {
@@ -32,15 +34,16 @@ const AnalyticsDashboard: React.FC = () => {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPromotionModal, setShowPromotionModal] = useState(false);
+  const [undoing, setUndoing] = useState(false);
 
-  useEffect(() => {
-    const fetchAnalyticsData = async () => {
-      try {
-        setLoading(true);
-        // OPTIMIZATION: Fetch all student data, which now includes invoices, in a single call.
-        const response = await fetch(
-          "http://localhost:3000/students/all?include=department,invoices"
-        );
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoading(true);
+      // OPTIMIZATION: Fetch all student data, which now includes invoices, in a single call.
+      const response = await fetch(
+        "http://localhost:3000/students/all?include=department,invoices"
+      );
 
         if (!response.ok) {
           throw new Error(
@@ -128,9 +131,43 @@ const AnalyticsDashboard: React.FC = () => {
         setLoading(false);
       }
     };
-
+  
+  useEffect(() => {
     fetchAnalyticsData();
   }, []);
+
+  const handleUndoPromotion = async () => {
+    if (!confirm("Are you sure you want to undo the last promotion? This will revert students to their previous semesters.")) {
+      return;
+    }
+
+    try {
+      setUndoing(true);
+      const token = localStorage.getItem("authToken");
+
+      await axios.post(
+        "http://localhost:3000/api/promotion/undo-promotion",
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      alert("Last promotion successfully undone!");
+      // Reload analytics to show updated data
+      fetchAnalyticsData();
+    } catch (error: any) {
+      console.error("Error undoing promotion:", error);
+      alert(error.response?.data?.error || "Failed to undo promotion");
+    } finally {
+      setUndoing(false);
+    }
+  };
+
+  const handlePromotionSuccess = () => {
+    // Reload analytics to show updated data
+    fetchAnalyticsData();
+  };
 
   // --- Render Logic ---
   if (loading) {
@@ -152,10 +189,52 @@ const AnalyticsDashboard: React.FC = () => {
 
   return (
     <div className="p-6 md:p-8 w-full">
-      <h1 className="text-3xl font-bold text-slate-800">Analytics Dashboard</h1>
-      <p className="mt-2 text-gray-600">
-        Overview of college finances and student demographics.
-      </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">Analytics Dashboard</h1>
+          <p className="mt-2 text-gray-600">
+            Overview of college finances and student demographics.
+          </p>
+        </div>
+        
+        <div className="flex gap-3">
+          <button
+            onClick={handleUndoPromotion}
+            disabled={undoing}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+          >
+            {undoing && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
+            )}
+            Undo Last Promotion
+          </button>
+          <button
+            onClick={() => setShowPromotionModal(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+              />
+            </svg>
+            Promote Students
+          </button>
+        </div>
+      </div>
+
+      <PromotionModal
+        isOpen={showPromotionModal}
+        onClose={() => setShowPromotionModal(false)}
+        onSuccess={handlePromotionSuccess}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
