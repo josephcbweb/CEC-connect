@@ -598,6 +598,7 @@ enum StudentStatus {
   rejected
   waitlisted
   graduated
+  deleted
 }
 
 enum AdmissionType {
@@ -622,3 +623,15 @@ enum CourseCategory {
   ELECTIVE
   HONOURS
 }
+
+model PromotionHistory {
+  id                 Int      @id @default(autoincrement()) @map("promotion_id")
+  promotedAt         DateTime @default(now()) @map("promoted_at")
+  semesterType       String   @map("semester_type")
+  affectedStudentIds Int[]    @map("affected_student_ids")
+  details            Json
+  adminId            Int?     @map("admin_id")
+
+  @@map("promotion_history")
+}
+
