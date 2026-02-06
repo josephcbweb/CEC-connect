@@ -77,6 +77,11 @@ function main() {
         yield prisma_1.prisma.hodDetails.deleteMany({});
         yield prisma_1.prisma.advisorDetails.deleteMany({});
         yield prisma_1.prisma.serviceDepartment.deleteMany({});
+        // Cleanup Batches and Classes
+        yield prisma_1.prisma.class.deleteMany({});
+        yield prisma_1.prisma.batchDepartment.deleteMany({});
+        yield prisma_1.prisma.admissionWindow.deleteMany({});
+        yield prisma_1.prisma.batch.deleteMany({});
         yield prisma_1.prisma.department.deleteMany({});
         yield prisma_1.prisma.user.deleteMany({});
         // 2. Create Service Departments
@@ -260,6 +265,7 @@ function main() {
             console.log(`✅ CSV file processed. Found ${studentsFromCsv.length} students.`);
             let successCount = 0;
             let errorCount = 0;
+            const targetSemesters = [1, 3, 5, 7];
             for (const row of studentsFromCsv) {
                 try {
                     const departmentName = (_a = row.allottedBranch) === null || _a === void 0 ? void 0 : _a.toLowerCase();
@@ -310,10 +316,19 @@ function main() {
                         `FAKE-AADHAAR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                     const fallbackQualExamRegNo = row.qualifyingExamRegisterNo ||
                         `UNKNOWN-${row.admissionNumber || successCount}`;
+                    // Determine Semester
+                    const semester = targetSemesters[successCount % targetSemesters.length];
+                    // Adjust admission date based on semester
+                    let admissionDate = parseCustomDate(row.admissionDate);
+                    if (admissionDate && semester > 1) {
+                        const yearsToSubtract = Math.floor((semester - 1) / 2);
+                        admissionDate.setFullYear(admissionDate.getFullYear() - yearsToSubtract);
+                    }
                     const studentData = {
                         department: {
                             connect: { id: department.id },
                         },
+                        currentSemester: semester,
                         name: row.name || "Unknown Student",
                         password: "$2a$10$Cvpbg91lGoW83LCUlOTaO.sqclvlvYiAxTnO5e1yLmMXX.MM4q.Uy",
                         gender: genderFallback,
@@ -351,7 +366,7 @@ function main() {
                         local_guardian_address: row.localGuardianAddress || null,
                         local_guardian_phone_number: row.localGuardianPhoneNumber || null,
                         admission_number: row.admissionNumber || null,
-                        admission_date: parseCustomDate(row.admissionDate),
+                        admission_date: admissionDate,
                         category: ((_b = row.category) === null || _b === void 0 ? void 0 : _b.toLowerCase()) || null,
                         is_fee_concession_eligible: ((_c = row.isFeeConcessionEligible) === null || _c === void 0 ? void 0 : _c.toString().toLowerCase()) === "true",
                         tc_number: row.tcNumber || null,

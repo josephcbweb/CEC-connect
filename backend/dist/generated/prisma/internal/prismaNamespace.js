@@ -49,7 +49,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BatchDepartmentScalarFieldEnum = exports.BatchScalarFieldEnum = exports.BusRequestScalarFieldEnum = exports.BusStopScalarFieldEnum = exports.BusScalarFieldEnum = exports.CertificateScalarFieldEnum = exports.SettingScalarFieldEnum = exports.AuditLogScalarFieldEnum = exports.NotificationScalarFieldEnum = exports.PaymentScalarFieldEnum = exports.InvoiceScalarFieldEnum = exports.FeeDetailsScalarFieldEnum = exports.FeeStructureScalarFieldEnum = exports.CourseSelectionScalarFieldEnum = exports.CourseScalarFieldEnum = exports.NoDueApprovalScalarFieldEnum = exports.NoDueScalarFieldEnum = exports.DueConfigurationScalarFieldEnum = exports.ServiceDepartmentScalarFieldEnum = exports.NoDueRequestScalarFieldEnum = exports.PrincipalDetailsScalarFieldEnum = exports.AdvisorDetailsScalarFieldEnum = exports.HodDetailsScalarFieldEnum = exports.AdmissionWindowScalarFieldEnum = exports.DepartmentScalarFieldEnum = exports.StudentScalarFieldEnum = exports.RolePermissionScalarFieldEnum = exports.UserRoleScalarFieldEnum = exports.PermissionScalarFieldEnum = exports.RoleScalarFieldEnum = exports.UserScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.prismaVersion = exports.getExtensionContext = exports.Decimal = exports.Sql = exports.raw = exports.join = exports.empty = exports.sql = exports.PrismaClientValidationError = exports.PrismaClientInitializationError = exports.PrismaClientRustPanicError = exports.PrismaClientUnknownRequestError = exports.PrismaClientKnownRequestError = void 0;
-exports.defineExtension = exports.JsonNullValueFilter = exports.NullsOrder = exports.QueryMode = exports.NullableJsonNullValueInput = exports.SortOrder = exports.ClassScalarFieldEnum = void 0;
+exports.defineExtension = exports.JsonNullValueFilter = exports.NullsOrder = exports.QueryMode = exports.JsonNullValueInput = exports.NullableJsonNullValueInput = exports.SortOrder = exports.PromotionHistoryScalarFieldEnum = exports.GraduatedStudentScalarFieldEnum = exports.ClassScalarFieldEnum = void 0;
 const runtime = __importStar(require("@prisma/client/runtime/client"));
 /**
  * Prisma Errors
@@ -135,7 +135,9 @@ exports.ModelName = {
     BusRequest: 'BusRequest',
     Batch: 'Batch',
     BatchDepartment: 'BatchDepartment',
-    Class: 'Class'
+    Class: 'Class',
+    GraduatedStudent: 'GraduatedStudent',
+    PromotionHistory: 'PromotionHistory'
 };
 /**
  * Enums
@@ -450,12 +452,42 @@ exports.ClassScalarFieldEnum = {
     batchDepartmentId: 'batchDepartmentId',
     advisorId: 'advisorId'
 };
+exports.GraduatedStudentScalarFieldEnum = {
+    id: 'id',
+    originalStudentId: 'originalStudentId',
+    name: 'name',
+    email: 'email',
+    dateOfBirth: 'dateOfBirth',
+    gender: 'gender',
+    student_phone_number: 'student_phone_number',
+    aadhaar_number: 'aadhaar_number',
+    program: 'program',
+    departmentId: 'departmentId',
+    admission_number: 'admission_number',
+    admission_date: 'admission_date',
+    passout_year: 'passout_year',
+    graduatedAt: 'graduatedAt',
+    archivedBy: 'archivedBy',
+    allotted_branch: 'allotted_branch'
+};
+exports.PromotionHistoryScalarFieldEnum = {
+    id: 'id',
+    promotionDate: 'promotionDate',
+    semesterType: 'semesterType',
+    adminId: 'adminId',
+    promotionDetails: 'promotionDetails',
+    canUndo: 'canUndo',
+    undoAt: 'undoAt'
+};
 exports.SortOrder = {
     asc: 'asc',
     desc: 'desc'
 };
 exports.NullableJsonNullValueInput = {
     DbNull: exports.DbNull,
+    JsonNull: exports.JsonNull
+};
+exports.JsonNullValueInput = {
     JsonNull: exports.JsonNull
 };
 exports.QueryMode = {

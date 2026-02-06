@@ -22,6 +22,7 @@ const courseRoutes_1 = __importDefault(require("./routes/courseRoutes"));
 const noDueRoutes_1 = __importDefault(require("./routes/noDueRoutes"));
 const staffRoutes_1 = __importDefault(require("./routes/staffRoutes"));
 const batchRoutes_1 = __importDefault(require("./routes/batchRoutes"));
+const promotionRoutes_1 = __importDefault(require("./routes/promotionRoutes"));
 const cors_1 = __importDefault(require("cors"));
 dotenv_1.default.config();
 const PORT = process.env.PORT || 3000;
@@ -50,6 +51,7 @@ app.use("/api/courses", courseRoutes_1.default);
 app.use("/api/nodue", noDueRoutes_1.default);
 app.use("/api/staff", staffRoutes_1.default);
 app.use("/api", batchRoutes_1.default);
+app.use("/api/promotion", promotionRoutes_1.default);
 app.listen(PORT, () => {
     console.log("Server listening on port: ", PORT);
 });

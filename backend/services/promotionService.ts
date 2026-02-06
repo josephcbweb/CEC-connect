@@ -23,6 +23,26 @@ interface PromotionPreview {
   totalToPromote: number;
 }
 
+interface PromotionDetails {
+  [key: string]: number | number[];
+  s1ToS2?: number;
+  s3ToS4?: number;
+  s5ToS6?: number;
+  s7ToS8?: number;
+  s2ToS3?: number;
+  s4ToS5?: number;
+  s6ToS7?: number;
+  s8ToArchive?: number;
+  s1ToS2StudentIds?: number[];
+  s3ToS4StudentIds?: number[];
+  s5ToS6StudentIds?: number[];
+  s7ToS8StudentIds?: number[];
+  s2ToS3StudentIds?: number[];
+  s4ToS5StudentIds?: number[];
+  s6ToS7StudentIds?: number[];
+  s8StudentIds?: number[];
+}
+
 interface SemesterInfo {
   currentSemesterType: "ODD" | "EVEN";
   oddSemesters: number[];
@@ -116,69 +136,132 @@ export class PromotionService {
     });
 
     if (existingPromotion) {
-      throw new Error("A promotion has already been executed today for this semester type. Please undo it first if you want to redo.");
+      throw new Error("A promotion was already executed today. Use the Undo feature to revert it before promoting again.");
     }
 
-    const promotedCounts: Record<string, number> = {};
+    const promotedCounts: PromotionDetails = {};
 
     await prisma.$transaction(async (tx) => {
       if (semesterType === "ODD") {
         // Odd semester promotions
         if (config.s1ToS2) {
-          const result = await tx.student.updateMany({
+          const students = await tx.student.findMany({
             where: { currentSemester: 1, status: { not: "graduated" } },
-            data: { currentSemester: 2 },
+            select: { id: true },
           });
-          promotedCounts.s1ToS2 = result.count;
+          const studentIds = students.map((s) => s.id);
+          
+          if (studentIds.length > 0) {
+            await tx.student.updateMany({
+              where: { id: { in: studentIds } },
+              data: { currentSemester: 2 },
+            });
+          }
+          promotedCounts.s1ToS2 = studentIds.length;
+          promotedCounts.s1ToS2StudentIds = studentIds;
         }
 
         if (config.s3ToS4) {
-          const result = await tx.student.updateMany({
+          const students = await tx.student.findMany({
             where: { currentSemester: 3, status: { not: "graduated" } },
-            data: { currentSemester: 4 },
+            select: { id: true },
           });
-          promotedCounts.s3ToS4 = result.count;
+          const studentIds = students.map((s) => s.id);
+          
+          if (studentIds.length > 0) {
+            await tx.student.updateMany({
+              where: { id: { in: studentIds } },
+              data: { currentSemester: 4 },
+            });
+          }
+          promotedCounts.s3ToS4 = studentIds.length;
+          promotedCounts.s3ToS4StudentIds = studentIds;
         }
 
         if (config.s5ToS6) {
-          const result = await tx.student.updateMany({
+          const students = await tx.student.findMany({
             where: { currentSemester: 5, status: { not: "graduated" } },
-            data: { currentSemester: 6 },
+            select: { id: true },
           });
-          promotedCounts.s5ToS6 = result.count;
+          const studentIds = students.map((s) => s.id);
+          
+          if (studentIds.length > 0) {
+            await tx.student.updateMany({
+              where: { id: { in: studentIds } },
+              data: { currentSemester: 6 },
+            });
+          }
+          promotedCounts.s5ToS6 = studentIds.length;
+          promotedCounts.s5ToS6StudentIds = studentIds;
         }
 
         if (config.s7ToS8) {
-          const result = await tx.student.updateMany({
+          const students = await tx.student.findMany({
             where: { currentSemester: 7, status: { not: "graduated" } },
-            data: { currentSemester: 8 },
+            select: { id: true },
           });
-          promotedCounts.s7ToS8 = result.count;
+          const studentIds = students.map((s) => s.id);
+          
+          if (studentIds.length > 0) {
+            await tx.student.updateMany({
+              where: { id: { in: studentIds } },
+              data: { currentSemester: 8 },
+            });
+          }
+          promotedCounts.s7ToS8 = studentIds.length;
+          promotedCounts.s7ToS8StudentIds = studentIds;
         }
       } else {
         // Even semester promotions
         if (config.s2ToS3) {
-          const result = await tx.student.updateMany({
+          const students = await tx.student.findMany({
             where: { currentSemester: 2, status: { not: "graduated" } },
-            data: { currentSemester: 3 },
+            select: { id: true },
           });
-          promotedCounts.s2ToS3 = result.count;
+          const studentIds = students.map((s) => s.id);
+          
+          if (studentIds.length > 0) {
+            await tx.student.updateMany({
+              where: { id: { in: studentIds } },
+              data: { currentSemester: 3 },
+            });
+          }
+          promotedCounts.s2ToS3 = studentIds.length;
+          promotedCounts.s2ToS3StudentIds = studentIds;
         }
 
         if (config.s4ToS5) {
-          const result = await tx.student.updateMany({
+          const students = await tx.student.findMany({
             where: { currentSemester: 4, status: { not: "graduated" } },
-            data: { currentSemester: 5 },
+            select: { id: true },
           });
-          promotedCounts.s4ToS5 = result.count;
+          const studentIds = students.map((s) => s.id);
+          
+          if (studentIds.length > 0) {
+            await tx.student.updateMany({
+              where: { id: { in: studentIds } },
+              data: { currentSemester: 5 },
+            });
+          }
+          promotedCounts.s4ToS5 = studentIds.length;
+          promotedCounts.s4ToS5StudentIds = studentIds;
         }
 
         if (config.s6ToS7) {
-          const result = await tx.student.updateMany({
+          const students = await tx.student.findMany({
             where: { currentSemester: 6, status: { not: "graduated" } },
-            data: { currentSemester: 7 },
+            select: { id: true },
           });
-          promotedCounts.s6ToS7 = result.count;
+          const studentIds = students.map((s) => s.id);
+          
+          if (studentIds.length > 0) {
+            await tx.student.updateMany({
+              where: { id: { in: studentIds } },
+              data: { currentSemester: 7 },
+            });
+          }
+          promotedCounts.s6ToS7 = studentIds.length;
+          promotedCounts.s6ToS7StudentIds = studentIds;
         }
 
         if (config.s8ToArchive) {
@@ -202,6 +285,8 @@ export class PromotionService {
             },
           });
 
+          const studentIds = s8Students.map((s) => s.id);
+
           // Move to graduated students table
           for (const student of s8Students) {
             await tx.graduatedStudent.create({
@@ -224,13 +309,15 @@ export class PromotionService {
             });
           }
 
-          // Update their status to graduated and keep them in student table for now
-          // (or delete them if you prefer)
-          const result = await tx.student.updateMany({
-            where: { currentSemester: 8, status: { not: "graduated" } },
-            data: { status: "graduated" },
-          });
-          promotedCounts.s8ToArchive = result.count;
+          // Update their status to graduated
+          if (studentIds.length > 0) {
+            await tx.student.updateMany({
+              where: { id: { in: studentIds } },
+              data: { status: "graduated" },
+            });
+          }
+          promotedCounts.s8ToArchive = studentIds.length;
+          promotedCounts.s8StudentIds = studentIds;
         }
       }
 
@@ -280,81 +367,72 @@ export class PromotionService {
       throw new Error("No undoable promotion found");
     }
 
-    const details = lastPromotion.promotionDetails as Record<string, number>;
+    const details = lastPromotion.promotionDetails as PromotionDetails;
 
     await prisma.$transaction(async (tx) => {
       if (lastPromotion.semesterType === "ODD") {
-        // Reverse odd semester promotions
-        if (details.s1ToS2) {
+        // Reverse odd semester promotions using stored student IDs
+        if (details.s1ToS2StudentIds && details.s1ToS2StudentIds.length > 0) {
           await tx.student.updateMany({
-            where: { currentSemester: 2 },
+            where: { id: { in: details.s1ToS2StudentIds as number[] } },
             data: { currentSemester: 1 },
           });
         }
 
-        if (details.s3ToS4) {
+        if (details.s3ToS4StudentIds && details.s3ToS4StudentIds.length > 0) {
           await tx.student.updateMany({
-            where: { currentSemester: 4 },
+            where: { id: { in: details.s3ToS4StudentIds as number[] } },
             data: { currentSemester: 3 },
           });
         }
 
-        if (details.s5ToS6) {
+        if (details.s5ToS6StudentIds && details.s5ToS6StudentIds.length > 0) {
           await tx.student.updateMany({
-            where: { currentSemester: 6 },
+            where: { id: { in: details.s5ToS6StudentIds as number[] } },
             data: { currentSemester: 5 },
           });
         }
 
-        if (details.s7ToS8) {
+        if (details.s7ToS8StudentIds && details.s7ToS8StudentIds.length > 0) {
           await tx.student.updateMany({
-            where: { currentSemester: 8 },
+            where: { id: { in: details.s7ToS8StudentIds as number[] } },
             data: { currentSemester: 7 },
           });
         }
       } else {
-        // Reverse even semester promotions
-        if (details.s2ToS3) {
+        // Reverse even semester promotions using stored student IDs
+        if (details.s2ToS3StudentIds && details.s2ToS3StudentIds.length > 0) {
           await tx.student.updateMany({
-            where: { currentSemester: 3 },
+            where: { id: { in: details.s2ToS3StudentIds as number[] } },
             data: { currentSemester: 2 },
           });
         }
 
-        if (details.s4ToS5) {
+        if (details.s4ToS5StudentIds && details.s4ToS5StudentIds.length > 0) {
           await tx.student.updateMany({
-            where: { currentSemester: 5 },
+            where: { id: { in: details.s4ToS5StudentIds as number[] } },
             data: { currentSemester: 4 },
           });
         }
 
-        if (details.s6ToS7) {
+        if (details.s6ToS7StudentIds && details.s6ToS7StudentIds.length > 0) {
           await tx.student.updateMany({
-            where: { currentSemester: 7 },
+            where: { id: { in: details.s6ToS7StudentIds as number[] } },
             data: { currentSemester: 6 },
           });
         }
 
-        if (details.s8ToArchive) {
-          // Restore graduated students
-          const graduatedStudents = await tx.graduatedStudent.findMany({
-            where: {
-              graduatedAt: {
-                gte: new Date(lastPromotion.promotionDate),
-              },
-            },
+        if (details.s8StudentIds && details.s8StudentIds.length > 0) {
+          // Restore graduated students using stored student IDs
+          await tx.student.updateMany({
+            where: { id: { in: details.s8StudentIds as number[] } },
+            data: { status: "approved", currentSemester: 8 },
           });
-
-          for (const grad of graduatedStudents) {
-            await tx.student.updateMany({
-              where: { id: grad.originalStudentId },
-              data: { status: "approved", currentSemester: 8 },
-            });
-          }
 
           // Delete from graduated table
           await tx.graduatedStudent.deleteMany({
             where: {
+              originalStudentId: { in: details.s8StudentIds as number[] },
               graduatedAt: {
                 gte: new Date(lastPromotion.promotionDate),
               },
