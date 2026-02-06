@@ -7,6 +7,8 @@ import DeleteModal from "./DeleteModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import PdfModal from "./PdfModal";
+import PromotionModal from "./PromotionModal";
+import { RotateCcw } from "lucide-react";
 
 const baseURL = `http://localhost:3000`;
 
@@ -16,8 +18,7 @@ interface Student {
   program: string;
   department: string;
   year: number | null;
-  isSelected: boolean;
-  onSelect: (id: number) => void;
+  currentSemester: number;
 }
 
 interface StatItem {
@@ -26,6 +27,9 @@ interface StatItem {
 }
 
 const StudentsPage = () => {
+  const [viewStatus, setViewStatus] = useState<"approved" | "graduated">(
+    "approved",
+  );
   const [stats, setStats] = useState<StatItem[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,25 +41,40 @@ const StudentsPage = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
   const [isPdfModalOpen, setisPdfModalOpen] = useState(false);
-  const [selectedYear, setSelectedYear] = useState<number | "All">("All");
+  const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
+  const [selectedSemester, setSelectedSemester] = useState<string | "All">(
+    "All",
+  );
+
+  const [undoLoading, setUndoLoading] = useState(false);
+
+  // Undo Delete State
+  const [showUndoToast, setShowUndoToast] = useState(false);
+  const [lastDeletedIds, setLastDeletedIds] = useState<number[]>([]);
+  const [undoDeleteTimer, setUndoDeleteTimer] = useState<NodeJS.Timeout | null>(
+    null,
+  );
 
   const fetchStudents = async () => {
     try {
-      const res = await fetch(`${baseURL}/admin/students`);
+      const res = await fetch(`${baseURL}/admin/students?status=${viewStatus}`);
       const data = await res.json();
       const students: Student[] = data.students;
       setStudents(students);
       setPrograms(data.programs);
       const uniqueDepartments = Array.from(
-        new Set(students.map((s) => s.department).filter(Boolean))
+        new Set(students.map((s) => s.department).filter(Boolean)),
       );
       setDepartments(uniqueDepartments);
+      // Calculate stats for Semester grouping if needed or just rely on backend
+      // But typically, we want to group display by Semester if possible
     } catch (error) {
       console.error("Failed to fetch students:", error);
     }
   };
 
   useEffect(() => {
+    setSelectedStudentIds([]); // Clear selection on view change
     const fetchStats = async () => {
       try {
         const res = await fetch(`${baseURL}/admin/viewStats`);
@@ -69,7 +88,7 @@ const StudentsPage = () => {
     Promise.all([fetchStats(), fetchStudents()])
       .catch((error) => console.error("Failed to fetch:", error))
       .finally(() => setLoading(false));
-  }, []);
+  }, [viewStatus]); // Re-fetch when viewStatus changes
 
   const filteredStudents = students.filter((student) => {
     const matchesName = student.name
@@ -81,12 +100,14 @@ const StudentsPage = () => {
       selectedProgram !== "btech" ||
       selectedDepartment === "All" ||
       student.department === selectedDepartment;
-    const matchesYear =
-      selectedProgram === "All" ||
-      selectedYear === "All" ||
-      student.year === selectedYear;
+    const matchesSemester =
+      selectedSemester === "All" ||
+      (student.currentSemester &&
+        student.currentSemester.toString() === selectedSemester);
 
-    return matchesName && matchesProgram && matchesDepartment && matchesYear;
+    return (
+      matchesName && matchesProgram && matchesDepartment && matchesSemester
+    );
   });
 
   const handleGeneratePDF = (filters: {
@@ -120,7 +141,7 @@ const StudentsPage = () => {
       filters.departments && filters.departments.length > 0
         ? filters.departments
         : Array.from(
-            new Set(students.map((s) => s.department).filter(Boolean))
+            new Set(students.map((s) => s.department).filter(Boolean)),
           );
 
     departmentsToExport.forEach((dept) => {
@@ -189,7 +210,7 @@ const StudentsPage = () => {
     setSelectedStudentIds((prev) =>
       prev.includes(studentId)
         ? prev.filter((id) => id !== studentId)
-        : [...prev, studentId]
+        : [...prev, studentId],
     );
   };
 
@@ -214,27 +235,116 @@ const StudentsPage = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: selectedStudentIds }),
-        }
+        },
       );
 
       const result = await response.json();
 
       if (response.ok) {
-        console.log("Deleted:", result.deletedCount);
-        // Refresh students list
-        fetchStudents();
+        // Soft delete success
+        setLastDeletedIds(selectedStudentIds);
+        setShowUndoToast(true);
         setSelectedStudentIds([]);
         setIsDeleteModalOpen(false);
+        fetchStudents();
+
+        // 15 seconds timer to clear undo opportunity
+        if (undoDeleteTimer) clearTimeout(undoDeleteTimer);
+        const timer = setTimeout(() => {
+          setShowUndoToast(false);
+          setLastDeletedIds([]);
+        }, 15000);
+        setUndoDeleteTimer(timer);
       } else {
         console.error("Deletion failed:", result.error);
+        alert("Failed to delete students");
       }
     } catch (error) {
       console.error("Error deleting students:", error);
     }
   };
 
+  const handleUndoDelete = async () => {
+    if (undoDeleteTimer) clearTimeout(undoDeleteTimer);
+    try {
+      const response = await fetch(
+        "http://localhost:3000/admin/restoreStudents",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: lastDeletedIds }),
+        },
+      );
+      if (response.ok) {
+        fetchStudents();
+        setShowUndoToast(false);
+        setLastDeletedIds([]);
+      } else {
+        alert("Failed to restore students.");
+      }
+    } catch (error) {
+      console.error("Error restoring students:", error);
+    }
+  };
+
+  const handleDemote = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to apply Year Back to the selected students?",
+      )
+    )
+      return;
+    try {
+      const response = await fetch(
+        "http://localhost:3000/admin/demoteStudents",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: selectedStudentIds }),
+        },
+      );
+      if (response.ok) {
+        alert("Students transferred back successfully.");
+        fetchStudents();
+        setSelectedStudentIds([]);
+      } else {
+        alert("Failed to transfer students.");
+      }
+    } catch (error) {
+      console.error("Error demoting students:", error);
+    }
+  };
+
   const handleCloseModal = () => {
     setIsDeleteModalOpen(false);
+  };
+
+  const handleUndoPromotion = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to UNDO the last promotion batch? This will revert semester changes.",
+      )
+    )
+      return;
+
+    setUndoLoading(true);
+    try {
+      const res = await fetch(`${baseURL}/api/promotion/undo`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Promotion undone successfully.");
+        fetchStudents();
+      } else {
+        alert(data.error || "Failed to undo.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    } finally {
+      setUndoLoading(false);
+    }
   };
 
   if (loading) {
@@ -254,13 +364,63 @@ const StudentsPage = () => {
             View,Edit and Manage all students
           </p>
         </div>
-        <button
-          className="bg-teal-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3"
-          onClick={() => setisPdfModalOpen(true)}
-        >
-          Export PDF
-        </button>
+        <div className="flex gap-3">
+          {/* View Toggle */}
+          <div className="flex bg-gray-100 p-1 rounded-md h-fit">
+            <button
+              onClick={() => setViewStatus("approved")}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                viewStatus === "approved"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => setViewStatus("graduated")}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                viewStatus === "graduated"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Graduated
+            </button>
+          </div>
+
+          <button
+            onClick={handleUndoPromotion}
+            disabled={undoLoading}
+            className="flex items-center gap-2 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 h-fit p-2 rounded-[.3rem] cursor-pointer px-3"
+            title="Undo Last Promotion"
+          >
+            <RotateCcw
+              className={`w-4 h-4 ${undoLoading ? "animate-spin" : ""}`}
+            />
+            Undo
+          </button>
+          <button
+            className="bg-indigo-600 hover:bg-indigo-700 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3"
+            onClick={() => setIsPromotionModalOpen(true)}
+          >
+            Promote Students
+          </button>
+          <button
+            className="bg-teal-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3"
+            onClick={() => setisPdfModalOpen(true)}
+          >
+            Export PDF
+          </button>
+        </div>
       </div>
+
+      <PromotionModal
+        isOpen={isPromotionModalOpen}
+        onClose={() => setIsPromotionModalOpen(false)}
+        onSuccess={fetchStudents}
+        allStudents={students}
+      />
 
       <div className="flex flex-col md:flex-row flex-wrap gap-4 w-full my-4 bg-gradient-to-r from-violet-50 to-blue-50 p-4">
         {stats.map((item) => (
@@ -316,27 +476,39 @@ const StudentsPage = () => {
         </select>
         {selectedProgram !== "All" && (
           <select
-            value={selectedYear}
-            onChange={(e) =>
-              setSelectedYear(
-                e.target.value === "All" ? "All" : Number(e.target.value)
-              )
-            }
+            value={selectedSemester}
+            onChange={(e) => setSelectedSemester(e.target.value)}
             className="mb-6 max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 font-semibold"
           >
-            <option value="All">All Years</option>
-            {(selectedProgram === "btech" ? [1, 2, 3, 4] : [1, 2]).map(
-              (year) => (
-                <option key={year} value={year}>
-                  Year {year}
-                </option>
-              )
-            )}
+            <option value="All">All Semesters</option>
+            {/* Generate S1 to S8 */}
+            {Array.from({ length: 8 }, (_, i) => i + 1).map((sem) => (
+              <option key={sem} value={sem.toString()}>
+                S{sem}
+              </option>
+            ))}
           </select>
         )}
 
         {selectedStudentIds.length > 0 && (
-          <DeleteBtn onClick={handleDeleteClick} />
+          <div className="flex gap-2">
+            {selectedStudentIds.every((id) => {
+              const student = students.find((s) => s.id === id);
+              return (
+                student &&
+                student.currentSemester >= 4 &&
+                student.currentSemester <= 7
+              );
+            }) && (
+              <button
+                onClick={handleDemote}
+                className="bg-orange-500 hover:bg-orange-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3 text-sm font-semibold"
+              >
+                Year Back
+              </button>
+            )}
+            <DeleteBtn onClick={handleDeleteClick} />
+          </div>
         )}
       </div>
 
@@ -354,8 +526,9 @@ const StudentsPage = () => {
             />
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Name
-              {selectedStudentIds.length > 0 &&
-                <span className="text-violet-600">{` (${selectedStudentIds.length})`}</span>}
+              {selectedStudentIds.length > 0 && (
+                <span className="text-violet-600">{` (${selectedStudentIds.length})`}</span>
+              )}
             </span>
           </div>
           <div className="w-3/12 px-2">
@@ -391,7 +564,12 @@ const StudentsPage = () => {
                 name={student.name}
                 program={student.program}
                 department={student.department}
-                year={student.year}
+                year={
+                  student.currentSemester
+                    ? Math.ceil(student.currentSemester / 2)
+                    : student.year || null
+                }
+                currentSemester={student.currentSemester}
                 isSelected={selectedStudentIds.includes(student.id)}
                 onSelect={handleStudentSelect}
               />
@@ -412,6 +590,19 @@ const StudentsPage = () => {
         programs={programs}
         departments={departments}
       />
+
+      {/* Undo Toast */}
+      {showUndoToast && (
+        <div className="fixed bottom-10 right-10 bg-gray-900 text-white px-6 py-4 rounded shadow-lg flex items-center gap-4 z-50 animate-bounce-in">
+          <span>{lastDeletedIds.length} student(s) deleted.</span>
+          <button
+            onClick={handleUndoDelete}
+            className="text-teal-400 font-bold hover:underline"
+          >
+            UNDO
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -9,6 +9,7 @@ interface StudentRowProps {
   program: string;
   department: string;
   year: number | null;
+  currentSemester?: number; // Optional to prevent breaking other usages, but good to have
   isSelected: boolean;
   onSelect: (id: number) => void;
 }
@@ -19,6 +20,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
   program,
   department,
   year,
+  currentSemester,
   isSelected,
   onSelect,
 }) => {
@@ -36,7 +38,12 @@ const StudentRow: React.FC<StudentRowProps> = ({
         />
 
         {/* The 'truncate' class will add "..." if the name is too long */}
-        <div className="font-medium text-gray-800 truncate">{name}</div>
+        <div className="flex flex-col">
+          <span className="font-medium text-gray-800 truncate">{name}</span>
+          {currentSemester && (
+            <span className="text-xs text-gray-500">S{currentSemester}</span>
+          )}
+        </div>
       </div>
 
       {/* Column 2: Program */}
