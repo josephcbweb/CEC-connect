@@ -1,93 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { admissionService } from "../../services/admissionService";
 import type { AdmissionWindow } from "../../types/admission";
-import {
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  ArrowRight,
-  X,
-} from "lucide-react";
+import { Calendar, AlertCircle, CheckCircle2, X } from "lucide-react";
 import SemesterTable from "./SemesterTable";
-import { Link } from "react-router-dom";
-
-// Reusable toggle with confirm dialog
-const ToggleWithConfirm: React.FC<{
-  label: string;
-  helper: string;
-  value: boolean;
-  onChange: (next: boolean) => void;
-  loading?: boolean;
-}> = ({ label, helper, value, onChange, loading }) => {
-  const [pending, setPending] = useState<boolean | null>(null);
-
-  const openConfirm = () => setPending(!value);
-  const confirm = () => {
-    if (pending !== null) onChange(pending);
-    setPending(null);
-  };
-  const cancel = () => setPending(null);
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-start justify-between gap-4 transition-all hover:shadow-md">
-      <div>
-        <div className="text-sm font-medium text-gray-900">{label}</div>
-        <div className="text-xs text-gray-600 mt-1">{helper}</div>
-      </div>
-      <button
-        onClick={openConfirm}
-        disabled={loading}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value ? "bg-teal-600" : "bg-gray-300"
-          } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-        aria-pressed={value}
-        aria-label={label}
-      >
-        <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${value ? "translate-x-5" : "translate-x-1"
-            }`}
-        />
-      </button>
-
-      {pending !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fade-in">
-          <div className="bg-white rounded-lg shadow-lg p-5 w-full max-w-sm relative animate-scale-in">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
-              onClick={cancel}
-              aria-label="Close dialog"
-            >
-              &times;
-            </button>
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              Confirm change
-            </h2>
-            <p className="text-sm text-gray-700 mb-4">
-              Are you sure you want to {pending ? "enable" : "disable"} this
-              setting?
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={cancel}
-                className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirm}
-                className="px-4 py-2 text-sm rounded-md bg-teal-600 text-white hover:bg-teal-700 transition-colors"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const Settings: React.FC = () => {
-  const [noDueRequestEnabled, setNoDueRequestEnabled] = useState(false);
   const [windows, setWindows] = useState<AdmissionWindow[]>([]);
   const [departments, setDepartments] = useState<
     { id: number; name: string }[]
@@ -112,7 +29,6 @@ const Settings: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchSettings();
     fetchWindows();
     fetchDepartments();
   }, []);
@@ -126,41 +42,6 @@ const Settings: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to fetch departments", error);
-    }
-  };
-
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch("http://localhost:3000/settings");
-      if (res.ok) {
-        const data = await res.json();
-        const noDueSetting = data.find(
-          (s: any) => s.key === "noDueRequestEnabled",
-        );
-        if (noDueSetting) setNoDueRequestEnabled(noDueSetting.enabled);
-      }
-    } catch (error) {
-      console.error("Failed to fetch settings", error);
-    }
-  };
-
-  const handleToggleNoDue = async (value: boolean) => {
-    try {
-      const res = await fetch("http://localhost:3000/settings/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "noDueRequestEnabled", value }),
-      });
-      if (res.ok) {
-        setNoDueRequestEnabled(value);
-        showMessage(
-          "success",
-          `No Due Request ${value ? "enabled" : "disabled"}`,
-        );
-      }
-    } catch (error) {
-      console.error("Failed to toggle setting", error);
-      showMessage("error", "Failed to update setting");
     }
   };
 
@@ -292,10 +173,11 @@ const Settings: React.FC = () => {
         </h1>
         {message && (
           <div
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg animate-slide-in ${message.type === "success"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg animate-slide-in ${
+              message.type === "success"
                 ? "bg-green-100 text-green-800"
                 : "bg-red-100 text-red-800"
-              }`}
+            }`}
           >
             {message.type === "success" ? (
               <CheckCircle2 className="w-4 h-4" />
@@ -308,42 +190,7 @@ const Settings: React.FC = () => {
       </div>
 
       {/* No Due Request Toggle */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          General Settings
-        </h2>
-        <div className="space-y-4">
-          <ToggleWithConfirm
-            label="Enable No Due Request"
-            helper="This will enable the No Due Request button for the students and the relevant settings for the staff. Disabling will archive current requests."
-            value={noDueRequestEnabled}
-            onChange={handleToggleNoDue}
-          />
-
-          <div
-            className={`bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-center justify-between transition-all ${!noDueRequestEnabled
-                ? "opacity-50 pointer-events-none"
-                : "hover:shadow-md"
-              }`}
-          >
-            <div>
-              <div className="text-sm font-medium text-gray-900">
-                Due Configuration
-              </div>
-              <div className="text-xs text-gray-600 mt-1">
-                Configure automatic dues (Library, Hostel, etc.) for each
-                semester.
-              </div>
-            </div>
-            <Link
-              to="/admin/settings/dues"
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors"
-            >
-              Manage Dues <ArrowRight size={16} />
-            </Link>
-          </div>
-        </div>
-      </div>
+      <div>{/* Removed No Due Request Toggle - Moved to Due Management */}</div>
 
       {/* Admission Management */}
       <div>
@@ -404,16 +251,18 @@ const Settings: React.FC = () => {
                       </p>
                     </div>
                     <div
-                      className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all ${isWindowOpen(window.startDate, window.endDate)
+                      className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                        isWindowOpen(window.startDate, window.endDate)
                           ? "bg-green-100 text-green-800 animate-pulse"
                           : "bg-gray-100 text-gray-800"
-                        }`}
+                      }`}
                     >
                       <span
-                        className={`w-2 h-2 rounded-full mr-2 ${isWindowOpen(window.startDate, window.endDate)
+                        className={`w-2 h-2 rounded-full mr-2 ${
+                          isWindowOpen(window.startDate, window.endDate)
                             ? "bg-green-600"
                             : "bg-gray-600"
-                          }`}
+                        }`}
                       ></span>
                       {isWindowOpen(window.startDate, window.endDate)
                         ? "Open"
@@ -640,8 +489,8 @@ const Settings: React.FC = () => {
                             const ids = e.target.checked
                               ? [...newWindow.departmentIds, dept.id]
                               : newWindow.departmentIds.filter(
-                                (id) => id !== dept.id,
-                              );
+                                  (id) => id !== dept.id,
+                                );
                             setNewWindow({ ...newWindow, departmentIds: ids });
                           }}
                           className="rounded text-teal-600 focus:ring-teal-500"

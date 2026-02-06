@@ -19,6 +19,7 @@ model User {
   advisedClass          Class?            @relation("ClassAdvisor")
   advisorDetails        AdvisorDetails?
   auditLogs             AuditLog[]
+  courses               Course[]
   approvedCertificates  Certificate[]
   hodDetails            HodDetails?
   approvals             NoDueApproval[]
@@ -294,6 +295,8 @@ model Course {
   semester     Int
   isActive     Boolean           @default(true) @map("is_active")
   category     CourseCategory    @default(CORE)
+  staffId      Int?              @map("staff_id")
+  staff        User?             @relation(fields: [staffId], references: [id])
   selections   CourseSelection[]
   department   Department        @relation(fields: [departmentId], references: [id])
 
