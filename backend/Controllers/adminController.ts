@@ -32,18 +32,29 @@ export const fetchStats = async (req: Request, res: Response) => {
 
 export const fetchAllStudents = async (req: Request, res: Response) => {
   try {
-    // Only fetch students that are approved (active students)
-    // Pending students should be viewed in the Admissions section
+    const statusFilter = req.query.status as string;
+    
+    // Default to "approved" if no status provided, or allow "all"
+    let whereCondition: any = {
+      status: "approved",
+    };
+
+    if (statusFilter === "graduated") {
+      whereCondition = { status: "graduated" };
+    } else if (statusFilter === "all") {
+       whereCondition = {}; // fetch all statuses check if exclusion is needed
+    }
+
+    // Only fetch students that match the status
     const students = await prisma.student.findMany({
-      where: {
-        status: "approved", // Only show approved/active students
-        classId: { not: null }, // Only show students assigned to a class
-      },
+      where: whereCondition,
       select: {
         id: true,
         name: true,
         program: true,
         admission_date: true,
+        currentSemester: true,
+        passout_year: true,
         department: {
           select: {
             name: true,
@@ -56,23 +67,13 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
           },
         },
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: [
+        { currentSemester: "asc" },
+        { name: "asc" },
+      ],
     });
 
-    const currentYear = new Date().getFullYear();
-
     const enriched = students.map((student) => {
-      const admissionYear = student.admission_date
-        ? new Date(student.admission_date).getFullYear()
-        : null;
-
-      const year =
-        admissionYear && admissionYear <= currentYear
-          ? currentYear - admissionYear + 1
-          : null;
-
       return {
         id: student.id,
         name: student.name,
@@ -80,13 +81,14 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
         department:
           student.department?.department_code || student.department?.name,
         class: student.class?.name || null,
-        year,
+        year: student.passout_year,
+        currentSemester: student.currentSemester,
       };
     });
 
-    // ✅ Extract unique programs
+    // Extract unique programs
     const uniquePrograms = Array.from(
-      new Set(students.map((s) => s.program).filter(Boolean)),
+      new Set(students.map((s) => s.program).filter(Boolean))
     );
 
     res.json({
@@ -107,9 +109,13 @@ export const deleteStudents = async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await prisma.student.deleteMany({
+    // Soft delete: Set status to 'deleted'
+    const result = await prisma.student.updateMany({
       where: {
         id: { in: ids },
+      },
+      data: {
+        status: "deleted",
       },
     });
 
@@ -120,6 +126,98 @@ export const deleteStudents = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error deleting students:", error);
     return res.status(500).json({ error: "Failed to delete students." });
+  }
+};
+
+export const restoreStudents = async (req: Request, res: Response) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "Invalid or empty ID list." });
+  }
+
+  try {
+    const result = await prisma.student.updateMany({
+      where: {
+        id: { in: ids },
+      },
+      data: {
+        status: "approved", // Restore to approved
+      },
+    });
+
+    return res.status(200).json({
+      message: "Students restored successfully.",
+      restoredCount: result.count,
+    });
+  } catch (error) {
+    console.error("Error restoring students:", error);
+    return res.status(500).json({ error: "Failed to restore students." });
+  }
+};
+
+export const demoteStudents = async (req: Request, res: Response) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "Invalid or empty ID list." });
+  }
+
+  try {
+    // 1. Fetch students to know their current semester
+    const students = await prisma.student.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, currentSemester: true },
+    });
+
+    const decrement1Ids: number[] = [];
+    const decrement2Ids: number[] = [];
+
+    students.forEach((s) => {
+      // User specifications:
+      // S4 -> S3 (Dec 1)
+      // S6 -> S5 (Dec 1)
+      // Implicit/Previous Logic:
+      // S5 -> S3 (Dec 2)
+      // S7 -> S5 (Dec 2)
+      
+      // Generalizing: Even -> Dec 1, Odd -> Dec 2
+      if (s.currentSemester % 2 === 0) {
+          decrement1Ids.push(s.id);
+      } else {
+          decrement2Ids.push(s.id);
+      }
+    });
+
+    let count = 0;
+
+    if (decrement1Ids.length > 0) {
+        const res1 = await prisma.student.updateMany({
+            where: { id: { in: decrement1Ids } },
+            data: { currentSemester: { decrement: 1 } },
+        });
+        count += res1.count;
+    }
+
+    if (decrement2Ids.length > 0) {
+        // Prevent decrementing below 1?
+        // S1 -> -1? S1 shouldn't be year back usually or handled carefully.
+        // Assuming inputs are >= 3 for odd sems based on previous logic.
+        const res2 = await prisma.student.updateMany({
+            where: { id: { in: decrement2Ids } },
+            data: { currentSemester: { decrement: 2 } },
+        });
+        count += res2.count;
+    }
+
+    return res.status(200).json({
+       message: `Processed Year Back for ${count} students.`,
+       count: count
+    });
+
+  } catch (error) {
+     console.error("Error demoting students:", error);
+     return res.status(500).json({ error: "Failed to demote students." });
   }
 };
 
