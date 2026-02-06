@@ -17,7 +17,7 @@ interface Course {
   name: string;
   code: string;
   type: "LAB" | "THEORY";
-  category: "CORE" | "ELECTIVE" | "HONOURS";
+  category: "ELECTIVE" | "HONOURS";
   semester: number;
   department: {
     name: string;
@@ -51,7 +51,7 @@ const SemesterRegister = () => {
       // If request exists, pre-select courses
       if (existingRequest.courseSelections) {
         setSelectedCourses(
-          existingRequest.courseSelections.map((cs: any) => cs.courseId)
+          existingRequest.courseSelections.map((cs: any) => cs.courseId),
         );
       }
       // Also fetch courses for the target semester of the existing request
@@ -81,7 +81,7 @@ const SemesterRegister = () => {
         `http://localhost:3000/api/nodue/status?studentId=${studentId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       if (response.ok) {
@@ -110,7 +110,7 @@ const SemesterRegister = () => {
         `http://localhost:3000/api/courses/student?semester=${semester}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       if (response.ok) {
         const data = await response.json();
@@ -125,7 +125,7 @@ const SemesterRegister = () => {
     // Prevent unselecting if already registered
     if (
       existingRequest?.courseSelections?.some(
-        (cs: any) => cs.courseId === courseId
+        (cs: any) => cs.courseId === courseId,
       )
     ) {
       return;
@@ -134,7 +134,7 @@ const SemesterRegister = () => {
     setSelectedCourses((prev) =>
       prev.includes(courseId)
         ? prev.filter((id) => id !== courseId)
-        : [...prev, courseId]
+        : [...prev, courseId],
     );
   };
 
@@ -171,13 +171,13 @@ const SemesterRegister = () => {
     doc.text(
       `Admission Number: ${student.admission_number || "N/A"}`,
       20,
-      startY + lineHeight
+      startY + lineHeight,
     );
     doc.text(`Student ID: ${student.id}`, 20, startY + lineHeight * 2);
     doc.text(
       `Semester: ${existingRequest.targetSemester}`,
       20,
-      startY + lineHeight * 3
+      startY + lineHeight * 3,
     );
     doc.text(`Email: ${student.email || "N/A"}`, 20, startY + lineHeight * 4);
 
@@ -193,7 +193,7 @@ const SemesterRegister = () => {
 
         // Find status for this department
         const deptDue = existingRequest.noDues.find(
-          (d: any) => d.departmentId === course.departmentId
+          (d: any) => d.departmentId === course.departmentId,
         );
         const status = deptDue ? deptDue.status : "pending";
 
@@ -227,7 +227,7 @@ const SemesterRegister = () => {
       .forEach((due: any) => {
         // Check if this department was already covered by a course selection
         const covered = existingRequest.courseSelections?.some(
-          (cs: any) => cs.course?.departmentId === due.departmentId
+          (cs: any) => cs.course?.departmentId === due.departmentId,
         );
         if (!covered) {
           tableRows.push([
@@ -350,11 +350,9 @@ const SemesterRegister = () => {
   }
 
   const labs = courses.filter((c) => c.type === "LAB");
-  const coreSubjects = courses.filter(
-    (c) => c.type === "THEORY" && c.category === "CORE"
-  );
+  const coreSubjects: Course[] = []; // Core subjects removed;
   const electives = courses.filter(
-    (c) => c.category === "ELECTIVE" || c.category === "HONOURS"
+    (c) => c.category === "ELECTIVE" || c.category === "HONOURS",
   );
 
   // Prepare rows for the status table
@@ -366,7 +364,7 @@ const SemesterRegister = () => {
         const course = cs.course;
         if (!course) return;
         const deptDue = existingRequest.noDues.find(
-          (d: any) => d.departmentId === course.departmentId
+          (d: any) => d.departmentId === course.departmentId,
         );
         const status = deptDue ? deptDue.status : "pending";
 
@@ -416,7 +414,7 @@ const SemesterRegister = () => {
       .filter((due: any) => due.department && !due.serviceDepartment)
       .forEach((due: any) => {
         const covered = existingRequest.courseSelections?.some(
-          (cs: any) => cs.course?.departmentId === due.departmentId
+          (cs: any) => cs.course?.departmentId === due.departmentId,
         );
         if (!covered) {
           const status = due.status;
@@ -600,7 +598,7 @@ const SemesterRegister = () => {
           <div className="space-y-3 flex-1">
             {labs.map((course, index) => {
               const isRegistered = existingRequest?.courseSelections?.some(
-                (cs: any) => cs.courseId === course.id
+                (cs: any) => cs.courseId === course.id,
               );
               return (
                 <motion.label
@@ -612,8 +610,8 @@ const SemesterRegister = () => {
                     isRegistered
                       ? "border-slate-200 bg-slate-50 cursor-not-allowed opacity-75"
                       : selectedCourses.includes(course.id)
-                      ? "border-purple-500 bg-purple-50 cursor-pointer"
-                      : "border-slate-200 hover:border-purple-200 cursor-pointer"
+                        ? "border-purple-500 bg-purple-50 cursor-pointer"
+                        : "border-slate-200 hover:border-purple-200 cursor-pointer"
                   }`}
                 >
                   <input
@@ -650,7 +648,7 @@ const SemesterRegister = () => {
         </div>
 
         {/* Core Subjects Column */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col hidden">
           <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
             Core Subjects
@@ -658,7 +656,7 @@ const SemesterRegister = () => {
           <div className="space-y-3 flex-1">
             {coreSubjects.map((course, index) => {
               const isRegistered = existingRequest?.courseSelections?.some(
-                (cs: any) => cs.courseId === course.id
+                (cs: any) => cs.courseId === course.id,
               );
               return (
                 <motion.label
@@ -670,8 +668,8 @@ const SemesterRegister = () => {
                     isRegistered
                       ? "border-slate-200 bg-slate-50 cursor-not-allowed opacity-75"
                       : selectedCourses.includes(course.id)
-                      ? "border-blue-500 bg-blue-50 cursor-pointer"
-                      : "border-slate-200 hover:border-blue-200 cursor-pointer"
+                        ? "border-blue-500 bg-blue-50 cursor-pointer"
+                        : "border-slate-200 hover:border-blue-200 cursor-pointer"
                   }`}
                 >
                   <input
@@ -716,7 +714,7 @@ const SemesterRegister = () => {
           <div className="space-y-3 flex-1">
             {electives.map((course, index) => {
               const isRegistered = existingRequest?.courseSelections?.some(
-                (cs: any) => cs.courseId === course.id
+                (cs: any) => cs.courseId === course.id,
               );
               return (
                 <motion.label
@@ -728,8 +726,8 @@ const SemesterRegister = () => {
                     isRegistered
                       ? "border-slate-200 bg-slate-50 cursor-not-allowed opacity-75"
                       : selectedCourses.includes(course.id)
-                      ? "border-amber-500 bg-amber-50 cursor-pointer"
-                      : "border-slate-200 hover:border-amber-200 cursor-pointer"
+                        ? "border-amber-500 bg-amber-50 cursor-pointer"
+                        : "border-slate-200 hover:border-amber-200 cursor-pointer"
                   }`}
                 >
                   <input
@@ -776,9 +774,9 @@ const SemesterRegister = () => {
             (id) =>
               !(
                 existingRequest.courseSelections?.map(
-                  (cs: any) => cs.courseId
+                  (cs: any) => cs.courseId,
                 ) || []
-              ).includes(id)
+              ).includes(id),
           ) && (
             <p className="text-sm text-slate-500 italic">
               Nothing more to apply for this semester.
@@ -794,9 +792,9 @@ const SemesterRegister = () => {
                 (id) =>
                   !(
                     existingRequest.courseSelections?.map(
-                      (cs: any) => cs.courseId
+                      (cs: any) => cs.courseId,
                     ) || []
-                  ).includes(id)
+                  ).includes(id),
               ))
           }
           className="bg-slate-900 text-white px-8 py-3 rounded-xl font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all shadow-lg hover:shadow-xl active:scale-95"

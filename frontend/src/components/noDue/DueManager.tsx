@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import DueSettingsPanel from "./DueSettingsPanel";
-import { Settings as SettingsIcon, LayoutList } from "lucide-react";
+import CourseManager from "../admin/courses/CourseManager";
+import { Settings as SettingsIcon, LayoutList, BookCopy } from "lucide-react";
 
 interface DueItem {
   id: number;
@@ -62,9 +62,9 @@ const DueManager = () => {
   const [checkingStats, setCheckingStats] = useState(false);
   const [selectedDueIds, setSelectedDueIds] = useState<number[]>([]);
   const [bulkClearLoading, setBulkClearLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"approvals" | "settings">(
-    "approvals",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "approvals" | "settings" | "courses"
+  >("approvals");
 
   // Pagination State
   const [page, setPage] = useState(1);
@@ -371,6 +371,17 @@ const DueManager = () => {
             Approvals
           </button>
           <button
+            onClick={() => setActiveTab("courses")}
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
+              activeTab === "courses"
+                ? "text-teal-600 border-b-2 border-teal-600"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <BookCopy size={18} />
+            Courses
+          </button>
+          <button
             onClick={() => setActiveTab("settings")}
             className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
               activeTab === "settings"
@@ -384,9 +395,7 @@ const DueManager = () => {
         </div>
       </div>
 
-      {activeTab === "settings" ? (
-        <DueSettingsPanel />
-      ) : (
+      {activeTab === "approvals" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in slide-in-from-left-4 duration-300">
           {/* Top Bar */}
           <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between">
@@ -740,6 +749,9 @@ const DueManager = () => {
           </div>
         </div>
       )}
+
+      {activeTab === "settings" && <DueSettingsPanel />}
+      {activeTab === "courses" && <CourseManager />}
 
       {/* Bulk Modal */}
       {showBulkModal && (
