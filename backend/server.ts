@@ -18,6 +18,7 @@ import noDueRoutes from "./routes/noDueRoutes";
 import staffRoutes from "./routes/staffRoutes";
 import batchRoutes from "./routes/batchRoutes";
 import promotionRoutes from "./routes/promotionRoutes";
+import hostelRoutes from "./routes/hostelRoutes";
 import cors from "cors";
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use("/api/nodue", noDueRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/promotion", promotionRoutes);
 app.use("/api", batchRoutes);
+app.use("/api/hostel",hostelRoutes);
 app.listen(PORT, () => {
   console.log("Server listening on port: ", PORT);
 });

@@ -140,6 +140,8 @@ model Student {
   currentSemester                     Int            @default(1) @map("current_semester")
   passout_year                        Int?
   classId                             Int?           @map("class_id")
+  hostelId                            Int?           @map("hostel_id")
+  hostel                              Hostel?        @relation(fields: [hostelId], references: [id])
   class                               Class?         @relation(fields: [classId], references: [id])
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
@@ -506,6 +508,23 @@ model Class {
   @@map("classes")
 }
 
+model Hostel {
+  id          Int      @id @default(autoincrement()) @map("hostel_id")
+  name        String   @unique // e.g., "MH-1", "GH-2"
+  wardenName  String   @map("warden_name")
+  wardenPhone String   @map("warden_phone")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  students Student[]
+
+  // Potential for future fee integration
+  // hostelFees  HostelFeeStructure[] 
+
+  @@map("hostels")
+}
+
 enum BatchStatus {
   UPCOMING
   ACTIVE
@@ -631,4 +650,3 @@ model PromotionHistory {
 
   @@map("promotion_history")
 }
-
