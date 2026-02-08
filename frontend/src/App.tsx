@@ -24,7 +24,6 @@ import BusManagement from "./components/bus/BusManagement";
 import BusDetailsDashboard from "./components/bus/BusDetails";
 import BusRequest from "./components/student/BusRequestPage";
 import CourseManager from "./components/admin/courses/CourseManager";
-import DueSettings from "./components/settings/DueSettings";
 import DueManager from "./components/noDue/DueManager";
 import BatchRegistry from "./components/admin/batches/BatchRegistry";
 import BatchDetail from "./components/admin/batches/BatchDetail";
@@ -45,7 +44,6 @@ const App = () => {
           <Route path="/admin/fee" element={<AdminFeesPage />} />
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
           <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/settings/dues" element={<DueSettings />} />
           <Route path="/admin/staff-roles" element={<StaffRolesPage />} />
           <Route path="admissions" element={<AdmissionsPage />} />
           <Route path="admissions/settings" element={<AdmissionSettings />} />
