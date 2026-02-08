@@ -22,7 +22,6 @@ export const sidebarItems = [
   { icon: FaMoneyBill, text: "Fee Management", route: "/fee" },
   { icon: BookOpen, text: "Certificates", route: "/certificate" },
   { icon: Building, text: "Departments", route: "/departments" },
-  { icon: BookCopy, text: "Courses", route: "/courses" },
   { icon: LayoutGrid, text: "Manage Classes", route: "/batches" },
   { icon: CheckCircle, text: "Due Management", route: "/dues" },
   { icon: UserPlus, text: "Admissions", route: "/admissions", alert: true },
@@ -33,4 +32,3 @@ export const sidebarItems = [
   { icon: UserCog, text: "Staff & Roles", route: "/staff-roles" },
   { icon: Settings2Icon, text: "Settings", route: "/settings" },
 ];
-
