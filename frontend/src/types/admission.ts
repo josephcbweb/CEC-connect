@@ -86,6 +86,17 @@ export interface AdmissionWindow {
   description?: string;
   createdAt: string;
   updatedAt: string;
+  batch?: Batch;
+}
+
+export interface Batch {
+  id: number;
+  name: string;
+  startYear: number;
+  endYear: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdmissionFormData {

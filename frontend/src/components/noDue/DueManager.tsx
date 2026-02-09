@@ -17,6 +17,7 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import CourseManager from "../admin/courses/CourseManager";
+import DueSettingsPanel from "./DueSettingsPanel";
 import { Settings as SettingsIcon, LayoutList, BookCopy } from "lucide-react";
 
 interface DueItem {
@@ -361,33 +362,30 @@ const DueManager = () => {
         <div className="flex gap-6 border-b border-slate-200">
           <button
             onClick={() => setActiveTab("approvals")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
-              activeTab === "approvals"
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "approvals"
                 ? "text-teal-600 border-b-2 border-teal-600"
                 : "text-slate-500 hover:text-slate-700"
-            }`}
+              }`}
           >
             <LayoutList size={18} />
             Approvals
           </button>
           <button
             onClick={() => setActiveTab("courses")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
-              activeTab === "courses"
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "courses"
                 ? "text-teal-600 border-b-2 border-teal-600"
                 : "text-slate-500 hover:text-slate-700"
-            }`}
+              }`}
           >
             <BookCopy size={18} />
             Courses
           </button>
           <button
             onClick={() => setActiveTab("settings")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
-              activeTab === "settings"
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "settings"
                 ? "text-teal-600 border-b-2 border-teal-600"
                 : "text-slate-500 hover:text-slate-700"
-            }`}
+              }`}
           >
             <SettingsIcon size={18} />
             Settings
@@ -441,11 +439,10 @@ const DueManager = () => {
                 <button
                   key={tab}
                   onClick={() => setStatusFilter(tab)}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
-                    statusFilter === tab
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${statusFilter === tab
                       ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-500 hover:text-slate-700"
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>

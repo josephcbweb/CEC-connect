@@ -17,11 +17,12 @@ import {
   FileText,
   UserPlus,
   Building2,
-  ChevronDown,
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Settings,
 } from "lucide-react";
+import AdmissionWindowSettings from "./AdmissionWindowSettings";
 
 interface BatchDepartment {
   id: number;
@@ -71,6 +72,7 @@ type TabType = "applications" | "assign-classes";
 const AdmissionsPage: React.FC = () => {
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>("applications");
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Applications tab state
   const [students, setStudents] = useState<AdmissionStudent[]>([]);
@@ -387,6 +389,19 @@ const AdmissionsPage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">
+          Admissions Dashboard
+        </h1>
+        <button
+          onClick={() => setShowSettingsModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all transform hover:scale-105"
+        >
+          <Settings className="w-4 h-4" />
+          Manage Windows
+        </button>
+      </div>
+
       {/* Success/Error Message */}
       {message && (
         <div
@@ -873,7 +888,7 @@ const AdmissionsPage: React.FC = () => {
                           }
                           className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
                             filters.page === pageNum
-                              ? "z-10 bg-teal-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                              ? "z-10 bg-teal-600 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
                               : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
                           }`}
                         >
@@ -1535,6 +1550,29 @@ const AdmissionsPage: React.FC = () => {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in backdrop-blur-sm">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-scale-in">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="text-xl font-bold text-gray-900">
+                Admission Window Settings
+              </h2>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close settings"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <AdmissionWindowSettings />
+            </div>
+          </div>
         </div>
       )}
 
