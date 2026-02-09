@@ -12,6 +12,7 @@ import {
   Bus,
   CheckCircle,
   LayoutGrid,
+  Bed,
 } from "lucide-react";
 import { FaMoneyBill } from "react-icons/fa";
 
@@ -25,6 +26,7 @@ export const sidebarItems = [
   { icon: CheckCircle, text: "Due Management", route: "/dues" },
   { icon: UserPlus, text: "Admissions", route: "/admissions", alert: true },
   { icon: Bus, text: "College Bus", route: "/bus", alert: true },
+  { icon: Bed, text: "Hostel", route: "/hostel" },
   // { icon: GraduationCap, text: "Faculty", route: "/faculty" },
   // { icon: BookCopy, text: "Classes", route: "/classes" },
   { icon: UserCog, text: "Staff & Roles", route: "/staff-roles" },
