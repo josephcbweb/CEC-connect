@@ -14,7 +14,8 @@ const ToggleWithConfirm: React.FC<{
   value: boolean;
   onChange: (next: boolean) => void;
   loading?: boolean;
-}> = ({ label, helper, value, onChange, loading }) => {
+  confirmMessage?: string;
+}> = ({ label, helper, value, onChange, loading, confirmMessage }) => {
   const [pending, setPending] = useState<boolean | null>(null);
 
   const openConfirm = () => setPending(!value);
@@ -59,10 +60,19 @@ const ToggleWithConfirm: React.FC<{
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
               Confirm change
             </h2>
-            <p className="text-sm text-gray-700 mb-4">
-              Are you sure you want to {pending ? "enable" : "disable"} this
-              setting?
-            </p>
+            <div className="mb-4">
+              {confirmMessage ? (
+                <div className="rounded-md bg-amber-50 p-3 mb-2 flex gap-2 text-amber-800 text-sm">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                  <p>{confirmMessage}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-700">
+                  Are you sure you want to {pending ? "enable" : "disable"} this
+                  setting?
+                </p>
+              )}
+            </div>
             <div className="flex justify-end gap-3">
               <button
                 onClick={cancel}
@@ -97,8 +107,9 @@ interface DueConfig {
 const DueSettingsPanel = () => {
   const [configs, setConfigs] = useState<DueConfig[]>([]);
   const [departments, setDepartments] = useState<ServiceDepartment[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [noDueRequestEnabled, setNoDueRequestEnabled] = useState(false);
+  const [activeRequestCount, setActiveRequestCount] = useState(0);
   const [newDeptName, setNewDeptName] = useState("");
   const [selectedSemesterForAdd, setSelectedSemesterForAdd] = useState<
     number | null
@@ -109,10 +120,32 @@ const DueSettingsPanel = () => {
   const [deletingDeptId, setDeletingDeptId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchDepartments();
-    fetchConfigs();
-    fetchSystemSettings();
+    const initData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchDepartments(),
+        fetchConfigs(false),
+        fetchSystemSettings(),
+        fetchActiveRequestCount(),
+      ]);
+      setLoading(false);
+    };
+    initData();
   }, []);
+
+  const fetchActiveRequestCount = async () => {
+    try {
+      const res = await fetch(
+        "http://localhost:3000/settings/active-requests-count",
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setActiveRequestCount(data.count);
+      }
+    } catch (error) {
+      console.error("Failed to fetch active requests count", error);
+    }
+  };
 
   const fetchSystemSettings = async () => {
     try {
@@ -138,6 +171,8 @@ const DueSettingsPanel = () => {
       });
       if (res.ok) {
         setNoDueRequestEnabled(value);
+        // Refresh active count as disabling might archive requests
+        fetchActiveRequestCount();
       }
     } catch (error) {
       console.error("Failed to toggle setting", error);
@@ -155,8 +190,8 @@ const DueSettingsPanel = () => {
     }
   };
 
-  const fetchConfigs = async () => {
-    setLoading(true);
+  const fetchConfigs = async (shouldSetLoading = true) => {
+    if (shouldSetLoading) setLoading(true);
     try {
       const res = await fetch("http://localhost:3000/settings/due-configs");
       if (res.ok) {
@@ -166,7 +201,7 @@ const DueSettingsPanel = () => {
     } catch (error) {
       console.error("Failed to fetch configs", error);
     } finally {
-      setLoading(false);
+      if (shouldSetLoading) setLoading(false);
     }
   };
 
@@ -259,6 +294,14 @@ const DueSettingsPanel = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
       <div>
@@ -274,6 +317,11 @@ const DueSettingsPanel = () => {
           helper="This will allow students to initiate No Due requests. Turn off to disable new requests."
           value={noDueRequestEnabled}
           onChange={handleToggleNoDue}
+          confirmMessage={
+            noDueRequestEnabled && activeRequestCount > 0
+              ? `Warning: There are ${activeRequestCount} active no-due requests. Disabling this will archive them and stop the process for these students.`
+              : undefined
+          }
         />
       </div>
 
