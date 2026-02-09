@@ -190,7 +190,7 @@ const AdminFeesDashboard: React.FC = () => {
   const filterOptions = useMemo(
     () => ({
       departments: getUniqueValues(
-        students.map((s) => s.department),
+        students.filter((s) => s.department).map((s) => s.department),
         "name"
       ),
       branches: getUniqueValues(students, "allotted_branch"),
@@ -215,9 +215,8 @@ const AdminFeesDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">
       <div
-        className={`transition-transform duration-500 ease-in-out ${
-          showFeeStructures ? "-translate-x-full" : "translate-x-0"
-        }`}
+        className={`transition-transform duration-500 ease-in-out ${showFeeStructures ? "-translate-x-full" : "translate-x-0"
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-8">
@@ -287,9 +286,8 @@ const AdminFeesDashboard: React.FC = () => {
       </div>
 
       <div
-        className={`fixed inset-0 bg-white z-50 transition-transform duration-500 ease-in-out ${
-          showFeeStructures ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed inset-0 bg-white z-50 transition-transform duration-500 ease-in-out ${showFeeStructures ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <FeeStructuresPanel onClose={() => setShowFeeStructures(false)} />
       </div>
