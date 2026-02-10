@@ -7,6 +7,7 @@ import {
   NoDueStatus,
   RequestStatus,
   RequestWorkflowStatus,
+  StudentStatus,
 } from "../generated/prisma/enums";
 
 // 3.1 POST /api/nodue/register
@@ -564,7 +565,10 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
 
     // Find all students in this semester
     const students = await prisma.student.findMany({
-      where: { currentSemester: targetSemester },
+      where: {
+        currentSemester: targetSemester,
+        status: StudentStatus.approved,
+      },
     });
 
     // Find configs for this semester

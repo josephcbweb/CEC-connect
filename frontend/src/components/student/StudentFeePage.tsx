@@ -138,7 +138,7 @@ const StudentFeePage: React.FC = () => {
                       {getStatusBadge(invoice.status)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800">
-                      {invoice.semester ? `Semester ${invoice.semester}` : "-"}
+                      {invoice.semester ? invoice.semester : "-"}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       {invoice.status !== "paid" && (
