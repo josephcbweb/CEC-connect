@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Building2, User, Phone } from "lucide-react";
+import { X, Building2, User, Phone, IndianRupee } from "lucide-react"; // Added IndianRupee icon
 import axios from "axios";
 
 interface Props {
@@ -13,6 +13,7 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
         name: "",
         wardenName: "",
         wardenPhone: "",
+        monthlyRent: "", // Added monthlyRent to state
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -20,7 +21,8 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
-        if (!formData.name || !formData.wardenName || !formData.wardenPhone) {
+        // Validation check for the new field
+        if (!formData.name || !formData.wardenName || !formData.wardenPhone || !formData.monthlyRent) {
             setError("Please fill in all fields");
             return;
         }
@@ -29,8 +31,13 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
         setError("");
 
         try {
-            await axios.post("http://localhost:3000/api/hostel/createHostel", formData);
-            setFormData({ name: "", wardenName: "", wardenPhone: "" });
+            // Sending formData which now includes monthlyRent
+            await axios.post("http://localhost:3000/api/hostel/createHostel", {
+                ...formData,
+                monthlyRent: Number(formData.monthlyRent) // Ensure it's sent as a number
+            });
+            
+            setFormData({ name: "", wardenName: "", wardenPhone: "", monthlyRent: "" });
             onSuccess();
         } catch (err: any) {
             setError(err.response?.data?.error || "Failed to create hostel");
@@ -74,9 +81,7 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
 
                     {/* Hostel Name */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-zinc-700">
-                            Hostel Name <span className="text-red-500">*</span>
-                        </label>
+                        <label className="text-sm font-medium text-zinc-700">Hostel Name *</label>
                         <div className="relative">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
                                 <Building2 className="w-5 h-5" />
@@ -86,16 +91,32 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
                                 value={formData.name}
                                 onChange={(e) => handleChange("name", e.target.value)}
                                 disabled={loading}
-                                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-xl focus:border-violet-400 focus:ring-2 focus:ring-violet-100 focus:outline-none transition-colors placeholder:text-zinc-400"
+                                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-xl focus:border-violet-400 focus:ring-2 focus:ring-violet-100 focus:outline-none transition-colors"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Monthly Rent Field - NEW */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-700">Monthly Rent (₹) *</label>
+                        <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
+                                <IndianRupee className="w-5 h-5" />
+                            </div>
+                            <input
+                                type="number"
+                                placeholder="e.g., 5000"
+                                value={formData.monthlyRent}
+                                onChange={(e) => handleChange("monthlyRent", e.target.value)}
+                                disabled={loading}
+                                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-xl focus:border-violet-400 focus:ring-2 focus:ring-violet-100 focus:outline-none transition-colors"
                             />
                         </div>
                     </div>
 
                     {/* Warden Name */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-zinc-700">
-                            Warden Name <span className="text-red-500">*</span>
-                        </label>
+                        <label className="text-sm font-medium text-zinc-700">Warden Name *</label>
                         <div className="relative">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
                                 <User className="w-5 h-5" />
@@ -105,16 +126,14 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
                                 value={formData.wardenName}
                                 onChange={(e) => handleChange("wardenName", e.target.value)}
                                 disabled={loading}
-                                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-xl focus:border-violet-400 focus:ring-2 focus:ring-violet-100 focus:outline-none transition-colors placeholder:text-zinc-400"
+                                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-xl focus:border-violet-400 focus:ring-2 focus:ring-violet-100 focus:outline-none transition-colors"
                             />
                         </div>
                     </div>
 
                     {/* Warden Phone */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-zinc-700">
-                            Warden Phone <span className="text-red-500">*</span>
-                        </label>
+                        <label className="text-sm font-medium text-zinc-700">Warden Phone *</label>
                         <div className="relative">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
                                 <Phone className="w-5 h-5" />
@@ -125,7 +144,7 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
                                 value={formData.wardenPhone}
                                 onChange={(e) => handleChange("wardenPhone", e.target.value)}
                                 disabled={loading}
-                                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-xl focus:border-violet-400 focus:ring-2 focus:ring-violet-100 focus:outline-none transition-colors placeholder:text-zinc-400"
+                                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-xl focus:border-violet-400 focus:ring-2 focus:ring-violet-100 focus:outline-none transition-colors"
                             />
                         </div>
                     </div>
@@ -133,6 +152,7 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
                     {/* Action Buttons */}
                     <div className="flex gap-3 pt-2">
                         <button
+                            type="button"
                             onClick={onClose}
                             disabled={loading}
                             className="flex-1 border border-zinc-200 text-zinc-700 rounded-xl py-3 px-4 font-medium hover:bg-zinc-50 transition-colors cursor-pointer"
@@ -140,6 +160,7 @@ const AddHostelModal = ({ isOpen, onClose, onSuccess }: Props) => {
                             Cancel
                         </button>
                         <button
+                            type="submit"
                             disabled={loading}
                             onClick={handleSubmit}
                             className="flex-1 bg-violet-600 text-white rounded-xl py-3 px-4 font-medium hover:bg-violet-700 transition-colors cursor-pointer disabled:opacity-60"

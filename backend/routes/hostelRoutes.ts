@@ -6,6 +6,8 @@ import {
     assignStudentToHostel,
     getHostelStudents,
     getAllHostels,
+    updateWarden,
+    updateRent,
 } from "../controllers/hostelController";
 
 const router = express.Router();
@@ -21,5 +23,11 @@ router.get("/fetchStudents/:id", getHostelStudents);
 
 //route for fetching all hostels.
 router.get("/fetchHostels", getAllHostels);
+
+//route for updating warden name.
+router.patch('/updateWarden/:id', updateWarden);
+
+//route for updating rent.
+router.patch('/updateRent/:id', updateRent);
 
 export default router;
