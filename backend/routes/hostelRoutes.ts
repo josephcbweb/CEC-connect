@@ -8,6 +8,9 @@ import {
     getAllHostels,
     updateWarden,
     updateRent,
+    generateMonthlyInvoices,
+    vacateStudent,
+    getStudentHostelLedger,
 } from "../controllers/hostelController";
 
 const router = express.Router();
@@ -29,5 +32,14 @@ router.patch('/updateWarden/:id', updateWarden);
 
 //route for updating rent.
 router.patch('/updateRent/:id', updateRent);
+
+// Bulk generate monthly rent
+router.post('/generate-invoices', generateMonthlyInvoices);
+
+// Vacate student with due-check
+router.patch('/vacate/:studentId', vacateStudent);
+
+// Get ledger for a student
+router.get('/ledger/:studentId', getStudentHostelLedger);
 
 export default router;

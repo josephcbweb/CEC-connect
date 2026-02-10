@@ -8,7 +8,8 @@ import {
   Phone,
   IndianRupee,
   Edit2,
-  Building2, // Add this here
+  Building2,
+  Receipt,
 } from "lucide-react";
 import axios from "axios";
 
@@ -19,8 +20,9 @@ import AddHostelModal from "./AddHostelModal";
 import AssignStudentModal from "./AssignStudentModal";
 import EditWardenModal from "./EditWardenModal";
 import EditRentModal from "./EditRentModal";
+import GenerateBillsModal from "./GenerateBillsModal";
 
-// Exporting interfaces so sub-components (like ResidentTable) can use them
+// Exporting interfaces so sub-components can use them
 export interface Hostel {
   id: number;
   name: string;
@@ -54,6 +56,7 @@ const HostelPage = () => {
     useState(false);
   const [isEditWardenOpen, setIsEditWardenOpen] = useState(false);
   const [isEditRentOpen, setIsEditRentOpen] = useState(false);
+  const [isGenerateBillsOpen, setIsGenerateBillsOpen] = useState(false);
 
   // Fetch all hostels from backend
   const fetchHostels = async () => {
@@ -64,7 +67,7 @@ const HostelPage = () => {
       );
       setHostels(res.data.data);
 
-      // If a hostel is currently selected, update its local state too (for Warden/Rent changes)
+      // If a hostel is currently selected, update its local state too
       if (selectedHostel) {
         const updatedHostel = res.data.data.find(
           (h: Hostel) => h.id === selectedHostel.id,
@@ -108,6 +111,26 @@ const HostelPage = () => {
     setResidents([]);
   };
 
+  // Logic for Generating Monthly Bills
+  const handleGenerateBills = async () => {
+    const month = prompt("Enter Month (e.g. FEBRUARY)");
+    const year = 2026;
+    if (!month) return;
+
+    try {
+      const res = await axios.post(
+        "http://localhost:3000/api/hostel/generate-invoices",
+        {
+          month: month.toUpperCase(),
+          year,
+        },
+      );
+      alert(res.data.message);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to generate invoices.");
+    }
+  };
+
   if (loading && hostels.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-zinc-50">
@@ -124,7 +147,7 @@ const HostelPage = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               {selectedHostel && (
                 <button
@@ -146,7 +169,15 @@ const HostelPage = () => {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
+              {/* Generate Bills Button - Visible only in main view or when a hostel is selected */}
+              <button
+                onClick={() => setIsGenerateBillsOpen(true)} // Open modal instead of prompt
+                className="py-2.5 px-5 bg-emerald-600 text-white flex items-center gap-2 cursor-pointer font-medium rounded-lg hover:bg-emerald-700 transition-all shadow-sm"
+              >
+                <Receipt className="w-4 h-4" /> Generate Monthly Bills
+              </button>
+
               <button
                 className="py-2.5 px-5 bg-violet-600 text-white flex items-center gap-2 cursor-pointer font-medium rounded-lg hover:bg-violet-700 transition-all shadow-sm"
                 onClick={() =>
@@ -168,7 +199,7 @@ const HostelPage = () => {
             </div>
           </div>
 
-          {/* Quick Info Cards - Only shown when a hostel is selected */}
+          {/* Quick Info Cards */}
           {selectedHostel && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 animate-in fade-in slide-in-from-top-4 duration-500">
               {/* Warden Card */}
@@ -233,7 +264,14 @@ const HostelPage = () => {
         {/* Content Section */}
         {selectedHostel ? (
           <div className="mt-4">
-            <ResidentTable residents={residents} loading={residentsLoading} />
+            <ResidentTable
+              residents={residents}
+              loading={residentsLoading}
+              onRefresh={() => {
+                fetchResidents(selectedHostel.id);
+                fetchHostels();
+              }}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -287,6 +325,12 @@ const HostelPage = () => {
         onClose={() => setIsEditRentOpen(false)}
         hostel={selectedHostel}
         onSuccess={fetchHostels}
+      />
+
+      <GenerateBillsModal
+        isOpen={isGenerateBillsOpen}
+        onClose={() => setIsGenerateBillsOpen(false)}
+        onSuccess={(msg) => alert(msg)} // You can replace this with a toast notification later
       />
     </div>
   );
