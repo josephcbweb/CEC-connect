@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import type { FeeStructure, Invoice, Student } from "../../types";
+import { Bell, X } from "lucide-react";
+import {
+  type Notification,
+  notificationService,
+} from "../../services/notificationService";
 
 // --- Type Definition ---
 interface StudentWithFees extends Student {
@@ -10,6 +15,81 @@ interface StudentNavbarProps {
   studentData: StudentWithFees | null;
   isRegistrationOpen: boolean;
 }
+
+const PriorityIndicator = ({ priority }: { priority: string }) => {
+  let bgClass = "bg-blue-500";
+  if (priority === "URGENT") bgClass = "bg-red-500 animate-pulse";
+  else if (priority === "IMPORTANT") bgClass = "bg-orange-500 animate-pulse";
+
+  return (
+    <span
+      className={`block h-2.5 w-2.5 rounded-full mt-1 ${bgClass}`}
+      title={priority}
+    />
+  );
+};
+
+const NotificationDropdown = ({ onClose }: { onClose: () => void }) => {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const data = await notificationService.getMyNotifications();
+        setNotifications(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  return (
+    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+      <div className="px-4 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <h3 className="font-semibold text-gray-900">Notifications</h3>
+        <button onClick={onClose}>
+          <X className="w-4 h-4 text-gray-500 hover:text-gray-700" />
+        </button>
+      </div>
+      <div className="max-h-[400px] overflow-y-auto">
+        {loading ? (
+          <div className="p-4 text-center text-gray-500 text-sm">
+            Loading...
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="p-4 text-center text-gray-500 text-sm">
+            No new notifications
+          </div>
+        ) : (
+          notifications.map((n) => (
+            <div
+              key={n.id}
+              className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex justify-between items-start gap-2">
+                <h4 className="font-medium text-gray-900 text-sm line-clamp-1">
+                  {n.title}
+                </h4>
+                <PriorityIndicator priority={n.priority} />
+              </div>
+              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                {n.description}
+              </p>
+              <span className="text-xs text-gray-400 mt-2 block">
+                {new Date(n.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   studentData,
   isRegistrationOpen,
@@ -22,6 +102,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   };
 
   const [isMobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const location = useLocation();
 
   const [pathname, setPathName] = useState(location.pathname);
@@ -96,6 +177,23 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
             </NavLink>
 
             <span className="text-gray-500">|</span>
+
+            {/* Notifications */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors relative"
+              >
+                <Bell className="w-5 h-5" />
+                {/* Add dot if needed */}
+              </button>
+              {showNotifications && (
+                <NotificationDropdown
+                  onClose={() => setShowNotifications(false)}
+                />
+              )}
+            </div>
+
             <div
               onClick={handleProfileClick}
               className="flex items-center space-x-2 cursor-pointer group"
