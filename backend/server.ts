@@ -18,6 +18,7 @@ import noDueRoutes from "./routes/noDueRoutes";
 import staffRoutes from "./routes/staffRoutes";
 import batchRoutes from "./routes/batchRoutes";
 import promotionRoutes from "./routes/promotionRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
 import cors from "cors";
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.use("/bus", busRoutes);
 app.use("/settings", settingsRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/nodue", noDueRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/promotion", promotionRoutes);
 app.use("/api", batchRoutes);

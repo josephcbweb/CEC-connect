@@ -368,14 +368,20 @@ model Payment {
 }
 
 model Notification {
-  id         Int                @id @default(autoincrement()) @map("notification_id")
-  senderId   Int                @map("sender_id")
-  receiverId Int                @map("receiver_id")
-  message    String
-  status     NotificationStatus @default(unread)
-  createdAt  DateTime           @default(now()) @map("created_at")
-  receiver   User               @relation("ReceivedNotifications", fields: [receiverId], references: [id])
-  sender     User               @relation("SentNotifications", fields: [senderId], references: [id])
+  id          Int                 @id @default(autoincrement()) @map("notification_id")
+  senderId    Int                 @map("sender_id")
+  receiverId  Int?                @map("receiver_id")
+  title       String              @default("Notification")
+  description String              @map("message")
+  targetType  NotificationTargetType @default(ALL)
+  targetValue String?
+  priority    NotificationPriority @default(NORMAL)
+  status      NotificationStatus  @default(draft)
+  expiryDate  DateTime?           @map("expiry_date")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at")
+  receiver    User?               @relation("ReceivedNotifications", fields: [receiverId], references: [id])
+  sender      User                @relation("SentNotifications", fields: [senderId], references: [id])
 
   @@map("notifications")
 }
@@ -584,9 +590,26 @@ enum PaymentStatus {
   pending
 }
 
+
 enum NotificationStatus {
   read
   unread
+  draft
+  published
+  archived
+}
+
+enum NotificationPriority {
+  NORMAL
+  IMPORTANT
+  URGENT
+}
+
+enum NotificationTargetType {
+  ALL
+  SEMESTER
+  DEPARTMENT
+  STUDENT
 }
 
 enum StudentStatus {
@@ -631,4 +654,5 @@ model PromotionHistory {
 
   @@map("promotion_history")
 }
+
 
