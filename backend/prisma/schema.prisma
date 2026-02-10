@@ -74,24 +74,24 @@ model RolePermission {
 }
 
 model Student {
-  id                                  Int            @id @default(autoincrement()) @map("student_id")
-  advisorId                           Int?           @map("advisor_id")
-  createdAt                           DateTime       @default(now()) @map("created_at")
-  updatedAt                           DateTime       @updatedAt @map("updated_at")
+  id                                  Int             @id @default(autoincrement()) @map("student_id")
+  advisorId                           Int?            @map("advisor_id")
+  createdAt                           DateTime        @default(now()) @map("created_at")
+  updatedAt                           DateTime        @updatedAt @map("updated_at")
   name                                String
   password                            String
-  dateOfBirth                         DateTime?      @map("date_of_birth")
-  email                               String?        @unique
+  dateOfBirth                         DateTime?       @map("date_of_birth")
+  email                               String?         @unique
   gender                              Gender
   religion                            String
-  nationality                         String         @default("Indian")
+  nationality                         String          @default("Indian")
   mother_tongue                       String
   blood_group                         String?
-  student_phone_number                String         @unique
+  student_phone_number                String          @unique
   permanent_address                   String
   contact_address                     String
   state_of_residence                  String
-  aadhaar_number                      String         @unique
+  aadhaar_number                      String          @unique
   fatherName                          String?
   father_phone_number                 String?
   motherName                          String?
@@ -104,15 +104,15 @@ model Student {
   local_guardian_address              String?
   local_guardian_phone_number         String?
   program                             Program
-  departmentId                        Int?           @map("department_id")
-  preferredDepartmentId               Int?           @map("preferred_department_id")
-  status                              StudentStatus  @default(pending)
-  admission_number                    String?        @unique
+  departmentId                        Int?            @map("department_id")
+  preferredDepartmentId               Int?            @map("preferred_department_id")
+  status                              StudentStatus   @default(pending)
+  admission_number                    String?         @unique
   admission_date                      DateTime?
-  admission_type                      AdmissionType  @default(regular)
+  admission_type                      AdmissionType   @default(regular)
   category                            String?
   allotted_branch                     String
-  is_fee_concession_eligible          Boolean        @default(false)
+  is_fee_concession_eligible          Boolean         @default(false)
   last_institution                    String
   tc_number                           String?
   tc_date                             DateTime?
@@ -134,26 +134,27 @@ model Student {
   bank_branch                         String?
   admitted_category                   String?
   admission_quota                     String?
-  bus_service                         Boolean        @default(false)
-  hostel_service                      Boolean        @default(false)
-  busId                               Int?           @map("bus_id")
-  busStopId                           Int?           @map("bus_stop_id")
-  currentSemester                     Int            @default(1) @map("current_semester")
+  bus_service                         Boolean         @default(false)
+  hostel_service                      Boolean         @default(false)
+  busId                               Int?            @map("bus_id")
+  busStopId                           Int?            @map("bus_stop_id")
+  currentSemester                     Int             @default(1) @map("current_semester")
   passout_year                        Int?
-  classId                             Int?           @map("class_id")
-  hostelId                            Int?           @map("hostel_id")
-  hostel                              Hostel?        @relation(fields: [hostelId], references: [id])
-  class                               Class?         @relation(fields: [classId], references: [id])
+  classId                             Int?            @map("class_id")
+  hostelId                            Int?            @map("hostel_id")
+  hostel                              Hostel?         @relation(fields: [hostelId], references: [id])
+  hostelHistory                       HostelHistory[]
+  class                               Class?          @relation(fields: [classId], references: [id])
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
   invoices                            Invoice[]
   requests                            NoDueRequest[]
-  users                               User?          @relation(fields: [advisorId], references: [id])
-  bus                                 Bus?           @relation(fields: [busId], references: [id])
-  busStop                             BusStop?       @relation(fields: [busStopId], references: [id])
+  users                               User?           @relation(fields: [advisorId], references: [id])
+  bus                                 Bus?            @relation(fields: [busId], references: [id])
+  busStop                             BusStop?        @relation(fields: [busStopId], references: [id])
   busRequests                         BusRequest[]
-  department                          Department?    @relation("StudentDepartment", fields: [departmentId], references: [id])
-  preferredDepartment                 Department?    @relation("StudentPreferredDepartment", fields: [preferredDepartmentId], references: [id])
+  department                          Department?     @relation("StudentDepartment", fields: [departmentId], references: [id])
+  preferredDepartment                 Department?     @relation("StudentPreferredDepartment", fields: [preferredDepartmentId], references: [id])
 
   @@map("students")
 }
@@ -516,16 +517,32 @@ model Hostel {
   name        String   @unique // e.g., "MH-1", "GH-2"
   wardenName  String   @map("warden_name")
   wardenPhone String   @map("warden_phone")
+  monthlyRent Decimal  @default(0) @map("monthly_rent")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relationships
   students Student[]
+  history  HostelHistory[]
 
   // Potential for future fee integration
   // hostelFees  HostelFeeStructure[] 
 
   @@map("hostels")
+}
+
+model HostelHistory {
+  id          Int       @id @default(autoincrement())
+  studentId   Int       @map("student_id")
+  hostelId    Int       @map("hostel_id")
+  checkInDate DateTime  @default(now()) @map("check_in_date")
+  vacatedDate DateTime? @map("vacated_date") // Nullable until they leave
+  status      String    @default("ACTIVE") // "ACTIVE" or "VACATED"
+
+  student Student @relation(fields: [studentId], references: [id])
+  hostel  Hostel  @relation(fields: [hostelId], references: [id])
+
+  @@map("hostel_history")
 }
 
 enum BatchStatus {
