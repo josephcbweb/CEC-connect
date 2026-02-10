@@ -543,6 +543,15 @@ export const getPublicDepartments = async (req: Request, res: Response) => {
 
     // Fetch departments - optionally filter by program if needed
     const departments = await prisma.department.findMany({
+      where: {
+        batchDepartments: {
+          some: {
+            classes: {
+              some: {},
+            },
+          },
+        },
+      },
       select: {
         id: true,
         name: true,
