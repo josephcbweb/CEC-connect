@@ -28,6 +28,7 @@ import DueSettings from "./components/settings/DueSettings";
 import DueManager from "./components/noDue/DueManager";
 import BatchRegistry from "./components/admin/batches/BatchRegistry";
 import BatchDetail from "./components/admin/batches/BatchDetail";
+import NotificationManager from "./components/admin/notifications/NotificationManager";
 
 const App = () => {
   return (
@@ -55,6 +56,10 @@ const App = () => {
           <Route path="/admin/dues" element={<DueManager />} />{" "}
           <Route path="/admin/batches" element={<BatchRegistry />} />
           <Route path="/admin/batches/:id" element={<BatchDetail />} />
+          <Route
+            path="/admin/notifications"
+            element={<NotificationManager />}
+          />
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>
