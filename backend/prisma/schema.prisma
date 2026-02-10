@@ -19,6 +19,7 @@ model User {
   advisedClass          Class?            @relation("ClassAdvisor")
   advisorDetails        AdvisorDetails?
   auditLogs             AuditLog[]
+  courses               Course[]
   approvedCertificates  Certificate[]
   hodDetails            HodDetails?
   approvals             NoDueApproval[]
@@ -140,6 +141,8 @@ model Student {
   currentSemester                     Int            @default(1) @map("current_semester")
   passout_year                        Int?
   classId                             Int?           @map("class_id")
+  hostelId                            Int?           @map("hostel_id")
+  hostel                              Hostel?        @relation(fields: [hostelId], references: [id])
   class                               Class?         @relation(fields: [classId], references: [id])
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
@@ -294,6 +297,8 @@ model Course {
   semester     Int
   isActive     Boolean           @default(true) @map("is_active")
   category     CourseCategory    @default(CORE)
+  staffId      Int?              @map("staff_id")
+  staff        User?             @relation(fields: [staffId], references: [id])
   selections   CourseSelection[]
   department   Department        @relation(fields: [departmentId], references: [id])
 
@@ -350,6 +355,7 @@ model Invoice {
   fee            FeeDetails    @relation(fields: [feeId], references: [id])
   student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   payments       Payment[]
+  semester       Int?          @map("semester")
 
   @@map("invoices")
 }
@@ -512,6 +518,24 @@ model Class {
   @@map("classes")
 }
 
+model Hostel {
+  id           Int      @id @default(autoincrement()) @map("hostel_id")
+  name         String   @unique // e.g., "MH-1", "GH-2"
+  wardenName   String   @map("warden_name")
+  wardenPhone  String   @map("warden_phone")
+  monthly_rent Decimal  @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  students Student[]
+
+  // Potential for future fee integration
+  // hostelFees  HostelFeeStructure[] 
+
+  @@map("hostels")
+}
+
 enum BatchStatus {
   UPCOMING
   ACTIVE
@@ -654,5 +678,3 @@ model PromotionHistory {
 
   @@map("promotion_history")
 }
-
-

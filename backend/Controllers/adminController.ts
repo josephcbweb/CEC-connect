@@ -33,7 +33,7 @@ export const fetchStats = async (req: Request, res: Response) => {
 export const fetchAllStudents = async (req: Request, res: Response) => {
   try {
     const statusFilter = req.query.status as string;
-    
+
     // Default to "approved" if no status provided, or allow "all"
     let whereCondition: any = {
       status: "approved",
@@ -42,7 +42,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
     if (statusFilter === "graduated") {
       whereCondition = { status: "graduated" };
     } else if (statusFilter === "all") {
-       whereCondition = {}; // fetch all statuses check if exclusion is needed
+      whereCondition = {}; // fetch all statuses check if exclusion is needed
     }
 
     // Only fetch students that match the status
@@ -67,10 +67,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
           },
         },
       },
-      orderBy: [
-        { currentSemester: "asc" },
-        { name: "asc" },
-      ],
+      orderBy: [{ currentSemester: "asc" }, { name: "asc" }],
     });
 
     const enriched = students.map((student) => {
@@ -88,7 +85,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
 
     // Extract unique programs
     const uniquePrograms = Array.from(
-      new Set(students.map((s) => s.program).filter(Boolean))
+      new Set(students.map((s) => s.program).filter(Boolean)),
     );
 
     res.json({
@@ -180,44 +177,43 @@ export const demoteStudents = async (req: Request, res: Response) => {
       // Implicit/Previous Logic:
       // S5 -> S3 (Dec 2)
       // S7 -> S5 (Dec 2)
-      
+
       // Generalizing: Even -> Dec 1, Odd -> Dec 2
       if (s.currentSemester % 2 === 0) {
-          decrement1Ids.push(s.id);
+        decrement1Ids.push(s.id);
       } else {
-          decrement2Ids.push(s.id);
+        decrement2Ids.push(s.id);
       }
     });
 
     let count = 0;
 
     if (decrement1Ids.length > 0) {
-        const res1 = await prisma.student.updateMany({
-            where: { id: { in: decrement1Ids } },
-            data: { currentSemester: { decrement: 1 } },
-        });
-        count += res1.count;
+      const res1 = await prisma.student.updateMany({
+        where: { id: { in: decrement1Ids } },
+        data: { currentSemester: { decrement: 1 } },
+      });
+      count += res1.count;
     }
 
     if (decrement2Ids.length > 0) {
-        // Prevent decrementing below 1?
-        // S1 -> -1? S1 shouldn't be year back usually or handled carefully.
-        // Assuming inputs are >= 3 for odd sems based on previous logic.
-        const res2 = await prisma.student.updateMany({
-            where: { id: { in: decrement2Ids } },
-            data: { currentSemester: { decrement: 2 } },
-        });
-        count += res2.count;
+      // Prevent decrementing below 1?
+      // S1 -> -1? S1 shouldn't be year back usually or handled carefully.
+      // Assuming inputs are >= 3 for odd sems based on previous logic.
+      const res2 = await prisma.student.updateMany({
+        where: { id: { in: decrement2Ids } },
+        data: { currentSemester: { decrement: 2 } },
+      });
+      count += res2.count;
     }
 
     return res.status(200).json({
-       message: `Processed Year Back for ${count} students.`,
-       count: count
+      message: `Processed Year Back for ${count} students.`,
+      count: count,
     });
-
   } catch (error) {
-     console.error("Error demoting students:", error);
-     return res.status(500).json({ error: "Failed to demote students." });
+    console.error("Error demoting students:", error);
+    return res.status(500).json({ error: "Failed to demote students." });
   }
 };
 

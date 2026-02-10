@@ -25,7 +25,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
             invoiceId: invoiceId,
             paymentMethod: "Manual",
           }),
-        }
+        },
       );
       if (response.ok) {
         alert("Invoice marked as paid!");
@@ -78,6 +78,9 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                       Status
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Semester
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                       Actions
                     </th>
                   </tr>
@@ -104,6 +107,11 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                         >
                           {invoice.status}
                         </span>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm">
+                        {invoice.semester
+                          ? `Semester ${invoice.semester}`
+                          : "-"}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
                         {invoice.status !== "paid" && (

@@ -4,6 +4,7 @@ import {
   getSemesterStats,
   promoteStudents,
   getSettings,
+  getActiveRequestCount,
 } from "../controllers/settingsController";
 import {
   getDueConfigs,
@@ -17,6 +18,7 @@ import {
 const router = express.Router();
 
 router.get("/", getSettings);
+router.get("/active-requests-count", getActiveRequestCount);
 router.put("/settings", toggleSettings);
 router.get("/semStats", getSemesterStats);
 router.post("/promote", promoteStudents);

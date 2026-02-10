@@ -6,6 +6,7 @@ export interface Student {
   departmentId: number;
   department: Department;
   program: string;
+  currentSemester?: number; // Added currentSemester
   allotted_branch: string;
   admission_quota: string;
   category: string | null;
@@ -54,6 +55,7 @@ export interface Invoice {
   dueDate: string;
   issueDate: string;
   status: "paid" | "unpaid" | "overdue";
+  semester?: number; // Added semester
 }
 
 export interface StudentFee extends Student {
@@ -77,5 +79,6 @@ export interface FilterConfig {
   feeStatus: string;
   program: string;
   year: string;
+  semester: string; // Added semester
   admission_quota: string;
 }

@@ -35,6 +35,21 @@ export const getSettings = async (req: Request, res: Response) => {
   }
 };
 
+export const getActiveRequestCount = async (req: Request, res: Response) => {
+  try {
+    const count = await prisma.noDueRequest.count({
+      where: {
+        status: "pending",
+        isArchived: false,
+      },
+    });
+    res.json({ count });
+  } catch (error) {
+    console.error("Error fetching active request count:", error);
+    res.status(500).json({ message: "Failed to fetch active request count" });
+  }
+};
+
 export async function getSemesterStats(req: Request, res: Response) {
   try {
     const semesterStats = await prisma.student.groupBy({

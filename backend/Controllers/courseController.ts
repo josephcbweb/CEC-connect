@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma";
 
 export const getAllCourses = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const courses = await prisma.course.findMany({
@@ -20,10 +20,11 @@ export const getAllCourses = async (
 
 export const createCourse = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const { name, code, type, category, departmentId, semester } = req.body;
+    const { name, code, type, category, departmentId, semester, staffId } =
+      req.body;
 
     const course = await prisma.course.create({
       data: {
@@ -34,6 +35,7 @@ export const createCourse = async (
         departmentId: parseInt(departmentId),
         semester: parseInt(semester),
         isActive: true,
+        staffId: staffId ? parseInt(staffId) : null,
       },
     });
 
@@ -47,7 +49,7 @@ export const createCourse = async (
 
 export const getStudentCourses = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { semester } = req.query;
