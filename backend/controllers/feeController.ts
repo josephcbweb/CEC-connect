@@ -98,11 +98,22 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Fee Structure not found." });
     }
 
+    // Pre-fetch all students to get their current semester
+    const students = await prisma.student.findMany({
+      where: { id: { in: studentIds } },
+      select: { id: true, currentSemester: true },
+    });
+
+    const studentMap = new Map(students.map((s) => [s.id, s]));
+
     // FIX: Increased transaction timeout to handle large batches of students.
     // The default is 5 seconds, which can be too short for many database writes.
     await prisma.$transaction(
       async (tx) => {
         for (const studentId of studentIds) {
+          const student = studentMap.get(studentId);
+          const semester = student?.currentSemester;
+
           // Step 1: Create a FeeDetails entry for this specific assignment.
           // This represents the instance of the fee being applied to the student.
           const feeDetail = await tx.feeDetails.create({
@@ -111,6 +122,7 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
               feeType: feeStructure.name,
               amount: feeStructure.amount,
               dueDate: new Date(dueDate),
+              semester: semester,
             },
           });
 
@@ -124,6 +136,7 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
               dueDate: new Date(dueDate),
               issueDate: new Date(),
               status: InvoiceStatus.unpaid,
+              semester: semester,
             },
           });
         }
