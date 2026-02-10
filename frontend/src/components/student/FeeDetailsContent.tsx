@@ -50,7 +50,7 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
 }) => {
   const totalDue = studentData.invoices.reduce(
     (sum, inv) => sum + parseFloat(inv.amount as any),
-    0
+    0,
   );
   const totalPaid = studentData.invoices
     .filter((inv) => inv.status === "paid")
@@ -103,6 +103,9 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Semester
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Action
                 </th>
               </tr>
@@ -126,6 +129,9 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
                     <td className="px-6 py-4 text-sm">
                       {getStatusBadge(invoice.status)}
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {invoice.semester ? `Semester ${invoice.semester}` : "-"}
+                    </td>
                     <td className="px-6 py-4 text-sm">
                       {invoice.status !== "paid" && (
                         <button className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-xs font-semibold">
@@ -137,7 +143,7 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-500">
+                  <td colSpan={7} className="text-center py-10 text-gray-500">
                     You have no invoices yet.
                   </td>
                 </tr>

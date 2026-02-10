@@ -355,6 +355,7 @@ model Invoice {
   fee            FeeDetails    @relation(fields: [feeId], references: [id])
   student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   payments       Payment[]
+  semester       Int?          @map("semester")
 
   @@map("invoices")
 }
@@ -512,12 +513,13 @@ model Class {
 }
 
 model Hostel {
-  id          Int      @id @default(autoincrement()) @map("hostel_id")
-  name        String   @unique // e.g., "MH-1", "GH-2"
-  wardenName  String   @map("warden_name")
-  wardenPhone String   @map("warden_phone")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           Int      @id @default(autoincrement()) @map("hostel_id")
+  name         String   @unique // e.g., "MH-1", "GH-2"
+  wardenName   String   @map("warden_name")
+  wardenPhone  String   @map("warden_phone")
+  monthly_rent Decimal  @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relationships
   students Student[]

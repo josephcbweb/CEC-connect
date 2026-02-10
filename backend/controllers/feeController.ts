@@ -130,7 +130,7 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
       },
       {
         timeout: 3000000,
-      }
+      },
     );
 
     res
@@ -155,6 +155,15 @@ export const markInvoiceAsPaid = async (req: Request, res: Response) => {
     const updatedInvoice = await prisma.invoice.update({
       where: { id: parseInt(invoiceId) },
       data: { status: InvoiceStatus.paid },
+      include: {
+        student: true,
+      },
+    });
+
+    // Update the invoice with the current semester of the student
+    await prisma.invoice.update({
+      where: { id: parseInt(invoiceId) },
+      data: { semester: updatedInvoice.student.currentSemester },
     });
 
     await prisma.payment.create({
@@ -171,7 +180,7 @@ export const markInvoiceAsPaid = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(
       `Error marking invoice ${req.params.invoiceId} as paid:`,
-      error
+      error,
     );
     res.status(500).json({ error: "Failed to mark invoice as paid." });
   }
