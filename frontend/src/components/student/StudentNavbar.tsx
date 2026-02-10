@@ -16,6 +16,19 @@ interface StudentNavbarProps {
   isRegistrationOpen: boolean;
 }
 
+const PriorityIndicator = ({ priority }: { priority: string }) => {
+  let bgClass = "bg-blue-500";
+  if (priority === "URGENT") bgClass = "bg-red-500 animate-pulse";
+  else if (priority === "IMPORTANT") bgClass = "bg-orange-500 animate-pulse";
+
+  return (
+    <span
+      className={`block h-2.5 w-2.5 rounded-full mt-1 ${bgClass}`}
+      title={priority}
+    />
+  );
+};
+
 const NotificationDropdown = ({ onClose }: { onClose: () => void }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,17 +74,7 @@ const NotificationDropdown = ({ onClose }: { onClose: () => void }) => {
                 <h4 className="font-medium text-gray-900 text-sm line-clamp-1">
                   {n.title}
                 </h4>
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                    n.priority === "URGENT"
-                      ? "bg-red-50 text-red-600"
-                      : n.priority === "IMPORTANT"
-                        ? "bg-orange-50 text-orange-600"
-                        : "bg-blue-50 text-blue-600"
-                  }`}
-                >
-                  {n.priority}
-                </span>
+                <PriorityIndicator priority={n.priority} />
               </div>
               <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                 {n.description}

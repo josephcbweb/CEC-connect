@@ -7,9 +7,27 @@ import {
   type Notification,
 } from "../../services/notificationService";
 
+const PriorityBadge = ({ priority }: { priority: string }) => {
+  let colorClass = "bg-blue-500";
+
+  if (priority === "URGENT") {
+    colorClass = "bg-red-500 animate-pulse";
+  } else if (priority === "IMPORTANT") {
+    colorClass = "bg-orange-500 animate-pulse";
+  }
+
+  return (
+    <span
+      className={`inline-block h-3 w-3 rounded-full ${colorClass}`}
+      title={priority}
+    ></span>
+  );
+};
+
 interface StudentWithFees extends Student {
   invoices: (Invoice & { feeStructure: FeeStructure | null })[];
 }
+
 const StudentDashboardPage: React.FC = () => {
   const { studentData, isRegistrationOpen } = useOutletContext<{
     studentData: StudentWithFees;
@@ -95,17 +113,10 @@ const StudentDashboardPage: React.FC = () => {
                       {new Date(n.createdAt).toLocaleDateString()}
                     </div>
                   </div>
-                  <span
-                    className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wider ${
-                      n.priority === "URGENT"
-                        ? "bg-red-50 text-red-600 border border-red-100"
-                        : n.priority === "IMPORTANT"
-                          ? "bg-orange-50 text-orange-600 border border-orange-100"
-                          : "bg-blue-50 text-blue-600 border border-blue-100"
-                    }`}
-                  >
-                    {n.priority}
-                  </span>
+
+                  <div className="flex items-center gap-3">
+                    <PriorityBadge priority={n.priority} />
+                  </div>
                 </div>
                 <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
                   {n.description}

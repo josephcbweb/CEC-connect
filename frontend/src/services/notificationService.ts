@@ -16,9 +16,19 @@ export interface Notification {
 
 const API_URL = "http://localhost:3000/api/notifications";
 
+const getHeaders = () => {
+  const token = localStorage.getItem("authToken");
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
+
 export const notificationService = {
   getAll: async (): Promise<Notification[]> => {
-    const res = await fetch(API_URL);
+    const res = await fetch(API_URL, {
+      headers: getHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch notifications");
     return res.json();
   },
@@ -26,7 +36,7 @@ export const notificationService = {
   create: async (data: Omit<Notification, "id" | "createdAt" | "sender">): Promise<Notification> => {
     const res = await fetch(API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to create notification");
@@ -36,7 +46,7 @@ export const notificationService = {
   update: async (id: number, data: Partial<Notification>): Promise<Notification> => {
     const res = await fetch(`${API_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getHeaders(),
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to update notification");
@@ -46,6 +56,7 @@ export const notificationService = {
   delete: async (id: number): Promise<void> => {
     const res = await fetch(`${API_URL}/${id}`, {
       method: "DELETE",
+      headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete notification");
   },

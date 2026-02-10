@@ -29,6 +29,7 @@ export default function NotificationModal({
     expiryDate: undefined,
   });
   const [departments, setDepartments] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -51,9 +52,17 @@ export default function NotificationModal({
 
   const fetchDepartments = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/departments");
+      const token = localStorage.getItem("authToken");
+      const res = await fetch("http://localhost:3000/api/departments", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
       if (res.ok) setDepartments(await res.json());
-    } catch (e) {}
+    } catch (e) {
+      console.error("Failed to fetch departments", e);
+    }
   };
 
   if (!isOpen) return null;
@@ -63,6 +72,14 @@ export default function NotificationModal({
     status: "draft" | "published",
   ) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    if (!formData.title?.trim() || !formData.description?.trim()) {
+      alert("Title and Description are required");
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const payload = { ...formData, status };
       // @ts-ignore
@@ -76,6 +93,9 @@ export default function NotificationModal({
       onClose();
     } catch (error) {
       console.error(error);
+      alert("Failed to save notification. check console for details.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -230,21 +250,24 @@ export default function NotificationModal({
         <div className="p-6 bg-gray-50 flex justify-end gap-3 border-t border-gray-100">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            disabled={isSubmitting}
+            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={(e) => handleSubmit(e, "draft")}
-            className="px-4 py-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg font-medium transition-colors border border-blue-200"
+            disabled={isSubmitting}
+            className="px-4 py-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg font-medium transition-colors border border-blue-200 disabled:opacity-50"
           >
-            Save as Draft
+            {isSubmitting ? "Saving..." : "Save as Draft"}
           </button>
           <button
             onClick={(e) => handleSubmit(e, "published")}
-            className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium shadow-lg shadow-blue-600/20 transition-all hover:scale-[1.02]"
+            disabled={isSubmitting}
+            className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium shadow-lg shadow-blue-600/20 transition-all hover:scale-[1.02] disabled:opacity-50"
           >
-            Publish Notification
+            {isSubmitting ? "Publishing..." : "Publish Notification"}
           </button>
         </div>
       </div>
