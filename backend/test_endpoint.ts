@@ -9,9 +9,9 @@ const token = jwt.sign(payload, secret);
 console.log("Testing with Token:", token);
 
 async function run() {
-    const res = await fetch("http://localhost:3000/api/notifications/my-notifications", {
+    const res = await fetch("http://localhost:3000/students/all?include=department,invoices", {
         headers: {
-            "Authorization": `Bearer ${token}`
+            "Content-Type": "application/json"
         }
     });
 

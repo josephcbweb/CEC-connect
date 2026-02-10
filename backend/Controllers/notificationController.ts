@@ -23,7 +23,7 @@ export const createNotification = async (req: Request, res: Response) => {
         targetValue,
         priority: priority as NotificationPriority,
         status: status as NotificationStatus || NotificationStatus.draft,
-        expiryDate: expiryDate ? new Date(expiryDate) : null,
+        expiryDate: expiryDate ? new Date(new Date(expiryDate).setUTCHours(23, 59, 59, 999)) : null,
         senderId: senderId,
       },
     });
@@ -101,7 +101,18 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
       orderBy: { createdAt: "desc" }
     });
 
-    res.json(notifications);
+    // Custom sort: URGENT > IMPORTANT > NORMAL, then by createdAt desc
+    const priorityOrder = { "URGENT": 0, "IMPORTANT": 1, "NORMAL": 2 };
+    
+    const sortedNotifications = notifications.sort((a, b) => {
+        const pA = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2;
+        const pB = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 2;
+        
+        if (pA !== pB) return pA - pB;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    res.json(sortedNotifications);
 
   } catch (error: any) {
     console.error("Error fetching student notifications:", error);
@@ -122,7 +133,7 @@ export const updateNotification = async (req: Request, res: Response) => {
         targetValue,
         priority: priority as NotificationPriority,
         status: status as NotificationStatus,
-        expiryDate: expiryDate ? new Date(expiryDate) : null,
+        expiryDate: expiryDate ? new Date(new Date(expiryDate).setUTCHours(23, 59, 59, 999)) : null,
       },
     });
     res.json(notification);
