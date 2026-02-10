@@ -174,3 +174,123 @@ export const updateRent = async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, error: error.message });
   }
 };
+
+export const generateMonthlyInvoices = async (req: Request, res: Response) => {
+  try {
+    const { month, year } = req.body; // e.g., "February", 2026
+
+    // 1. Fetch all students currently using hostel services
+    const residents = await prisma.student.findMany({
+      where: { 
+        hostel_service: true,
+        status: { not: 'graduated' },
+        hostelId: { not: null }
+      },
+      include: { hostel: true }
+    });
+
+    if (residents.length === 0) {
+      return res.status(404).json({ success: false, message: "No active residents found to bill." });
+    }
+
+    // 2. Transaction: Create FeeDetail and Invoice for each resident
+    const result = await prisma.$transaction(
+      residents.map((student) => {
+        return prisma.feeDetails.create({
+          data: {
+            studentId: student.id,
+            feeType: `HOSTEL_RENT_${month.toUpperCase()}_${year}`,
+            amount: student.hostel?.monthlyRent || 0,
+            dueDate: new Date(), // Customize your due date logic here
+            semester: student.currentSemester,
+            invoices: {
+              create: {
+                studentId: student.id,
+                amount: student.hostel?.monthlyRent || 0,
+                dueDate: new Date(),
+                status: 'unpaid'
+              }
+            }
+          }
+        });
+      })
+    );
+
+    return res.status(201).json({ 
+      success: true, 
+      message: `Successfully generated ${result.length} invoices for ${month} ${year}.` 
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const vacateStudent = async (req: Request, res: Response) => {
+  try {
+    const { studentId } = req.params;
+
+    // 1. Check for any unpaid hostel invoices
+    const pendingDues = await prisma.invoice.findFirst({
+      where: {
+        studentId: Number(studentId),
+        status: { in: ['unpaid', 'overdue'] },
+        // Filtering by feeType ensures we only block for hostel dues, not other fees
+        fee: { feeType: { contains: 'HOSTEL_RENT' } }
+      }
+    });
+
+    if (pendingDues) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Action Blocked: Student has unpaid hostel rent. Please clear dues before vacating." 
+      });
+    }
+
+    // 2. Perform Vacation Transaction
+    await prisma.$transaction(async (tx) => {
+      // Set student hostel fields to null
+      await tx.student.update({
+        where: { id: Number(studentId) },
+        data: { hostelId: null, hostel_service: false }
+      });
+
+      // Close the active History record
+      await tx.hostelHistory.updateMany({
+        where: { 
+          studentId: Number(studentId),
+          status: 'ACTIVE'
+        },
+        data: {
+          vacatedDate: new Date(),
+          status: 'VACATED'
+        }
+      });
+    });
+
+    return res.status(200).json({ success: true, message: "Student has been vacated and records updated." });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const getStudentHostelLedger = async (req: Request, res: Response) => {
+  try {
+    const { studentId } = req.params;
+
+    const ledger = await prisma.invoice.findMany({
+      where: {
+        studentId: Number(studentId),
+        fee: { feeType: { contains: 'HOSTEL' } }
+      },
+      include: {
+        payments: true,
+        fee: { select: { feeType: true, createdAt: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return res.status(200).json({ success: true, data: ledger });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};

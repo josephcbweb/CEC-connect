@@ -519,7 +519,6 @@ model Hostel {
   wardenName   String   @map("warden_name")
   wardenPhone  String   @map("warden_phone")
   monthlyRent Decimal  @default(0) @map("monthly_rent")
-  monthly_rent Decimal  @default(0)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
