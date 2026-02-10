@@ -24,11 +24,11 @@ import BusManagement from "./components/bus/BusManagement";
 import BusDetailsDashboard from "./components/bus/BusDetails";
 import BusRequest from "./components/student/BusRequestPage";
 import CourseManager from "./components/admin/courses/CourseManager";
-import DueSettings from "./components/settings/DueSettings";
 import DueManager from "./components/noDue/DueManager";
 import BatchRegistry from "./components/admin/batches/BatchRegistry";
 import BatchDetail from "./components/admin/batches/BatchDetail";
 import NotificationManager from "./components/admin/notifications/NotificationManager";
+import HostelPage from "./components/hostel/HostelPage";
 
 const App = () => {
   return (
@@ -45,7 +45,6 @@ const App = () => {
           <Route path="/admin/fee" element={<AdminFeesPage />} />
           <Route path="/admin/certificate" element={<AdminCertificatPage />} />
           <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/settings/dues" element={<DueSettings />} />
           <Route path="/admin/staff-roles" element={<StaffRolesPage />} />
           <Route path="admissions" element={<AdmissionsPage />} />
           <Route path="admissions/settings" element={<AdmissionSettings />} />
@@ -60,6 +59,7 @@ const App = () => {
             path="/admin/notifications"
             element={<NotificationManager />}
           />
+          <Route path="/admin/hostel" element={<HostelPage />} />
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>

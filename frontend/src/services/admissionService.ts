@@ -77,6 +77,10 @@ export const admissionService = {
     endDate: string;
     description?: string;
     isOpen?: boolean;
+    batchName?: string;
+    startYear?: number;
+    endYear?: number;
+    departmentIds?: number[];
   }) => {
     const response = await axios.post(
       `${API_BASE}/api/admission/admin/admission-windows`,

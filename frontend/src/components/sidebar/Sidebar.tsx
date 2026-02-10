@@ -16,14 +16,19 @@ const Sidebar = () => {
     if (userString) {
       const user = JSON.parse(userString);
       // user.role is an array of strings based on AuthService
-      if (user.role && Array.isArray(user.role)) {
-        if (user.role.includes("Librarian")) {
-          setUserRole("Librarian");
-        } else {
-          setUserRole("Admin"); // Default or other roles
-        }
-      } else {
+      const roles =
+        user.role && Array.isArray(user.role)
+          ? user.role
+          : [user.role || "Admin"];
+
+      if (roles.includes("Librarian")) {
+        setUserRole("Librarian");
+      } else if (roles.includes("Admin") || roles.includes("Super Admin")) {
         setUserRole("Admin");
+      } else if (roles.includes("Staff") || roles.includes("Faculty")) {
+        setUserRole("Staff");
+      } else {
+        setUserRole("Admin"); // Default fallback
       }
     }
   }, []);
@@ -35,6 +40,15 @@ const Sidebar = () => {
   const filteredItems = sidebarItems.filter((item) => {
     if (userRole === "Librarian") {
       return item.text === "Due Management";
+    }
+    if (userRole === "Staff") {
+      // Staff assigned to subjects can see Due Management.
+      // They might need Dashboard or others, but definitely not Settings.
+      // Based on request "won't have access to settings", implying maybe others are OK?
+      // But "clear dues for... subject assigned... won't have access to settings" suggest a limited role.
+      // Let's allow Due Management and Dashboard.
+      const allowed = ["Dashboard", "Due Management"];
+      return allowed.includes(item.text);
     }
     return true;
   });

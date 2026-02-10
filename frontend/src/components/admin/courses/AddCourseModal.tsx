@@ -12,6 +12,12 @@ interface Department {
   name: string;
 }
 
+interface User {
+  id: number;
+  username: string;
+  email: string;
+}
+
 const AddCourseModal: React.FC<AddCourseModalProps> = ({
   onClose,
   onSuccess,
@@ -20,23 +26,25 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     name: "",
     code: "",
     type: "THEORY",
-    category: "CORE",
+    category: "ELECTIVE",
     departmentId: "",
     semester: "1",
+    staffId: "",
   });
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [staffList, setStaffList] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Fetch departments
     const fetchDepartments = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("authToken");
         const response = await fetch(
           "http://localhost:3000/department/alldepartments",
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
         if (response.ok) {
           const data = await response.json();
@@ -46,14 +54,33 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         console.error("Failed to fetch departments", error);
       }
     };
+
+    // Fetch staff
+    const fetchStaff = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        const response = await fetch("http://localhost:3000/api/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const result = await response.json();
+          const users = Array.isArray(result) ? result : result.data || [];
+          setStaffList(users);
+        }
+      } catch (error) {
+        console.error("Failed to fetch staff", error);
+      }
+    };
+
     fetchDepartments();
+    fetchStaff();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("authToken");
       const response = await fetch("http://localhost:3000/api/courses", {
         method: "POST",
         headers: {
@@ -154,7 +181,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     setFormData({ ...formData, category: e.target.value })
                   }
                 >
-                  <option value="CORE">Core</option>
                   <option value="ELECTIVE">Elective</option>
                   <option value="HONOURS">Honours</option>
                 </select>
@@ -200,6 +226,26 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Assign Staff (Optional)
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
+                value={formData.staffId}
+                onChange={(e) =>
+                  setFormData({ ...formData, staffId: e.target.value })
+                }
+              >
+                <option value="">Select Staff</option>
+                {staffList.map((staff) => (
+                  <option key={staff.id} value={staff.id}>
+                    {staff.username} ({staff.email})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="pt-4">

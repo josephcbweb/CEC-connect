@@ -58,7 +58,7 @@ const StudentFeePage: React.FC = () => {
 
   const totalDue = studentData.invoices.reduce(
     (sum, inv) => sum + parseFloat(inv.amount as any),
-    0
+    0,
   );
   const totalPaid = studentData.invoices
     .filter((inv) => inv.status === "paid")
@@ -111,6 +111,9 @@ const StudentFeePage: React.FC = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Semester
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Action
                 </th>
               </tr>
@@ -134,6 +137,9 @@ const StudentFeePage: React.FC = () => {
                     <td className="px-6 py-4 text-sm">
                       {getStatusBadge(invoice.status)}
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {invoice.semester ? invoice.semester : "-"}
+                    </td>
                     <td className="px-6 py-4 text-sm">
                       {invoice.status !== "paid" && (
                         <a
@@ -150,7 +156,7 @@ const StudentFeePage: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-500">
+                  <td colSpan={7} className="text-center py-10 text-gray-500">
                     You have no invoices yet.
                   </td>
                 </tr>

@@ -17,12 +17,13 @@ interface FilterConfig {
   feeStatus: string;
   program: string;
   year: string;
+  semester: string;
   admission_quota: string;
 }
 
 const getUniqueValues = <T, K extends keyof T>(
   items: T[],
-  key: K
+  key: K,
 ): string[] => {
   const valueSet = new Set(items.map((item) => item[key]));
   return Array.from(valueSet).filter(Boolean) as string[];
@@ -44,6 +45,7 @@ const AdminFeesDashboard: React.FC = () => {
     feeStatus: "",
     program: "",
     year: "",
+    semester: "",
     admission_quota: "",
   });
   const navigate = useNavigate();
@@ -63,7 +65,7 @@ const AdminFeesDashboard: React.FC = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        "http://localhost:3000/students/all?include=invoices,feeDetails,department"
+        "http://localhost:3000/students/all?include=invoices,feeDetails,department",
       );
       if (!response.ok) throw new Error("Network response was not ok");
 
@@ -86,7 +88,7 @@ const AdminFeesDashboard: React.FC = () => {
           } else {
             const hasOverdue = student.invoices?.some(
               (inv) =>
-                inv.status !== "paid" && new Date(inv.dueDate) < new Date()
+                inv.status !== "paid" && new Date(inv.dueDate) < new Date(),
             );
             feeStatus = hasOverdue ? "overdue" : "due";
           }
@@ -132,10 +134,15 @@ const AdminFeesDashboard: React.FC = () => {
         student.admission_quota !== filters.admission_quota
       )
         return false;
+      if (
+        filters.semester &&
+        student.currentSemester?.toString() !== filters.semester
+      )
+        return false;
       if (filters.year) {
         const currentYear = new Date().getFullYear();
         const admissionYear = new Date(
-          student.admission_date || student.createdAt
+          student.admission_date || student.createdAt,
         ).getFullYear();
         const yearDiff = currentYear - admissionYear + 1;
         if (yearDiff.toString() !== filters.year) return false;
@@ -175,6 +182,7 @@ const AdminFeesDashboard: React.FC = () => {
       feeStatus: "",
       program: "",
       year: "",
+      semester: "",
       admission_quota: "",
     });
     setSearchQuery("");
@@ -190,8 +198,8 @@ const AdminFeesDashboard: React.FC = () => {
   const filterOptions = useMemo(
     () => ({
       departments: getUniqueValues(
-        students.map((s) => s.department),
-        "name"
+        students.filter((s) => s.department).map((s) => s.department),
+        "name",
       ),
       branches: getUniqueValues(students, "allotted_branch"),
       categories: getUniqueValues(students, "category"),
@@ -200,8 +208,9 @@ const AdminFeesDashboard: React.FC = () => {
       admission_quotas: getUniqueValues(students, "admission_quota"),
       feeStatuses: ["pending", "due", "paid", "overdue"],
       years: ["1", "2", "3", "4"],
+      semesters: ["1", "2", "3", "4", "5", "6", "7", "8"],
     }),
-    [students]
+    [students],
   );
 
   if (loading) {
