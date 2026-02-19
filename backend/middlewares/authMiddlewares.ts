@@ -17,14 +17,14 @@ class AuthMiddleware {
       res.status(401).json({ message: "No token provided" });
       return;
     }
-    next();
-    // try {
-    //   const decoded = verifyToken(token);
-    //   req.user = decoded;
-    //   next();
-    // } catch {
-    //   res.status(401).json({ message: "Invalid token" });
-    // }
+    
+    try {
+      const decoded = verifyToken(token);
+      req.user = decoded;
+      next();
+    } catch {
+      res.status(401).json({ message: "Invalid token" });
+    }
   };
 }
 export default AuthMiddleware;

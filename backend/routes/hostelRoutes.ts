@@ -6,6 +6,11 @@ import {
     assignStudentToHostel,
     getHostelStudents,
     getAllHostels,
+    updateWarden,
+    updateRent,
+    generateMonthlyInvoices,
+    vacateStudent,
+    getStudentHostelLedger,
 } from "../controllers/hostelController";
 
 const router = express.Router();
@@ -21,5 +26,20 @@ router.get("/fetchStudents/:id", getHostelStudents);
 
 //route for fetching all hostels.
 router.get("/fetchHostels", getAllHostels);
+
+//route for updating warden name.
+router.patch('/updateWarden/:id', updateWarden);
+
+//route for updating rent.
+router.patch('/updateRent/:id', updateRent);
+
+// Bulk generate monthly rent
+router.post('/generate-invoices', generateMonthlyInvoices);
+
+// Vacate student with due-check
+router.patch('/vacate/:studentId', vacateStudent);
+
+// Get ledger for a student
+router.get('/ledger/:studentId', getStudentHostelLedger);
 
 export default router;
