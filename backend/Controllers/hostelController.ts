@@ -34,9 +34,9 @@ export const assignStudentToHostel = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Student ID and Hostel ID are required." });
     }
 
+    // Increased timeout settings to prevent P2028 errors
     const result = await prisma.$transaction(async (tx) => {
       // 1. Update the Student record
-      // We set the current hostelId and turn on the hostel_service flag
       const student = await tx.student.update({
         where: { id: Number(studentId) },
         data: { 
@@ -46,26 +46,34 @@ export const assignStudentToHostel = async (req: Request, res: Response) => {
       });
 
       // 2. Create the HostelHistory record
-      // This serves as the permanent record of their "Check-in"
       const history = await tx.hostelHistory.create({
         data: {
           studentId: Number(studentId),
           hostelId: Number(hostelId),
           checkInDate: new Date(),
-          status: "ACTIVE", // Mark them as currently living there
+          status: "ACTIVE",
         },
       });
 
       return { student, history };
+    }, {
+      maxWait: 10000, // 10s to wait for a connection
+      timeout: 20000  // 20s for the transaction to complete
     });
 
     return res.status(200).json({ 
       success: true, 
-      message: "Student successfully assigned to hostel and check-in recorded.", 
+      message: "Student successfully assigned to hostel.", 
       data: result 
     });
   } catch (error: any) {
     console.error("Assignment Error:", error);
+    
+    // Check for specific Prisma errors
+    if (error.code === 'P2028') {
+      return res.status(504).json({ success: false, error: "Database transaction timed out. Please try again." });
+    }
+
     return res.status(400).json({ 
       success: false, 
       error: "Failed to assign student. Ensure the student and hostel exist." 
@@ -177,9 +185,17 @@ export const updateRent = async (req: Request, res: Response) => {
 
 export const generateMonthlyInvoices = async (req: Request, res: Response) => {
   try {
-    const { month, year } = req.body; // e.g., "February", 2026
+    // 1. Destructure month, year, and the new dueDate from the frontend request
+    const { month, year, dueDate } = req.body; 
 
-    // 1. Fetch all students currently using hostel services
+    if (!dueDate) {
+      return res.status(400).json({ success: false, message: "Due date is required." });
+    }
+
+    // Convert the incoming date string into a JS Date object
+    const finalDueDate = new Date(dueDate);
+
+    // 2. Fetch all active hostel residents
     const residents = await prisma.student.findMany({
       where: { 
         hostel_service: true,
@@ -193,7 +209,7 @@ export const generateMonthlyInvoices = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "No active residents found to bill." });
     }
 
-    // 2. Transaction: Create FeeDetail and Invoice for each resident
+    // 3. Transaction: Create FeeDetail and Invoice for each resident
     const result = await prisma.$transaction(
       residents.map((student) => {
         return prisma.feeDetails.create({
@@ -201,13 +217,13 @@ export const generateMonthlyInvoices = async (req: Request, res: Response) => {
             studentId: student.id,
             feeType: `HOSTEL_RENT_${month.toUpperCase()}_${year}`,
             amount: student.hostel?.monthlyRent || 0,
-            dueDate: new Date(), // Customize your due date logic here
+            dueDate: finalDueDate, // Using the date provided by admin
             semester: student.currentSemester,
             invoices: {
               create: {
                 studentId: student.id,
                 amount: student.hostel?.monthlyRent || 0,
-                dueDate: new Date(),
+                dueDate: finalDueDate, // Using the date provided by admin
                 status: 'unpaid'
               }
             }
@@ -221,6 +237,7 @@ export const generateMonthlyInvoices = async (req: Request, res: Response) => {
       message: `Successfully generated ${result.length} invoices for ${month} ${year}.` 
     });
   } catch (error: any) {
+    console.error("Invoicing Error:", error);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -229,32 +246,39 @@ export const vacateStudent = async (req: Request, res: Response) => {
   try {
     const { studentId } = req.params;
 
-    // 1. Check for any unpaid hostel invoices
-    const pendingDues = await prisma.invoice.findFirst({
+    // 1. Fetch all unpaid/overdue hostel invoices for this student
+    const pendingInvoices = await prisma.invoice.findMany({
       where: {
         studentId: Number(studentId),
         status: { in: ['unpaid', 'overdue'] },
-        // Filtering by feeType ensures we only block for hostel dues, not other fees
+        // Ensure we only look at hostel rent, not academic fees
         fee: { feeType: { contains: 'HOSTEL_RENT' } }
       }
     });
 
-    if (pendingDues) {
+    // 2. If dues are found, calculate the total and block vacation
+    if (pendingInvoices.length > 0) {
+      const totalDue = pendingInvoices.reduce((acc, inv) => acc + Number(inv.amount), 0);
+      
       return res.status(400).json({ 
         success: false, 
-        message: "Action Blocked: Student has unpaid hostel rent. Please clear dues before vacating." 
+        message: "Action Blocked: Outstanding dues found.",
+        totalDue: totalDue // This is what the frontend modal uses
       });
     }
 
-    // 2. Perform Vacation Transaction
+    // 3. Perform Vacation Transaction (Atomically update Student and History)
     await prisma.$transaction(async (tx) => {
-      // Set student hostel fields to null
+      // Remove hostel association from Student record
       await tx.student.update({
         where: { id: Number(studentId) },
-        data: { hostelId: null, hostel_service: false }
+        data: { 
+          hostelId: null, 
+          hostel_service: false 
+        }
       });
 
-      // Close the active History record
+      // Mark the active history record as VACATED
       await tx.hostelHistory.updateMany({
         where: { 
           studentId: Number(studentId),
@@ -265,10 +289,18 @@ export const vacateStudent = async (req: Request, res: Response) => {
           status: 'VACATED'
         }
       });
+    }, {
+      maxWait: 5000,
+      timeout: 10000
     });
 
-    return res.status(200).json({ success: true, message: "Student has been vacated and records updated." });
+    return res.status(200).json({ 
+      success: true, 
+      message: "Student has been vacated successfully." 
+    });
+
   } catch (error: any) {
+    console.error("Vacate Error:", error);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
