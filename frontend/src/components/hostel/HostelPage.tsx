@@ -175,7 +175,7 @@ const HostelPage = () => {
                 onClick={() => setIsGenerateBillsOpen(true)} // Open modal instead of prompt
                 className="py-2.5 px-5 bg-emerald-600 text-white flex items-center gap-2 cursor-pointer font-medium rounded-lg hover:bg-emerald-700 transition-all shadow-sm"
               >
-                <Receipt className="w-4 h-4" /> Generate Monthly Bills
+                <Receipt className="w-4 h-4" /> Assign Rent
               </button>
 
               <button
@@ -245,9 +245,6 @@ const HostelPage = () => {
                         "en-IN",
                       )}
                     </h4>
-                    <p className="text-[10px] text-zinc-400 mt-2 italic uppercase font-bold">
-                      Base rate for this building
-                    </p>
                   </div>
                 </div>
                 <button
