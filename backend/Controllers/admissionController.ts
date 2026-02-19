@@ -6,6 +6,7 @@ import {
   Program,
   RequestStatus,
 } from "../generated/prisma/enums";
+import { sendAdmissionConfirmation } from "../services/mailService";
 
 // Get all admissions with filtering and pagination
 export const getAdmissions = async (req: Request, res: Response) => {
@@ -168,6 +169,33 @@ export const getAdmissionById = async (req: Request, res: Response) => {
   }
 };
 
+// Helper to generate admission number
+const generateAdmissionNumber = async (departmentId: number) => {
+  const department = await prisma.department.findUnique({
+    where: { id: departmentId },
+  });
+
+  if (!department) throw new Error("Department not found");
+
+  let deptCode = department.department_code.toLowerCase();
+
+  // Custom mappings
+  if (deptCode === "cse") deptCode = "cs";
+
+  const year = new Date().getFullYear();
+  const prefix = `cec${String(year).slice(-2)}${deptCode}`;
+
+  const count = await prisma.student.count({
+    where: {
+      admission_number: {
+        startsWith: prefix,
+      },
+    },
+  });
+
+  return `${prefix}${String(count + 1).padStart(3, "0")}`;
+};
+
 // Update admission status
 export const updateAdmissionStatus = async (req: Request, res: Response) => {
   try {
@@ -180,12 +208,54 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
         .json({ success: false, error: "Invalid status value" });
     }
 
+    const studentId = parseInt(id);
+    let updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    // If approving, generate new admission number
+    if (status === StudentStatus.approved) {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+      });
+
+      if (!student) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Student not found" });
+      }
+
+      // Use assigned department or preferred department
+      const deptId = student.departmentId || student.preferredDepartmentId;
+
+      if (!deptId) {
+        return res.status(400).json({
+          success: false,
+          error: "Cannot approve student without a department assigned",
+        });
+      }
+
+      try {
+        const admissionNumber = await generateAdmissionNumber(deptId);
+        updateData.admission_number = admissionNumber;
+
+        // If not already assigned to a department, assign them to the preferred one
+        if (!student.departmentId) {
+          updateData.departmentId = deptId;
+        }
+
+      } catch (err: any) {
+        return res.status(500).json({
+          success: false,
+          error: `Failed to generate admission number: ${err.message}`,
+        });
+      }
+    }
+
     const updatedStudent = await prisma.student.update({
-      where: { id: parseInt(id) },
-      data: {
-        status,
-        updatedAt: new Date(),
-      },
+      where: { id: studentId },
+      data: updateData,
     });
 
     // TODO: Send notification to student about status change
@@ -541,26 +611,70 @@ export const getPublicDepartments = async (req: Request, res: Response) => {
   try {
     const { program } = req.query;
 
-    // Fetch departments - optionally filter by program if needed
-    const departments = await prisma.department.findMany({
+    if (!program || typeof program !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Program parameter is required",
+      });
+    }
+
+    // 1. Find the OPEN admission window for this program
+    // We fetch all potentially open windows and filter in memory to match the flexible date logic
+    // used in checkAdmissionStatus (allowing validation until end of the day).
+    const windows = await prisma.admissionWindow.findMany({
       where: {
-        batchDepartments: {
-          some: {
-            classes: {
-              some: {},
+        program: program as Program,
+        isOpen: true,
+      },
+      include: {
+        batch: {
+          include: {
+            batchDepartments: {
+              include: {
+                department: true,
+              },
             },
           },
         },
       },
-      select: {
-        id: true,
-        name: true,
-        department_code: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
     });
+
+    const now = new Date();
+    const startOfDay = (d: Date) => {
+      const nd = new Date(d);
+      nd.setHours(0, 0, 0, 0);
+      return nd;
+    };
+    const endOfDay = (d: Date) => {
+      const nd = new Date(d);
+      nd.setHours(23, 59, 59, 999);
+      return nd;
+    };
+
+    const activeWindow = windows.find((window) => {
+      const start = startOfDay(new Date(window.startDate));
+      const end = endOfDay(new Date(window.endDate));
+      return now >= start && now <= end;
+    });
+
+    if (!activeWindow || !activeWindow.batch) {
+      // If no window is open, return empty list gracefully.
+      return res.json({
+        success: true,
+        data: [],
+        message: "No active admission window found for this program.",
+      });
+    }
+
+    // 2. Extract departments from the batch
+    const departments = activeWindow.batch.batchDepartments.map((bd) => ({
+      id: bd.department.id,
+      name: bd.department.name,
+      department_code: bd.department.department_code,
+    }));
+
+    // Sort alphabetically
+    departments.sort((a, b) => a.name.localeCompare(b.name));
 
     res.json({
       success: true,
@@ -579,17 +693,44 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
   try {
     const formData = req.body;
 
-    const activeBatch = await prisma.batch.findFirst({
+    // Find the OPEN admission window for this program to associate the correct batch
+    const windows = await prisma.admissionWindow.findMany({
       where: {
-        status: "UPCOMING", // Or logic to find the batch linked to the open window
+        program: formData.program as Program,
+        isOpen: true,
+      },
+      include: {
+        batch: true,
       },
     });
 
-    if (!activeBatch) {
-      return res
-        .status(400)
-        .json({ success: false, error: "No active admission batch found." });
+    const now = new Date();
+    const startOfDay = (d: Date) => {
+      const nd = new Date(d);
+      nd.setHours(0, 0, 0, 0);
+      return nd;
+    };
+    const endOfDay = (d: Date) => {
+      const nd = new Date(d);
+      nd.setHours(23, 59, 59, 999);
+      return nd;
+    };
+
+    const activeWindow = windows.find((window) => {
+      const start = startOfDay(new Date(window.startDate));
+      const end = endOfDay(new Date(window.endDate));
+      return now >= start && now <= end;
+    });
+
+    if (!activeWindow || !activeWindow.batch) {
+      return res.status(400).json({
+        success: false,
+        error: "No active admission window found for this program.",
+      });
     }
+
+    // Use the batch linked to the active window
+    const activeBatch = activeWindow.batch;
 
     // Generate admission number
     const year = new Date().getFullYear();
@@ -615,6 +756,7 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
         aadhaar_number: formData.aadhaar,
         blood_group: formData.bloodGroup || null,
         religion: formData.religion || "Not Specified",
+        caste: formData.caste || null, // Added caste
         nationality: formData.nationality || "Indian",
         mother_tongue: formData.motherTongue || "Not Specified",
 
@@ -705,6 +847,16 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
       },
     });
 
+
+    // Send confirmation email (fire and forget)
+    if (newStudent.email) {
+      sendAdmissionConfirmation(
+        newStudent.email,
+        newStudent.name,
+        admissionNumber
+      ).catch((err: any) => console.error("Failed to send confirmation email:", err));
+    }
+
     res.status(201).json({
       success: true,
       studentId: newStudent.id,
@@ -722,9 +874,11 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
       });
     }
 
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to submit admission form" });
+    res.status(500).json({
+      success: false,
+      error: "Failed to submit admission form",
+      details: error.message || String(error),
+    });
   }
 };
 
@@ -772,20 +926,76 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
         .json({ success: false, error: "Invalid status value" });
     }
 
-    await prisma.student.updateMany({
-      where: {
-        id: { in: ids.map((id: any) => parseInt(id)) },
-      },
-      data: {
-        status,
-        updatedAt: new Date(),
-      },
-    });
+    // If status is approved, we need to process individually to generate sequential admission numbers
+    if (status === StudentStatus.approved) {
+      const results = [];
+      const errors = [];
 
-    res.json({
-      success: true,
-      message: `${ids.length} applications updated successfully`,
-    });
+      for (const id of ids) {
+        try {
+          const studentId = parseInt(id);
+          const student = await prisma.student.findUnique({ where: { id: studentId } });
+
+          if (!student) {
+            errors.push(`Student ID ${id} not found`);
+            continue;
+          }
+
+          const deptId = student.departmentId || student.preferredDepartmentId;
+          if (!deptId) {
+            errors.push(`Student ID ${id} ( ${student.name} ) has no department assigned`);
+            continue;
+          }
+
+          // Generate number
+          const admissionNumber = await generateAdmissionNumber(deptId);
+
+          // Update
+          const updated = await prisma.student.update({
+            where: { id: studentId },
+            data: {
+              status: StudentStatus.approved,
+              admission_number: admissionNumber,
+              departmentId: !student.departmentId ? deptId : undefined, // Assign dept if needed
+              updatedAt: new Date()
+            }
+          });
+          results.push(updated);
+
+        } catch (err: any) {
+          console.error(`Error approving student ${id}:`, err);
+          errors.push(`Failed to approve student ${id}: ${err.message}`);
+        }
+      }
+
+      if (errors.length > 0 && results.length === 0) {
+        return res.status(400).json({ success: false, error: "Failed to approve students", details: errors });
+      }
+
+      return res.json({
+        success: true,
+        message: `${results.length} applications approved successfully. ${errors.length > 0 ? `${errors.length} failed.` : ''}`,
+        errors: errors.length > 0 ? errors : undefined
+      });
+
+    } else {
+      // Normal bulk update for other statuses
+      await prisma.student.updateMany({
+        where: {
+          id: { in: ids.map((id: any) => parseInt(id)) },
+        },
+        data: {
+          status,
+          updatedAt: new Date(),
+        },
+      });
+
+      res.json({
+        success: true,
+        message: `${ids.length} applications updated successfully`,
+      });
+    }
+
   } catch (error) {
     console.error("Error bulk updating status:", error);
     res

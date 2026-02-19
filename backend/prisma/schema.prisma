@@ -111,6 +111,7 @@ model Student {
   admission_date                      DateTime?
   admission_type                      AdmissionType  @default(regular)
   category                            String?
+  caste                               String? // Added caste field
   allotted_branch                     String
   is_fee_concession_eligible          Boolean        @default(false)
   last_institution                    String
