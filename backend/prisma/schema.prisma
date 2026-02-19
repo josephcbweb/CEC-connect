@@ -337,6 +337,8 @@ model FeeDetails {
   createdAt DateTime  @default(now()) @map("created_at")
   semester  Int?      @map("semester")
   archived  Boolean?  @default(false)
+  busFeeAssignmentId    Int?     @map("bus_fee_assignment_id")
+  busFeeAssignment      BusFeeAssignment? @relation(fields: [busFeeAssignmentId], references: [id])
   student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoices  Invoice[]
 
@@ -483,6 +485,7 @@ model Batch {
 
   // This allows the admin to select specific departments for this batch
   batchDepartments BatchDepartment[]
+  busFeeAssignments BusFeeAssignment[]
   admissionWindow  AdmissionWindow?
 
   @@map("batches")
@@ -551,6 +554,22 @@ model HostelHistory {
   hostel  Hostel  @relation(fields: [hostelId], references: [id])
 
   @@map("hostel_history")
+}
+
+model BusFeeAssignment {
+  id          Int          @id @default(autoincrement()) @map("assignment_id")
+  batchId     Int          @map("batch_id")
+  semester    Int
+  dueDate     DateTime     @map("due_date")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  
+  // Relations
+  batch       Batch        @relation(fields: [batchId], references: [id])
+  feeDetails  FeeDetails[] 
+
+  // Constraint: Ensures Admin cannot assign fees for the same semester/batch twice
+  @@unique([batchId, semester])
+  @@map("bus_fee_assignments")
 }
 
 enum BatchStatus {
