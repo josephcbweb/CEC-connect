@@ -2,14 +2,19 @@ import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 
 export const getStudents = async (req: Request, res: Response) => {
-  const result = await prisma.student.findMany({
-    include: {
-      department: true,
-      invoices: { include: { FeeStructure: true } },
-      feeDetails: true,
-    },
-  });
-  res.status(201).json(result);
+  try {
+    const result = await prisma.student.findMany({
+      include: {
+        department: true,
+        invoices: { include: { FeeStructure: true } },
+        feeDetails: true,
+      },
+    });
+    res.status(201).json(result);
+  } catch (error: any) {
+    console.error("Error fetching students:", error);
+    res.status(500).json({ error: "Failed to fetch students", details: error.toString() });
+  }
 };
 const calculateYear = (admissionDate: Date | null): number | null => {
   if (!admissionDate) return null;

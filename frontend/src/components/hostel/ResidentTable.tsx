@@ -1,97 +1,88 @@
 import { useState } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { UserMinus, Receipt, Loader2, AlertCircle } from "lucide-react";
+import axios from "axios";
 import type { Resident } from "./HostelPage";
+import HostelLedgerModal from "./HostelLedgerModal";
 
 interface Props {
     residents: Resident[];
     loading: boolean;
+    onRefresh: () => void;
 }
 
-const ResidentTable = ({ residents, loading }: Props) => {
-    const [searchQuery, setSearchQuery] = useState("");
+const ResidentTable = ({ residents, loading, onRefresh }: Props) => {
+    const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+    const [vacatingId, setVacatingId] = useState<number | null>(null);
 
-    const filteredResidents = residents.filter((resident) =>
-        resident.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        resident.className.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        resident.phone?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const handleVacate = async (studentId: number, studentName: string) => {
+        if (!confirm(`Are you sure you want to vacate ${studentName}?`)) return;
 
-    if (loading) {
-        return (
-            <div className="bg-white border border-zinc-200 rounded-xl p-12 flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 className="w-8 h-8 text-zinc-400 animate-spin mx-auto mb-3" />
-                    <p className="text-zinc-500">Loading residents...</p>
-                </div>
-            </div>
-        );
-    }
+        setVacatingId(studentId);
+        try {
+            await axios.patch(`http://localhost:3000/api/hostel/vacate/${studentId}`);
+            alert("Student vacated successfully.");
+            onRefresh();
+        } catch (err: any) {
+            // This catches the "Pending Dues" error from your backend
+            alert(err.response?.data?.message || "Failed to vacate student.");
+        } finally {
+            setVacatingId(null);
+        }
+    };
+
+    if (loading) return <div className="py-10 text-center text-zinc-500">Loading residents...</div>;
 
     return (
-        <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-            {/* Search Bar */}
-            <div className="p-4 border-b border-zinc-200">
-                <div className="relative max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <input
-                        type="text"
-                        placeholder="Search by name, class, or phone..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-zinc-200 rounded-lg focus:border-zinc-400 focus:outline-none transition-colors placeholder:text-zinc-400"
-                    />
-                </div>
-            </div>
+        <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
+            <table className="w-full text-left border-collapse">
+                <thead className="bg-zinc-50 border-b border-zinc-200">
+                    <tr>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-600">Student Name</th>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-600">Class & Sem</th>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-600">Contact</th>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-600 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                    {residents.map((resident) => (
+                        <tr key={resident.id} className="hover:bg-zinc-50/50 transition-colors">
+                            <td className="px-6 py-4 font-medium text-zinc-900">{resident.name}</td>
+                            <td className="px-6 py-4 text-zinc-600">{resident.className} • S{resident.semester}</td>
+                            <td className="px-6 py-4 text-zinc-500 text-sm">{resident.phone}</td>
+                            <td className="px-6 py-4">
+                                <div className="flex justify-end gap-2">
+                                    <button 
+                                        onClick={() => setSelectedStudentId(resident.id)}
+                                        className="p-2 text-zinc-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors cursor-pointer"
+                                        title="View Fee Ledger"
+                                    >
+                                        <Receipt className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                        disabled={vacatingId === resident.id}
+                                        onClick={() => handleVacate(resident.id, resident.name)}
+                                        className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                                        title="Vacate Student"
+                                    >
+                                        {vacatingId === resident.id ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <UserMinus className="w-4 h-4" />
+                                        )}
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
 
-            {/* Table */}
-            {residents.length === 0 ? (
-                <div className="p-12 text-center">
-                    <p className="text-zinc-400 text-lg">No students assigned to this hostel</p>
-                </div>
-            ) : filteredResidents.length === 0 ? (
-                <div className="p-12 text-center">
-                    <p className="text-zinc-400 text-lg">No matching students found</p>
-                </div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="bg-zinc-50">
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-zinc-600">Name</th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-zinc-600">Class</th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-zinc-600">Semester</th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-zinc-600">Phone</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-zinc-100">
-                            {filteredResidents.map((resident) => (
-                                <tr key={resident.id} className="hover:bg-zinc-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <span className="font-medium text-zinc-900">{resident.name}</span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-zinc-600">{resident.className}</span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-zinc-600">Sem {resident.semester}</span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-zinc-600">{resident.phone || "—"}</span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-
-            {/* Footer */}
-            {residents.length > 0 && (
-                <div className="px-6 py-3 border-t border-zinc-200 bg-zinc-50">
-                    <p className="text-sm text-zinc-500">
-                        Showing {filteredResidents.length} of {residents.length} students
-                    </p>
-                </div>
+            {/* Ledger Modal */}
+            {selectedStudentId && (
+                <HostelLedgerModal 
+                    studentId={selectedStudentId} 
+                    onClose={() => setSelectedStudentId(null)} 
+                />
             )}
         </div>
     );
