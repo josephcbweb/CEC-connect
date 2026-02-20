@@ -51,7 +51,7 @@ const StudentsPage = () => {
   // Undo Delete State
   const [showUndoToast, setShowUndoToast] = useState(false);
   const [lastDeletedIds, setLastDeletedIds] = useState<number[]>([]);
-  const [undoDeleteTimer, setUndoDeleteTimer] = useState<NodeJS.Timeout | null>(
+  const [undoDeleteTimer, setUndoDeleteTimer] = useState<number | null>(
     null,
   );
 
@@ -97,7 +97,7 @@ const StudentsPage = () => {
     const matchesProgram =
       selectedProgram === "All" || student.program === selectedProgram;
     const matchesDepartment =
-      selectedProgram !== "btech" ||
+      selectedProgram !== "BTECH" ||
       selectedDepartment === "All" ||
       student.department === selectedDepartment;
     const matchesSemester =
@@ -141,8 +141,8 @@ const StudentsPage = () => {
       filters.departments && filters.departments.length > 0
         ? filters.departments
         : Array.from(
-            new Set(students.map((s) => s.department).filter(Boolean)),
-          );
+          new Set(students.map((s) => s.department).filter(Boolean)),
+        );
 
     departmentsToExport.forEach((dept) => {
       const filtered = students.filter((s) => {
@@ -369,21 +369,19 @@ const StudentsPage = () => {
           <div className="flex bg-gray-100 p-1 rounded-md h-fit">
             <button
               onClick={() => setViewStatus("approved")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                viewStatus === "approved"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewStatus === "approved"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
             >
               Active
             </button>
             <button
               onClick={() => setViewStatus("graduated")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                viewStatus === "graduated"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewStatus === "graduated"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
             >
               Graduated
             </button>
@@ -434,17 +432,16 @@ const StudentsPage = () => {
 
       <hr className="border-t border-gray-200 my-6" />
       <div className="flex justify-end w-full gap-3 items-center">
-        {selectedProgram === "btech" && (
+        {selectedProgram === "BTECH" && (
           <div className="flex flex-wrap mb-6 ml-0 mr-auto bg-gray-100 p-1 rounded-[7px]">
             {["All", ...departments].map((dept) => (
               <button
                 key={dept}
                 onClick={() => setSelectedDepartment(dept)}
-                className={`px-4 py-2 text-sm font-medium ${
-                  selectedDepartment === dept
-                    ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
-                    : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
-                }`}
+                className={`px-4 py-2 text-sm font-medium ${selectedDepartment === dept
+                  ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
+                  : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
+                  }`}
               >
                 {dept}
               </button>
@@ -500,13 +497,13 @@ const StudentsPage = () => {
                 student.currentSemester <= 7
               );
             }) && (
-              <button
-                onClick={handleDemote}
-                className="bg-orange-500 hover:bg-orange-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3 text-sm font-semibold"
-              >
-                Year Back
-              </button>
-            )}
+                <button
+                  onClick={handleDemote}
+                  className="bg-orange-500 hover:bg-orange-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3 text-sm font-semibold"
+                >
+                  Year Back
+                </button>
+              )}
             <DeleteBtn onClick={handleDeleteClick} />
           </div>
         )}

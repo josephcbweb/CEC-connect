@@ -3,7 +3,16 @@ import { prisma } from "../lib/prisma";
 
 export const getDepartment = async (req: Request, res: Response) => {
   try {
+    const { program } = req.query;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const whereClause: any = {};
+    if (program && program !== "all") {
+      whereClause.program = program;
+    }
+
     const departments = await prisma.department.findMany({
+      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
       include: {
         hodDetails: {
           include: {
@@ -19,13 +28,14 @@ export const getDepartment = async (req: Request, res: Response) => {
     });
     res.json(departments);
   } catch (error) {
+    console.error("GET DEPT ERROR:", error);
     res.status(500).json({ message: "Failed to fetch departments" });
   }
 };
 
 export const addDepartment = async (req: Request, res: Response) => {
   try {
-    const { name, code, hodId } = req.body;
+    const { name, code, hodId, program } = req.body;
 
     if (!name || !code) {
       return res.status(400).json({ message: "Name and Code are required" });
@@ -38,6 +48,7 @@ export const addDepartment = async (req: Request, res: Response) => {
           name,
           department_code: code,
           hodId: hodId ? Number(hodId) : null,
+          program: program || "BTECH",
         },
       });
 
@@ -55,8 +66,11 @@ export const addDepartment = async (req: Request, res: Response) => {
     });
 
     res.status(201).json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: "A department with this name or code already exists in the selected program." });
+    }
     res.status(400).json({ message: "Failed to create department", error });
   }
 };

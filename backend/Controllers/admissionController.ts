@@ -104,10 +104,13 @@ export const getStats = async (req: Request, res: Response) => {
 
     // Program-wise stats
     const btechCount = await prisma.student.count({
-      where: { program: Program.btech },
+      where: { program: Program.BTECH },
+    });
+    const mtechCount = await prisma.student.count({
+      where: { program: Program.MTECH },
     });
     const mcaCount = await prisma.student.count({
-      where: { program: Program.mca },
+      where: { program: Program.MCA },
     });
 
     // Admission type stats
@@ -135,6 +138,7 @@ export const getStats = async (req: Request, res: Response) => {
         unassignedApproved,
         byProgram: {
           btech: btechCount,
+          mtech: mtechCount,
           mca: mcaCount,
         },
         byAdmissionType: {
@@ -342,6 +346,25 @@ export const updateAdmissionWindow = async (req: Request, res: Response) => {
     const newStart = startDate ? new Date(startDate) : current.startDate;
     const newEnd = endDate ? new Date(endDate) : current.endDate;
     const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // If start date is being changed, it cannot be in the past
+    if (startDate && new Date(newStart).getTime() !== new Date(current.startDate).getTime()) {
+      if (new Date(newStart) < today) {
+        return res.status(400).json({
+          success: false,
+          error: "Start date cannot be in the past.",
+        });
+      }
+    }
+
+    if (new Date(newEnd) <= new Date(newStart)) {
+      return res.status(400).json({
+        success: false,
+        error: "End date must be after start date.",
+      });
+    }
 
     // Re-validate isOpen: Must be true only if within date range
     const startOfDay = (d: Date) => {
@@ -459,7 +482,42 @@ export const createAdmissionWindow = async (req: Request, res: Response) => {
       });
     }
 
-    // 2. Run the transaction with increased timeout settings
+    // 2. Date validation
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (start < now) {
+      return res.status(400).json({
+        success: false,
+        error: "Start date cannot be in the past.",
+      });
+    }
+
+    if (end <= start) {
+      return res.status(400).json({
+        success: false,
+        error: "End date must be after start date.",
+      });
+    }
+
+    // 3. Ensure departments exist for this program
+    const departmentsForProgram = await prisma.department.findMany({
+      where: {
+        id: { in: departmentIds.map(id => Number(id)) },
+        program: program as Program,
+      }
+    });
+
+    if (departmentsForProgram.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: `No valid departments found for program ${program}. Window cannot be created.`,
+      });
+    }
+
+    // 4. Run the transaction with increased timeout settings
     const result = await prisma.$transaction(
       async (tx) => {
         // Check if window already exists for this program
@@ -496,7 +554,7 @@ export const createAdmissionWindow = async (req: Request, res: Response) => {
             startDate: new Date(startDate),
             endDate: new Date(endDate),
             description,
-            isOpen: isOpen ?? false,
+            isOpen: isOpen ?? true,
             batchId: newBatch.id, // Ensure this link is present
           },
         });

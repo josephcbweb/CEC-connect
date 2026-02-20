@@ -27,6 +27,9 @@ export default function DepartmentTable({ departments, loading, onDelete, onChan
                 Department
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Program
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Code
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -43,7 +46,7 @@ export default function DepartmentTable({ departments, loading, onDelete, onChan
           <tbody className="divide-y divide-gray-100">
             {departments.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                   No departments found
                 </td>
               </tr>
@@ -56,6 +59,11 @@ export default function DepartmentTable({ departments, loading, onDelete, onChan
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">
                       {dept.name}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-600">
+                      {dept.program === "btech" ? "B.Tech" : dept.program === "mca" ? "MCA" : dept.program?.toUpperCase() || "N/A"}
                     </div>
                   </td>
                   <td className="px-6 py-4">

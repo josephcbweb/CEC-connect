@@ -1,14 +1,20 @@
 import { Search, Plus } from "lucide-react";
 
+import { AVAILABLE_PROGRAMS } from "../../utils/constants";
+
 interface Props {
   searchTerm: string;
   setSearchTerm: (value: string) => void;
+  programFilter: string;
+  setProgramFilter: (value: string) => void;
   onAddClick: () => void;
 }
 
 export default function DepartmentControls({
   searchTerm,
   setSearchTerm,
+  programFilter,
+  setProgramFilter,
   onAddClick,
 }: Props) {
   return (
@@ -23,6 +29,21 @@ export default function DepartmentControls({
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-400 rounded-[1.5rem] focus:outline-none"
           />
+        </div>
+
+        <div className="flex-1 max-w-xs">
+          <select
+            value={programFilter}
+            onChange={(e) => setProgramFilter(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Programs</option>
+            {AVAILABLE_PROGRAMS.map((prog) => (
+              <option key={prog.id} value={prog.id}>
+                {prog.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <button

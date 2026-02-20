@@ -1,0 +1,1 @@
+import { prisma } from './lib/prisma'; async function test() { try { console.log(await prisma.department.findMany()); } catch (e) { console.error('ERROR:', e); } finally { await prisma.$disconnect(); } } test();

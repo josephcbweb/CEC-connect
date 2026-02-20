@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, Building2, Hash, User } from "lucide-react";
+import { X, Building2, Hash, User, BookOpen, AlertCircle } from "lucide-react";
+import { AVAILABLE_PROGRAMS } from "../../utils/constants";
 
 interface Props {
   isOpen: boolean;
@@ -18,13 +19,15 @@ export default function AddDepartmentModal({
   onClose,
   onSuccess,
 }: Props) {
-  const [formData, setFormData] = useState({ name: "", code: "", hodId: "" });
+  const [formData, setFormData] = useState({ name: "", code: "", hodId: "", program: "BTECH" });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [facultyList, setFacultyList] = useState<Faculty[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       fetchEligibleFaculty();
+      setError(null);
     }
   }, [isOpen]);
 
@@ -45,6 +48,7 @@ export default function AddDepartmentModal({
   const handleSubmit = async () => {
     if (!formData.name || !formData.code) return;
     setLoading(true);
+    setError(null);
     const res = await fetch("http://localhost:3000/api/departments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,7 +58,10 @@ export default function AddDepartmentModal({
     if (res.ok) {
       onSuccess();
       onClose();
-      setFormData({ name: "", code: "", hodId: "" });
+      setFormData({ name: "", code: "", hodId: "", program: "BTECH" });
+    } else {
+      const data = await res.json();
+      setError(data.message || "Failed to create department");
     }
     setLoading(false);
   };
@@ -77,6 +84,14 @@ export default function AddDepartmentModal({
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mx-6 mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p>{error}</p>
+          </div>
+        )}
 
         {/* Form Content */}
         <div className="px-6 pb-6 space-y-5">
@@ -113,6 +128,29 @@ export default function AddDepartmentModal({
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all placeholder:text-gray-400"
               />
+            </div>
+          </div>
+
+          {/* Program Selection */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700 ml-1">
+              Program
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <select
+                value={formData.program}
+                onChange={(e) => setFormData({ ...formData, program: e.target.value })}
+                className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all bg-white"
+              >
+                {AVAILABLE_PROGRAMS.map((prog) => (
+                  <option key={prog.id} value={prog.id}>
+                    {prog.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

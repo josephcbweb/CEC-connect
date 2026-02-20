@@ -167,11 +167,12 @@ model Student {
 
 model Department {
   id                  Int               @id @default(autoincrement()) @map("department_id")
-  name                String            @unique @map("department_name")
+  name                String            @map("department_name")
+  program             Program           @default(BTECH)
   hodId               Int?              @unique @map("hod_id")
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
-  department_code     String            @unique
+  department_code     String
   status              DepartmentStatus  @default(ACTIVE)
   courses             Course[]
   hodDetails          HodDetails?
@@ -180,6 +181,8 @@ model Department {
   preferredByStudents Student[]         @relation("StudentPreferredDepartment")
   batchDepartments    BatchDepartment[]
 
+  @@unique([name, program])
+  @@unique([department_code, program])
   @@map("departments")
 }
 
@@ -334,18 +337,18 @@ model FeeStructure {
 }
 
 model FeeDetails {
-  id        Int       @id @default(autoincrement()) @map("fee_id")
-  studentId Int       @map("student_id")
-  feeType   String    @map("fee_type")
-  amount    Decimal
-  dueDate   DateTime  @map("due_date") @db.Date
-  createdAt DateTime  @default(now()) @map("created_at")
-  semester  Int?      @map("semester")
-  archived  Boolean?  @default(false)
-  busFeeAssignmentId    Int?     @map("bus_fee_assignment_id")
-  busFeeAssignment      BusFeeAssignment? @relation(fields: [busFeeAssignmentId], references: [id])
-  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  invoices  Invoice[]
+  id                 Int               @id @default(autoincrement()) @map("fee_id")
+  studentId          Int               @map("student_id")
+  feeType            String            @map("fee_type")
+  amount             Decimal
+  dueDate            DateTime          @map("due_date") @db.Date
+  createdAt          DateTime          @default(now()) @map("created_at")
+  semester           Int?              @map("semester")
+  archived           Boolean?          @default(false)
+  busFeeAssignmentId Int?              @map("bus_fee_assignment_id")
+  busFeeAssignment   BusFeeAssignment? @relation(fields: [busFeeAssignmentId], references: [id])
+  student            Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  invoices           Invoice[]
 
   @@map("fee_details")
 }
@@ -489,9 +492,9 @@ model Batch {
   createdAt DateTime    @default(now()) @map("created_at")
 
   // This allows the admin to select specific departments for this batch
-  batchDepartments BatchDepartment[]
+  batchDepartments  BatchDepartment[]
   busFeeAssignments BusFeeAssignment[]
-  admissionWindow  AdmissionWindow?
+  admissionWindow   AdmissionWindow?
 
   @@map("batches")
 }
@@ -562,15 +565,15 @@ model HostelHistory {
 }
 
 model BusFeeAssignment {
-  id          Int          @id @default(autoincrement()) @map("assignment_id")
-  batchId     Int          @map("batch_id")
-  semester    Int
-  dueDate     DateTime     @map("due_date")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  
+  id        Int      @id @default(autoincrement()) @map("assignment_id")
+  batchId   Int      @map("batch_id")
+  semester  Int
+  dueDate   DateTime @map("due_date")
+  createdAt DateTime @default(now()) @map("created_at")
+
   // Relations
-  batch       Batch        @relation(fields: [batchId], references: [id])
-  feeDetails  FeeDetails[] 
+  batch      Batch        @relation(fields: [batchId], references: [id])
+  feeDetails FeeDetails[]
 
   // Constraint: Ensures Admin cannot assign fees for the same semester/batch twice
   @@unique([batchId, semester])
@@ -693,8 +696,9 @@ enum AdmissionType {
 }
 
 enum Program {
-  btech
-  mca
+  BTECH
+  MCA
+  MTECH
 }
 
 enum CourseType {
