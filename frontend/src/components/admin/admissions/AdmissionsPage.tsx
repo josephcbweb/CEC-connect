@@ -25,6 +25,7 @@ import {
   Trash2,
 } from "lucide-react";
 import AdmissionWindowSettings from "./AdmissionWindowSettings";
+import { AVAILABLE_PROGRAMS } from "../../../utils/constants";
 
 interface BatchDepartment {
   id: number;
@@ -48,7 +49,7 @@ interface Batch {
   status: string;
   batchDepartments: BatchDepartment[];
   admissionWindow: {
-    program: "btech" | "mca";
+    program: "BTECH" | "MCA" | "MTECH";
   } | null;
 }
 
@@ -582,8 +583,11 @@ const AdmissionsPage: React.FC = () => {
                   }
                 >
                   <option value="all">All Programs</option>
-                  <option value="btech">B.Tech</option>
-                  <option value="mca">MCA</option>
+                  {AVAILABLE_PROGRAMS.map((prog) => (
+                    <option key={prog.id} value={prog.id}>
+                      {prog.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -1000,7 +1004,11 @@ const AdmissionsPage: React.FC = () => {
               <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl my-8 animate-scale-in">
                 <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-teal-50 to-white">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    Application Details
+                    {selectedStudent.program === "BTECH"
+                      ? "B.Tech Application"
+                      : selectedStudent.program === "MCA"
+                        ? "MCA Application"
+                        : "M.Tech Application"}
                   </h2>
                   <button
                     onClick={() => setSelectedStudent(null)}
@@ -1304,8 +1312,11 @@ const AdmissionsPage: React.FC = () => {
                   onChange={(e) => setAssignmentProgramFilter(e.target.value)}
                 >
                   <option value="all">All Programs</option>
-                  <option value="btech">B.Tech</option>
-                  <option value="mca">MCA</option>
+                  {AVAILABLE_PROGRAMS.map((prog) => (
+                    <option key={prog.id} value={prog.id}>
+                      {prog.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

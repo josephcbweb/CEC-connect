@@ -4,7 +4,7 @@ export interface AdmissionStudent {
   email: string;
   student_phone_number: string;
   admission_number: string;
-  program: "btech" | "mca" | "mtech";
+  program: "BTECH" | "MCA" | "MTECH";
   admission_type: "regular" | "lateral" | "nri" | "management";
   status: "pending" | "approved" | "rejected" | "waitlisted";
   admission_date: string;
@@ -72,9 +72,9 @@ export interface AdmissionStats {
   waitlisted: number;
   unassignedApproved: number;
   byProgram: {
-    btech: number;
-    mca: number;
-    mtech?: number;
+    BTECH: number;
+    MCA: number;
+    MTECH?: number;
   };
   byAdmissionType: {
     regular: number;
@@ -86,7 +86,7 @@ export interface AdmissionStats {
 
 export interface AdmissionWindow {
   id: number;
-  program: "btech" | "mca" | "mtech";
+  program: "BTECH" | "MCA" | "MTECH";
   startDate: string;
   endDate: string;
   isOpen: boolean;

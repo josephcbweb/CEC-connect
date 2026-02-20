@@ -10,6 +10,7 @@ export interface Department {
   name: string;
   department_code: string;
   status: "ACTIVE" | "INACTIVE";
+  program: string;
   hodDetails?: {
     user?: {
       username: string;
@@ -22,20 +23,21 @@ export default function DepartmentDashboard() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [programFilter, setProgramFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [changeHodModalOpen, setChangeHodModalOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => {
-    fetchDepartments();
-  }, []);
-
   const fetchDepartments = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3000/api/departments");
+      const queryParams = new URLSearchParams();
+      if (programFilter && programFilter !== "all") {
+        queryParams.append("program", programFilter);
+      }
+      const res = await fetch(`http://localhost:3000/api/departments?${queryParams}`);
       const data = await res.json();
       setDepartments(data);
     } catch (err) {
@@ -44,6 +46,10 @@ export default function DepartmentDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchDepartments();
+  }, [programFilter]);
 
   const handleDeleteClick = (dept: Department) => {
     setSelectedDept(dept);
@@ -73,11 +79,14 @@ export default function DepartmentDashboard() {
     }
   };
 
-  const filteredDepartments = departments.filter(
-    (dept) =>
+  const filteredDepartments = departments.filter((dept) => {
+    const matchesSearch =
       dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dept.department_code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      dept.department_code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesProgram =
+      programFilter === "all" || dept.program === programFilter;
+    return matchesSearch && matchesProgram;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -92,6 +101,8 @@ export default function DepartmentDashboard() {
         <DepartmentControls
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
+          programFilter={programFilter}
+          setProgramFilter={setProgramFilter}
           onAddClick={() => setIsModalOpen(true)}
         />
 

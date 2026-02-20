@@ -44,7 +44,7 @@ interface Batch {
     status: string;
     batchDepartments: BatchDepartment[];
     admissionWindow: {
-        program: "btech" | "mca";
+        program: "BTECH" | "MCA" | "MTECH";
     } | null;
 }
 

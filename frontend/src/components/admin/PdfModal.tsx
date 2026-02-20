@@ -19,15 +19,15 @@ const PdfModal = ({
   programs,
   departments,
 }: Props) => {
-  const [program, setProgram] = useState("btech");
+  const [program, setProgram] = useState("BTECH");
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
 
-  const yearOptions = program === "btech" ? [1, 2, 3, 4] : [1, 2];
+  const yearOptions = program === "BTECH" ? [1, 2, 3, 4] : program === "MCA" || program === "MTECH" ? [1, 2] : [];
 
   useEffect(() => {
     if (isOpen) {
-      setProgram("btech");
+      setProgram("BTECH");
       setSelectedDepartments([]);
       setSelectedYears([]);
     }
@@ -67,7 +67,7 @@ const PdfModal = ({
           ))}
         </select>
 
-        {program === "btech" && (
+        {program === "BTECH" && (
           <>
             <label className="block mb-2 font-semibold">Departments</label>
             <div className="flex flex-wrap gap-2 mb-4">
@@ -81,11 +81,10 @@ const PdfModal = ({
                         : [...prev, dept]
                     )
                   }
-                  className={`px-4 py-2 rounded-md border text-sm font-medium ${
-                    selectedDepartments.includes(dept)
+                  className={`px-4 py-2 rounded-md border text-sm font-medium ${selectedDepartments.includes(dept)
                       ? "bg-indigo-100 text-indigo-800 border-indigo-300"
                       : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
-                  }`}
+                    }`}
                 >
                   {dept}
                 </button>
@@ -106,11 +105,10 @@ const PdfModal = ({
                     : [...prev, y]
                 )
               }
-              className={`px-4 py-2 rounded-md border text-sm font-medium ${
-                selectedYears.includes(y)
+              className={`px-4 py-2 rounded-md border text-sm font-medium ${selectedYears.includes(y)
                   ? "bg-teal-100 text-teal-800 border-teal-300"
                   : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
-              }`}
+                }`}
             >
               Year {y}
             </button>

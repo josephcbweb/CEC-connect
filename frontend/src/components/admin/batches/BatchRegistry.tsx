@@ -29,7 +29,7 @@ interface Batch {
   departmentCount: number;
   classCount: number;
   admissionWindow: {
-    program: "btech" | "mca";
+    program: "BTECH" | "MCA" | "MTECH";
   } | null;
 }
 
