@@ -59,6 +59,7 @@ interface ApprovedStudent {
   entrance_rank: number | null;
   admission_type: string;
   category: string;
+  allotted_branch?: string | null;
   preferredDepartmentId: number | null;
   preferredDepartment: {
     id: number;
@@ -364,9 +365,8 @@ const AdmissionsPage: React.FC = () => {
     };
     return (
       <span
-        className={`px-2 py-1 rounded-full text-xs font-medium ${
-          colors[status] || "bg-gray-100 text-gray-800"
-        }`}
+        className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] || "bg-gray-100 text-gray-800"
+          }`}
       >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
@@ -405,11 +405,10 @@ const AdmissionsPage: React.FC = () => {
       {/* Success/Error Message */}
       {message && (
         <div
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg animate-slide-down shadow-lg ${
-            message.type === "success"
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg animate-slide-down shadow-lg ${message.type === "success"
+            ? "bg-green-50 text-green-800 border border-green-200"
+            : "bg-red-50 text-red-800 border border-red-200"
+            }`}
         >
           {message.type === "success" ? (
             <CheckCircle className="w-5 h-5" />
@@ -425,22 +424,20 @@ const AdmissionsPage: React.FC = () => {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab("applications")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
-              activeTab === "applications"
-                ? "border-teal-500 text-teal-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
+            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${activeTab === "applications"
+              ? "border-teal-500 text-teal-600"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
           >
             <FileText className="w-5 h-5" />
             Applications
           </button>
           <button
             onClick={() => setActiveTab("assign-classes")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
-              activeTab === "assign-classes"
-                ? "border-teal-500 text-teal-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
+            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${activeTab === "assign-classes"
+              ? "border-teal-500 text-teal-600"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
           >
             <UserPlus className="w-5 h-5" />
             Assign to Classes
@@ -886,11 +883,10 @@ const AdmissionsPage: React.FC = () => {
                           aria-current={
                             filters.page === pageNum ? "page" : undefined
                           }
-                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                            filters.page === pageNum
-                              ? "z-10 bg-teal-600 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
-                              : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
-                          }`}
+                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${filters.page === pageNum
+                            ? "z-10 bg-teal-600 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                            : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -1302,11 +1298,10 @@ const AdmissionsPage: React.FC = () => {
                       {approvedStudents.map((student) => (
                         <div
                           key={student.id}
-                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                            selectedApprovedIds.includes(student.id)
-                              ? "bg-teal-50"
-                              : ""
-                          }`}
+                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${selectedApprovedIds.includes(student.id)
+                            ? "bg-teal-50"
+                            : ""
+                            }`}
                         >
                           <div className="flex items-start gap-3">
                             <input
@@ -1316,12 +1311,30 @@ const AdmissionsPage: React.FC = () => {
                               className="rounded mt-1"
                             />
                             <div className="flex-1">
-                              <p className="font-medium text-gray-900">
-                                {student.name}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {student.admission_number}
-                              </p>
+                              <div className="flex flex-col">
+                                <p className="font-medium text-gray-900">
+                                  {student.name}
+                                </p>
+                                <div className="text-sm text-gray-500 flex flex-wrap items-center gap-2">
+                                  <span>{student.admission_number}</span>
+                                  {student.allotted_branch && student.allotted_branch !== "Not Assigned" && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-teal-600 font-medium">
+                                        Branch: {student.allotted_branch}
+                                      </span>
+                                    </>
+                                  )}
+                                  {student.preferredDepartment && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-indigo-600 font-medium">
+                                        Preferred: {student.preferredDepartment.name} ({student.preferredDepartment.department_code})
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                               <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
                                 <span className="uppercase bg-gray-100 px-2 py-0.5 rounded">
                                   {student.program}
@@ -1333,19 +1346,6 @@ const AdmissionsPage: React.FC = () => {
                                   <span>Rank: {student.entrance_rank}</span>
                                 )}
                               </div>
-                              {student.preferredDepartment && (
-                                <div className="mt-2">
-                                  <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full font-medium">
-                                    Preferred:{" "}
-                                    {student.preferredDepartment.name} (
-                                    {
-                                      student.preferredDepartment
-                                        .department_code
-                                    }
-                                    )
-                                  </span>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -1415,11 +1415,10 @@ const AdmissionsPage: React.FC = () => {
                                   <div
                                     key={bd.id}
                                     onClick={() => setSelectedDepartment(bd)}
-                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                                      selectedDepartment?.id === bd.id
-                                        ? "border-teal-500 bg-teal-50"
-                                        : "border-gray-200 hover:border-gray-300"
-                                    }`}
+                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedDepartment?.id === bd.id
+                                      ? "border-teal-500 bg-teal-50"
+                                      : "border-gray-200 hover:border-gray-300"
+                                      }`}
                                   >
                                     <div className="flex items-center justify-between">
                                       <div>

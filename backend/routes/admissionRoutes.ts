@@ -20,6 +20,7 @@ import {
   autoAssignStudentsToClasses,
   bulkAssignToClass,
   getPublicDepartments,
+  autoAssignBatch,
 } from "../controllers/admissionController";
 
 const router = express.Router();
@@ -48,6 +49,7 @@ router.get("/admin/batches", getUpcomingBatches);
 router.get("/admin/batches/:batchId/classes", getClassesForBatch);
 router.post("/admin/assign-student", assignStudentToClass);
 router.post("/admin/auto-assign", autoAssignStudentsToClasses);
+router.post("/admin/auto-assign-batch", autoAssignBatch);
 router.post("/admin/bulk-assign", bulkAssignToClass);
 
 export default router;

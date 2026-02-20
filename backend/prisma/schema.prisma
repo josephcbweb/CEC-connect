@@ -89,12 +89,16 @@ model Student {
   blood_group                         String?
   student_phone_number                String          @unique
   permanent_address                   String
+  permanent_pincode                   String?
   contact_address                     String
+  contact_pincode                     String?
   state_of_residence                  String
   aadhaar_number                      String          @unique
   fatherName                          String?
+  father_occupation                   String? // Added
   father_phone_number                 String?
   motherName                          String?
+  mother_occupation                   String? // Added
   mother_phone_number                 String?
   parent_email                        String?
   annual_family_income                Decimal?
@@ -117,6 +121,7 @@ model Student {
   last_institution                    String
   tc_number                           String?
   tc_date                             DateTime?
+  tc_issued_by                        String? // Added tc_issued_by
   qualifying_exam_name                String
   qualifying_exam_register_no         String
   percentage                          Float?
@@ -376,20 +381,20 @@ model Payment {
 }
 
 model Notification {
-  id          Int                 @id @default(autoincrement()) @map("notification_id")
-  senderId    Int                 @map("sender_id")
-  receiverId  Int?                @map("receiver_id")
-  title       String              @default("Notification")
-  description String              @map("message")
+  id          Int                    @id @default(autoincrement()) @map("notification_id")
+  senderId    Int                    @map("sender_id")
+  receiverId  Int?                   @map("receiver_id")
+  title       String                 @default("Notification")
+  description String                 @map("message")
   targetType  NotificationTargetType @default(ALL)
   targetValue String?
-  priority    NotificationPriority @default(NORMAL)
-  status      NotificationStatus  @default(draft)
-  expiryDate  DateTime?           @map("expiry_date")
-  createdAt   DateTime            @default(now()) @map("created_at")
-  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at")
-  receiver    User?               @relation("ReceivedNotifications", fields: [receiverId], references: [id])
-  sender      User                @relation("SentNotifications", fields: [senderId], references: [id])
+  priority    NotificationPriority   @default(NORMAL)
+  status      NotificationStatus     @default(draft)
+  expiryDate  DateTime?              @map("expiry_date")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @default(now()) @updatedAt @map("updated_at")
+  receiver    User?                  @relation("ReceivedNotifications", fields: [receiverId], references: [id])
+  sender      User                   @relation("SentNotifications", fields: [senderId], references: [id])
 
   @@map("notifications")
 }
@@ -521,13 +526,13 @@ model Class {
 }
 
 model Hostel {
-  id           Int      @id @default(autoincrement()) @map("hostel_id")
-  name         String   @unique // e.g., "MH-1", "GH-2"
-  wardenName   String   @map("warden_name")
-  wardenPhone  String   @map("warden_phone")
+  id          Int      @id @default(autoincrement()) @map("hostel_id")
+  name        String   @unique // e.g., "MH-1", "GH-2"
+  wardenName  String   @map("warden_name")
+  wardenPhone String   @map("warden_phone")
   monthlyRent Decimal  @default(0) @map("monthly_rent")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relationships
   students Student[]
@@ -631,7 +636,6 @@ enum PaymentStatus {
   pending
 }
 
-
 enum NotificationStatus {
   read
   unread
@@ -663,7 +667,7 @@ enum StudentStatus {
 }
 
 enum AdmissionType {
-  nri
+  NRI
   regular
   lateral
   management
