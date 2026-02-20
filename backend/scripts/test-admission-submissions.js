@@ -45,16 +45,19 @@ async function postData(url, data) {
 
 const BASE_URL = 'http://localhost:3000/api/admission/submit';
 
+const TIMESTAMP = Date.now();
+
 async function testSubmission(type, index) {
+    const uniqueId = `${TIMESTAMP}${index}`;
     const payload = {
         program: "btech",
         admissionType: type,
-        name: `Test ${type} User`,
+        name: `Test ${type} User ${uniqueId}`,
         dateOfBirth: "2005-01-01",
         gender: "male",
-        email: `test.${type}.${index}@example.com`,
-        phone: `999000000${index}`,
-        aadhaar: `10000000000${index}`,
+        email: `test.${type}.${uniqueId}@example.com`,
+        phone: `99${uniqueId.slice(-8)}`,
+        aadhaar: `1000${uniqueId.slice(-8)}`,
         preferredDepartment: "1", // CSE
         permanentAddress: "Test Address 123",
         stateOfResidence: "Kerala",
@@ -65,6 +68,10 @@ async function testSubmission(type, index) {
         chemistryScore: "90",
         mathsScore: "90",
         totalPercentage: "90",
+        entranceExamScore: "100", // Common for all for testing
+        entranceExamType: "KEAM",
+        entranceExamRollNumber: `ROLL${uniqueId.slice(-4)}`,
+        entranceRank: "5000",
         // Bank info
         bankAccountNumber: `10000000${index}`,
     };

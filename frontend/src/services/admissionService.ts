@@ -213,6 +213,16 @@ export const admissionService = {
     return response.data;
   },
 
+  // Auto-assign entire batch
+  autoAssignBatch: async (batchId: number) => {
+    const response = await axios.post(
+      `${API_BASE}/api/admission/admin/auto-assign-batch`,
+      { batchId },
+      { headers: getAuthHeader() }
+    );
+    return response.data;
+  },
+
   // Bulk assign students to a specific class
   bulkAssignToClass: async (studentIds: number[], classId: number) => {
     const response = await axios.post(

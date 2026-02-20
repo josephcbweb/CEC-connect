@@ -108,7 +108,7 @@ export const getStats = async (req: Request, res: Response) => {
       where: { admission_type: AdmissionType.lateral },
     });
     const nriCount = await prisma.student.count({
-      where: { admission_type: AdmissionType.nri },
+      where: { admission_type: AdmissionType.NRI },
     });
     const managementCount = await prisma.student.count({
       where: { admission_type: AdmissionType.management },
@@ -183,17 +183,19 @@ const generateAdmissionNumber = async (departmentId: number) => {
   if (deptCode === "cse") deptCode = "cs";
 
   const year = new Date().getFullYear();
-  const prefix = `cec${String(year).slice(-2)}${deptCode}`;
+  const lowerPrefix = `cec${String(year).slice(-2)}${deptCode}`;
+  const upperPrefix = `CEC${String(year).slice(-2)}${deptCode.toUpperCase()}`;
 
   const count = await prisma.student.count({
     where: {
-      admission_number: {
-        startsWith: prefix,
-      },
+      OR: [
+        { admission_number: { startsWith: lowerPrefix } },
+        { admission_number: { startsWith: upperPrefix } },
+      ],
     },
   });
 
-  return `${prefix}${String(count + 1).padStart(3, "0")}`;
+  return `${upperPrefix}${String(count + 1).padStart(3, "0")}`;
 };
 
 // Update admission status
@@ -689,6 +691,139 @@ export const getPublicDepartments = async (req: Request, res: Response) => {
   }
 };
 
+// Auto-assign entire batch
+export const autoAssignBatch = async (req: Request, res: Response) => {
+  try {
+    const { batchId } = req.body;
+
+    if (!batchId) {
+      return res.status(400).json({
+        success: false,
+        error: "Batch ID is required",
+      });
+    }
+
+    // 1. Fetch Batch, its Admission Window (to get program), and all its Departments/Classes
+    const batch = await prisma.batch.findUnique({
+      where: { id: parseInt(batchId) },
+      include: {
+        admissionWindow: true,
+        batchDepartments: {
+          include: {
+            department: true,
+            classes: {
+              include: {
+                _count: { select: { students: true } }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!batch) {
+      return res.status(404).json({ success: false, error: "Batch not found" });
+    }
+
+    if (!batch.admissionWindow) {
+      return res.status(400).json({ success: false, error: "Batch has no associated Admission Window" });
+    }
+
+    const program = batch.admissionWindow.program;
+
+    // 2. Fetch all Approved unassigned students for this program
+    const unassignedStudents = await prisma.student.findMany({
+      where: {
+        program: program,
+        status: "approved",
+        classId: null,
+      }
+    });
+
+    if (unassignedStudents.length === 0) {
+      return res.status(400).json({ success: false, error: "No unassigned approved students found for this batch's program." });
+    }
+
+    // 3. Group students by their preferred department
+    const studentsByDepartment: Record<number, typeof unassignedStudents> = {};
+    unassignedStudents.forEach(student => {
+      if (!student.preferredDepartmentId) return; // Skip if no preference, they must be assigned manually
+      if (!studentsByDepartment[student.preferredDepartmentId]) {
+        studentsByDepartment[student.preferredDepartmentId] = [];
+      }
+      studentsByDepartment[student.preferredDepartmentId].push(student);
+    });
+
+    const assignments: { studentId: number; classId: number; departmentId: number }[] = [];
+    let totalAssigned = 0;
+    const missingClassesDepts: string[] = [];
+
+    // 4. Distribute students evenly into classes per department
+    for (const batchDept of batch.batchDepartments) {
+      const deptId = batchDept.departmentId;
+      const studentsForDept = studentsByDepartment[deptId] || [];
+
+      if (studentsForDept.length === 0) continue;
+
+      if (batchDept.classes.length === 0) {
+        missingClassesDepts.push(batchDept.department.name);
+        continue;
+      }
+
+      // Sort classes by current student count to ensure even distribution
+      const sortedClasses = batchDept.classes.sort((a, b) => a._count.students - b._count.students);
+      const numClasses = sortedClasses.length;
+
+      studentsForDept.forEach((student, index) => {
+        const targetClass = sortedClasses[index % numClasses];
+        assignments.push({
+          studentId: student.id,
+          classId: targetClass.id,
+          departmentId: deptId
+        });
+
+        // Temporarily increment the count for further balancing in memory (though our simple mod loop handles it mostly well)
+        targetClass._count.students++;
+        totalAssigned++;
+      });
+    }
+
+    // 5. Execute transaction to update all students
+    if (assignments.length > 0) {
+      await prisma.$transaction(
+        assignments.map((assignment) =>
+          prisma.student.update({
+            where: { id: assignment.studentId },
+            data: {
+              classId: assignment.classId,
+              departmentId: assignment.departmentId,
+            },
+          })
+        )
+      );
+    }
+
+    let message = `Successfully assigned ${totalAssigned} students.`;
+    if (missingClassesDepts.length > 0) {
+      message += ` However, some students were not assigned because the following departments have no classes defined: ${missingClassesDepts.join(', ')}.`;
+    }
+
+    res.json({
+      success: true,
+      message,
+      assignedCount: totalAssigned,
+      totalUnassigned: unassignedStudents.length,
+    });
+
+  } catch (error) {
+    console.error("Error auto-assigning batch:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to auto-assign batch",
+    });
+  }
+};
+
 export const submitAdmissionForm = async (req: Request, res: Response) => {
   try {
     const formData = req.body;
@@ -762,8 +897,10 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
 
         // Parent Info
         fatherName: formData.fatherName || null,
+        father_occupation: formData.fatherOccupation || null, // Added
         father_phone_number: formData.fatherPhone || null,
         motherName: formData.motherName || null,
+        mother_occupation: formData.motherOccupation || null, // Added
         mother_phone_number: formData.motherPhone || null,
         parent_email: formData.parentEmail || null,
         annual_family_income: formData.annualFamilyIncome || null,
@@ -773,14 +910,16 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
 
         // Address Info
         permanent_address: formData.permanentAddress,
+        permanent_pincode: formData.permanentPincode || null,
         contact_address: formData.contactAddress || formData.permanentAddress,
+        contact_pincode: formData.contactPincode || null,
         state_of_residence:
           formData.stateOfResidence || formData.permanentAddressState,
         local_guardian_address: formData.localGuardianAddress || null,
         local_guardian_phone_number: formData.localGuardianPhone || null,
 
         // Education Info
-        last_institution: formData.qualifyingExamInstitute || "Not Specified",
+        last_institution: formData.qualifyingSchool || "Not Specified",
         qualifying_exam_name: formData.qualifyingExam,
         qualifying_exam_register_no: formData.qualifyingExamRegisterNo,
         physics_score: formData.physicsScore
@@ -800,6 +939,7 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
           : null,
         tc_number: formData.tcNumber || null,
         tc_date: formData.tcDate ? new Date(formData.tcDate) : null,
+        tc_issued_by: formData.tcIssuedBy || null, // Added tc_issued_by
 
         // Entrance Info
         entrance_type: formData.entranceExamType || null,
@@ -827,7 +967,10 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
 
         // System fields
         program: formData.program,
-        admission_type: formData.admissionType || "regular",
+        admission_type:
+          formData.admissionType === "nri"
+            ? "NRI"
+            : formData.admissionType || "regular",
         admission_number: admissionNumber,
         admission_date: new Date(),
         status: StudentStatus.pending,
@@ -839,7 +982,9 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
           : null,
         // Department will be assigned by admin after approval - use a placeholder department
         // The student's departmentId will be properly assigned when admin assigns them to a class
-        departmentId: formData.departmentId || null,
+        departmentId: formData.departmentId
+          ? parseInt(formData.departmentId)
+          : null,
         classId: null, // Class will be assigned by admin after approval
       },
       include: {
@@ -1043,6 +1188,7 @@ export const getApprovedStudentsForAssignment = async (
           entrance_rank: true,
           admission_type: true,
           category: true,
+          allotted_branch: true,
           preferredDepartmentId: true,
           preferredDepartment: {
             select: {
