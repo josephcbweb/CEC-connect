@@ -54,7 +54,10 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/promotion", promotionRoutes);
 app.use("/api", batchRoutes);
-app.use("/api/hostel",hostelRoutes);
+app.use("/api/hostel", hostelRoutes);
+import { initCronJobs } from "./services/cronService";
+initCronJobs();
+
 app.listen(PORT, () => {
   console.log("Server listening on port: ", PORT);
 });

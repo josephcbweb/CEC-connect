@@ -18,6 +18,7 @@ export const getAdmissions = async (req: Request, res: Response) => {
       program,
       search,
       admissionType,
+      departmentId,
     } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -38,6 +39,13 @@ export const getAdmissions = async (req: Request, res: Response) => {
       where.admission_type = admissionType;
     }
 
+    if (departmentId && departmentId !== "all") {
+      where.OR = [
+        { departmentId: parseInt(departmentId as string) },
+        { preferredDepartmentId: parseInt(departmentId as string) },
+      ];
+    }
+
     if (search) {
       where.OR = [
         { name: { contains: search as string, mode: "insensitive" } },
@@ -55,6 +63,7 @@ export const getAdmissions = async (req: Request, res: Response) => {
         take: limitNum,
         include: {
           department: true,
+          preferredDepartment: true,
         },
         orderBy: {
           createdAt: "desc",
@@ -84,12 +93,13 @@ export const getAdmissions = async (req: Request, res: Response) => {
 // Get admission statistics
 export const getStats = async (req: Request, res: Response) => {
   try {
-    const [total, pending, approved, rejected, waitlisted] = await Promise.all([
+    const [total, pending, approved, rejected, waitlisted, unassignedApproved] = await Promise.all([
       prisma.student.count(),
       prisma.student.count({ where: { status: StudentStatus.pending } }),
       prisma.student.count({ where: { status: StudentStatus.approved } }),
       prisma.student.count({ where: { status: StudentStatus.rejected } }),
       prisma.student.count({ where: { status: StudentStatus.waitlisted } }),
+      prisma.student.count({ where: { status: StudentStatus.approved, classId: null } }),
     ]);
 
     // Program-wise stats
@@ -122,6 +132,7 @@ export const getStats = async (req: Request, res: Response) => {
         approved,
         rejected,
         waitlisted,
+        unassignedApproved,
         byProgram: {
           btech: btechCount,
           mca: mcaCount,
@@ -1547,6 +1558,35 @@ export const bulkAssignToClass = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: "Failed to assign students to class",
+    });
+  }
+};
+
+// Manually delete stale (pending/rejected/waitlisted) admissions
+export const deleteStaleAdmissions = async (req: Request, res: Response) => {
+  try {
+    const result = await prisma.student.deleteMany({
+      where: {
+        status: {
+          in: [
+            StudentStatus.rejected,
+            StudentStatus.pending,
+            StudentStatus.waitlisted,
+          ],
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully deleted ${result.count} stale student applications.`,
+      deletedCount: result.count,
+    });
+  } catch (error) {
+    console.error("Error manually deleting stale admissions:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to delete stale admissions manually",
     });
   }
 };

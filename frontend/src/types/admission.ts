@@ -54,6 +54,12 @@ export interface AdmissionStudent {
     name: string;
     department_code: string;
   } | null;
+  preferredDepartmentId?: number | null;
+  preferredDepartment?: {
+    id: number;
+    name: string;
+    department_code: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +70,7 @@ export interface AdmissionStats {
   approved: number;
   rejected: number;
   waitlisted: number;
+  unassignedApproved: number;
   byProgram: {
     btech: number;
     mca: number;
