@@ -21,6 +21,7 @@ import {
   bulkAssignToClass,
   getPublicDepartments,
   autoAssignBatch,
+  deleteStaleAdmissions,
 } from "../controllers/admissionController";
 
 const router = express.Router();
@@ -42,6 +43,7 @@ router.get("/admin/admission-windows", getAdmissionWindows);
 router.post("/admin/admission-windows", createAdmissionWindow);
 router.put("/admin/admission-windows/:id", updateAdmissionWindow);
 router.delete("/admin/admission-windows/:id", deleteAdmissionWindow);
+router.delete("/admin/admissions/stale", deleteStaleAdmissions);
 
 // Class assignment routes
 router.get("/admin/approved-students", getApprovedStudentsForAssignment);

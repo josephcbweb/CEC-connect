@@ -14,6 +14,7 @@ export interface AdmissionFilters {
   program?: string;
   search?: string;
   admissionType?: string;
+  departmentId?: string;
 }
 
 export const admissionService = {
@@ -229,6 +230,14 @@ export const admissionService = {
       `${API_BASE}/api/admission/admin/bulk-assign`,
       { studentIds, classId },
       { headers: getAuthHeader() },
+    );
+    return response.data;
+  },
+  // Manually delete stale students
+  deleteStaleAdmissions: async () => {
+    const response = await axios.delete(
+      `${API_BASE}/api/admission/admin/admissions/stale`,
+      { headers: getAuthHeader() }
     );
     return response.data;
   },

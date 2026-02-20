@@ -21,6 +21,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
+  Info,
+  Trash2,
 } from "lucide-react";
 import AdmissionWindowSettings from "./AdmissionWindowSettings";
 
@@ -82,10 +84,11 @@ const AdmissionsPage: React.FC = () => {
   const [filters, setFilters] = useState({
     page: 1,
     limit: 20,
-    status: "all",
+    status: "pending",
     program: "all",
     search: "",
     admissionType: "all",
+    departmentId: "all",
   });
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedStudent, setSelectedStudent] =
@@ -96,6 +99,8 @@ const AdmissionsPage: React.FC = () => {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [showCleanupWarning, setShowCleanupWarning] = useState(false);
 
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -125,18 +130,23 @@ const AdmissionsPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    setSelectedIds([]); // Clear selection when filters change
   }, [filters]);
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
 
   useEffect(() => {
     if (activeTab === "assign-classes") {
       fetchAssignmentData();
-      fetchDepartments();
+      setSelectedApprovedIds([]); // Clear selections when assignment filters change
     }
   }, [activeTab, assignmentProgramFilter, assignmentDepartmentFilter]);
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/department", {
+      const response = await fetch("http://localhost:3000/api/departments", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -244,6 +254,21 @@ const AdmissionsPage: React.FC = () => {
     }
   };
 
+  const handleManualCleanup = async () => {
+    try {
+      setIsCleaningUp(true);
+      const res = await admissionService.deleteStaleAdmissions();
+      showMessage("success", res.message || "Stale applications cleaned up successfully.");
+      await fetchData(); // Refresh the data to reflect changes
+      setShowCleanupWarning(false);
+    } catch (error) {
+      console.error("Error cleaning up stale admissions:", error);
+      showMessage("error", "Failed to clear stale applications.");
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
   const handleAutoAssign = async () => {
     if (selectedApprovedIds.length === 0) {
       showMessage("error", "Please select at least one student");
@@ -280,6 +305,7 @@ const AdmissionsPage: React.FC = () => {
       );
       setSelectedApprovedIds([]);
       await fetchAssignmentData();
+      await fetchData(); // Refresh overall stats for badge counter
     } catch (error: any) {
       console.error("Error auto-assigning students:", error);
       showMessage(
@@ -313,6 +339,7 @@ const AdmissionsPage: React.FC = () => {
       );
       setSelectedApprovedIds([]);
       await fetchAssignmentData();
+      await fetchData(); // Refresh overall stats for badge counter
     } catch (error: any) {
       console.error("Error assigning students:", error);
       showMessage(
@@ -389,17 +416,36 @@ const AdmissionsPage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Admissions Dashboard
-        </h1>
-        <button
-          onClick={() => setShowSettingsModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all transform hover:scale-105"
-        >
-          <Settings className="w-4 h-4" />
-          Manage Windows
-        </button>
+      <div className="flex justify-between items-center relative">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Admissions Dashboard
+          </h1>
+          <div className="group relative flex items-center">
+            <Info className="w-5 h-5 text-gray-400 cursor-help hover:text-teal-600 transition-colors" />
+            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:block w-72 p-3 bg-gray-900 text-white text-xs rounded shadow-lg z-50 animate-fade-in">
+              <strong>Automated Cleanup:</strong> Pending, rejected, and waitlisted applications are automatically removed every year on January 1st.
+              {/* Tooltip arrow */}
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-4 border-transparent border-b-gray-900"></div>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCleanupWarning(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-md text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clean Stale Applications
+          </button>
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all transform hover:scale-105"
+          >
+            <Settings className="w-4 h-4" />
+            Manage Windows
+          </button>
+        </div>
       </div>
 
       {/* Success/Error Message */}
@@ -441,9 +487,9 @@ const AdmissionsPage: React.FC = () => {
           >
             <UserPlus className="w-5 h-5" />
             Assign to Classes
-            {(stats?.approved || 0) > 0 && (
+            {(stats?.unassignedApproved || 0) > 0 && (
               <span className="ml-1 bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-                {stats?.approved}
+                {stats?.unassignedApproved}
               </span>
             )}
           </button>
@@ -551,7 +597,6 @@ const AdmissionsPage: React.FC = () => {
                     setFilters({ ...filters, status: e.target.value, page: 1 })
                   }
                 >
-                  <option value="all">All Status</option>
                   <option value="pending">Pending</option>
                   <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
@@ -580,6 +625,29 @@ const AdmissionsPage: React.FC = () => {
                   <option value="management">Management</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Department
+                </label>
+                <select
+                  className="px-3 py-2 border border-gray-300 rounded-md"
+                  value={filters.departmentId}
+                  onChange={(e) =>
+                    setFilters({
+                      ...filters,
+                      departmentId: e.target.value,
+                      page: 1,
+                    })
+                  }
+                >
+                  <option value="all">All Departments</option>
+                  {availableDepartments.map((dept) => (
+                    <option key={dept.id} value={dept.id.toString()}>
+                      {dept.name} ({dept.department_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
               <button
                 onClick={fetchData}
                 disabled={loading}
@@ -601,22 +669,26 @@ const AdmissionsPage: React.FC = () => {
                 {selectedIds.length} applications selected
               </span>
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleBulkUpdate("approved")}
-                  disabled={bulkUpdating}
-                  className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-all transform hover:scale-105 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {bulkUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Approve Selected
-                </button>
-                <button
-                  onClick={() => handleBulkUpdate("rejected")}
-                  disabled={bulkUpdating}
-                  className="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-all transform hover:scale-105 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {bulkUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Reject Selected
-                </button>
+                {filters.status === "pending" && (
+                  <>
+                    <button
+                      onClick={() => handleBulkUpdate("approved")}
+                      disabled={bulkUpdating}
+                      className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-all transform hover:scale-105 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {bulkUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Approve Selected
+                    </button>
+                    <button
+                      onClick={() => handleBulkUpdate("rejected")}
+                      disabled={bulkUpdating}
+                      className="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-all transform hover:scale-105 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {bulkUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Reject Selected
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setSelectedIds([])}
                   className="px-4 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600 transition-all"
@@ -633,17 +705,19 @@ const AdmissionsPage: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={
-                          selectedIds.length === students.length &&
-                          students.length > 0
-                        }
-                        onChange={toggleSelectAll}
-                        className="rounded"
-                      />
-                    </th>
+                    {filters.status === "pending" && (
+                      <th className="px-4 py-3 text-left w-12">
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedIds.length === students.length &&
+                            students.length > 0
+                          }
+                          onChange={toggleSelectAll}
+                          className="rounded text-teal-600 focus:ring-teal-500"
+                        />
+                      </th>
+                    )}
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Adm. No.
                     </th>
@@ -651,7 +725,7 @@ const AdmissionsPage: React.FC = () => {
                       Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
+                      Department
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Phone
@@ -673,7 +747,7 @@ const AdmissionsPage: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center">
+                      <td colSpan={filters.status === "pending" ? 9 : 8} className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center gap-4">
                           <Loader2 className="w-12 h-12 text-teal-600 animate-spin" />
                           <span className="text-gray-500">
@@ -684,7 +758,7 @@ const AdmissionsPage: React.FC = () => {
                     </tr>
                   ) : students.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center">
+                      <td colSpan={filters.status === "pending" ? 9 : 8} className="px-6 py-12 text-center">
                         <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-500 font-medium">
                           No applications found
@@ -701,14 +775,16 @@ const AdmissionsPage: React.FC = () => {
                         className="hover:bg-gray-50 transition-colors animate-fade-in"
                         style={{ animationDelay: `${index * 50}ms` }}
                       >
-                        <td className="px-4 py-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(student.id)}
-                            onChange={() => toggleSelect(student.id)}
-                            className="rounded"
-                          />
-                        </td>
+                        {filters.status === "pending" && (
+                          <td className="px-4 py-4 w-12">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(student.id)}
+                              onChange={() => toggleSelect(student.id)}
+                              className="rounded text-teal-600 focus:ring-teal-500"
+                            />
+                          </td>
+                        )}
                         <td className="px-6 py-4 text-sm text-gray-900">
                           {student.admission_number || "N/A"}
                         </td>
@@ -716,7 +792,11 @@ const AdmissionsPage: React.FC = () => {
                           {student.name}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {student.email}
+                          {student.allotted_branch && student.allotted_branch !== "Not Assigned"
+                            ? student.allotted_branch
+                            : student.preferredDepartment?.name
+                              ? student.preferredDepartment.name
+                              : student.department?.name || "Not Assigned"}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
                           {student.student_phone_number}
@@ -1600,6 +1680,47 @@ const AdmissionsPage: React.FC = () => {
           animation: slide-down 0.3s ease-out;
         }
       `}</style>
+
+      {/* Manual Cleanup Confirmation Modal */}
+      {showCleanupWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-scale-in">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+              Confirm Manual Cleanup
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to permanently delete all <strong>pending</strong>, <strong>rejected</strong>, and <strong>waitlisted</strong> applications? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowCleanupWarning(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={isCleaningUp}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleManualCleanup}
+                disabled={isCleaningUp}
+                className="px-4 py-2 bg-red-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isCleaningUp ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Cleaning...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Confirm Cleanup
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
