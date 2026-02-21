@@ -280,8 +280,8 @@ async function main(): Promise<void> {
         rawGender === "female"
           ? "female"
           : rawGender === "other"
-          ? "other"
-          : "male"; // default to 'male' if missing/invalid
+            ? "other"
+            : "male"; // default to 'male' if missing/invalid
 
       const programFallback = (row.program || "btech").toString().toLowerCase();
       const statusFallback = (row.status || "approved")
@@ -392,7 +392,6 @@ async function main(): Promise<void> {
         bank_branch: row.bankBranch || null,
 
         admitted_category: row.admittedCategory || null,
-        admission_quota: row.admissionQuota?.toLowerCase() || null,
       };
 
       // await prisma.student.create({ data: studentData });

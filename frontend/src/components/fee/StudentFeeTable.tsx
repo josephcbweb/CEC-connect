@@ -1,7 +1,7 @@
 import React from "react";
-import type { StudentFee, SortConfig } from "../../types";
 import { exportToPDF } from "../../utilities/feereport";
 import { Download } from "lucide-react";
+import type { StudentFee, SortConfig, FilterConfig } from "../../types";
 
 interface StudentFeeTableProps {
   students: StudentFee[];
@@ -13,6 +13,7 @@ interface StudentFeeTableProps {
   onRefresh: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  filters: FilterConfig;
 }
 
 const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
@@ -25,6 +26,7 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
   onRefresh,
   searchQuery,
   onSearchChange,
+  filters,
 }) => {
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -116,7 +118,7 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
               <span>Refresh</span>
             </button>
             <button
-              onClick={() => exportToPDF(students)}
+              onClick={() => exportToPDF(students, filters)}
               className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-md transition-colors duration-200 flex justify-around items-center gap-4 w-[65%]"
             >
               <span className="md:block hidden">Export PDF</span>
@@ -132,7 +134,7 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="pr-4 pl-4 py-3">
+              <th scope="col" className="pr-4 pl-2 py-3">
                 <input
                   type="checkbox"
                   className="h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
@@ -183,9 +185,8 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
             {students.map((student) => (
               <tr
                 key={student.id}
-                className={`hover:bg-gray-50 ${
-                  selectedStudents.includes(student.id) ? "bg-teal-50" : ""
-                }`}
+                className={`hover:bg-gray-50 ${selectedStudents.includes(student.id) ? "bg-teal-50" : ""
+                  }`}
               >
                 <td className="pl-4 py-4">
                   <input

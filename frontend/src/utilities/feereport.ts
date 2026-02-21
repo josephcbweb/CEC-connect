@@ -15,19 +15,64 @@ const formatCurrencyForPDF = (amount: number | string | undefined | null) => {
   return formatted.replace(/\s/g, "");
 };
 
-export const exportToPDF = (students: StudentFee[]) => {
+export const exportToPDF = (students: StudentFee[], filters?: any) => {
   const doc = new jsPDF();
 
   // --- Document Header ---
-  doc.setFontSize(20);
+  doc.setFontSize(22);
   doc.setTextColor("#16a085"); // Teal color
-  doc.text("Student Fee Report", 14, 22);
+  doc.text("Student Fee Report", 14, 20);
+
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text(`Generated on: ${new Date().toLocaleString("en-IN")}`, 14, 30);
+  doc.text(`Generated on: ${new Date().toLocaleString("en-IN")}`, 14, 28);
+
+  // --- Filter Details Section ---
+  let currentY = 35;
+  if (filters) {
+    doc.setDrawColor(200);
+    doc.line(14, currentY, 196, currentY); // Divider line
+    currentY += 8;
+
+    doc.setFontSize(11);
+    doc.setTextColor(50);
+    doc.setFont("helvetica", "bold");
+    doc.text("Applied Filters:", 14, currentY);
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80);
+
+    const activeFilters = [];
+    if (filters.program) activeFilters.push(`Program: ${filters.program}`);
+    if (filters.department) activeFilters.push(`Department: ${filters.department}`);
+    if (filters.semester) activeFilters.push(`Semester: ${filters.semester}`);
+    if (filters.year) activeFilters.push(`Year: ${filters.year}`);
+    if (filters.branch) activeFilters.push(`Branch: ${filters.branch}`);
+    if (filters.category) activeFilters.push(`Category: ${filters.category}`);
+    if (filters.feeStatus) activeFilters.push(`Status: ${filters.feeStatus}`);
+    if (filters.admission_type) activeFilters.push(`Admission: ${filters.admission_type}`);
+
+    // Render filters in a grid-like way or comma-separated
+    if (activeFilters.length > 0) {
+      const filterText = activeFilters.join("  |  ");
+      const splitText = doc.splitTextToSize(filterText, 180);
+      doc.text(splitText, 14, currentY);
+      currentY += (splitText.length * 5);
+    } else {
+      doc.text("None", 14, currentY);
+      currentY += 5;
+    }
+
+    currentY += 5;
+    doc.line(14, currentY, 196, currentY); // Bottom divider
+    currentY += 10;
+  } else {
+    currentY = 40;
+  }
 
   // --- Table Content ---
-  // MODIFIED: Removed the "ID" column from the header
   const tableColumn = [
     "Sl. No.",
     "Name",
@@ -41,8 +86,7 @@ export const exportToPDF = (students: StudentFee[]) => {
 
   students.forEach((student, index) => {
     const studentData = [
-      index + 1, // Serial number for each row
-      // MODIFIED: Removed student.id from the data row
+      index + 1,
       student.name || "N/A",
       student.admission_number || "N/A",
       student.feeStatus
@@ -55,14 +99,13 @@ export const exportToPDF = (students: StudentFee[]) => {
     tableRows.push(studentData);
   });
 
-  // Call autoTable as a function, passing the doc instance.
   autoTable(doc, {
     head: [tableColumn],
     body: tableRows,
-    startY: 40,
+    startY: currentY,
     theme: "grid",
     headStyles: {
-      fillColor: [22, 160, 133], // Teal color for header
+      fillColor: [22, 160, 133],
       textColor: 255,
       fontSize: 10,
     },
@@ -74,15 +117,13 @@ export const exportToPDF = (students: StudentFee[]) => {
     alternateRowStyles: {
       fillColor: [245, 245, 245],
     },
-    // MODIFIED: Adjusted column styles
     columnStyles: {
-      0: { cellWidth: 15 }, // Sl. No.
-      1: { cellWidth: "auto" }, // Name
-      2: { cellWidth: 30 }, // Admission No.
-      // ADDED: Smaller font size for currency columns to prevent overflow
-      4: { fontSize: 8 }, // Total Due
-      5: { fontSize: 8 }, // Total Paid
-      6: { fontSize: 8 }, // Pending
+      0: { cellWidth: 15 },
+      1: { cellWidth: "auto" },
+      2: { cellWidth: 30 },
+      4: { fontSize: 8 },
+      5: { fontSize: 8 },
+      6: { fontSize: 8 },
     },
   });
 
@@ -100,6 +141,5 @@ export const exportToPDF = (students: StudentFee[]) => {
     );
   }
 
-  // --- Save the PDF ---
-  doc.save("student_fee_report.pdf");
+  doc.save(`student_fee_report_${new Date().getTime()}.pdf`);
 };

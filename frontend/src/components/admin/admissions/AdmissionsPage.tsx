@@ -86,7 +86,7 @@ const AdmissionsPage: React.FC = () => {
     page: 1,
     limit: 20,
     status: "pending",
-    program: "all",
+    program: "BTECH",
     search: "",
     admissionType: "all",
     departmentId: "all",
@@ -122,7 +122,7 @@ const AdmissionsPage: React.FC = () => {
   const [selectedApprovedIds, setSelectedApprovedIds] = useState<number[]>([]);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
-  const [assignmentProgramFilter, setAssignmentProgramFilter] = useState("all");
+  const [assignmentProgramFilter, setAssignmentProgramFilter] = useState("BTECH");
   const [assignmentDepartmentFilter, setAssignmentDepartmentFilter] =
     useState<string>("all");
   const [availableDepartments, setAvailableDepartments] = useState<
@@ -134,9 +134,13 @@ const AdmissionsPage: React.FC = () => {
     setSelectedIds([]); // Clear selection when filters change
   }, [filters]);
 
+  const currentProgram = activeTab === "applications" ? filters.program : assignmentProgramFilter;
+
   useEffect(() => {
-    fetchDepartments();
-  }, []);
+    if (currentProgram) {
+      fetchDepartments(currentProgram);
+    }
+  }, [currentProgram]);
 
   useEffect(() => {
     if (activeTab === "assign-classes") {
@@ -145,9 +149,13 @@ const AdmissionsPage: React.FC = () => {
     }
   }, [activeTab, assignmentProgramFilter, assignmentDepartmentFilter]);
 
-  const fetchDepartments = async () => {
+  const fetchDepartments = async (program: string) => {
     try {
-      const response = await fetch("http://localhost:3000/api/departments", {
+      const url = program === "all"
+        ? "http://localhost:3000/api/departments"
+        : `http://localhost:3000/api/departments?program=${program}`;
+
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -221,6 +229,23 @@ const AdmissionsPage: React.FC = () => {
     } catch (error) {
       console.error("Error updating status:", error);
       showMessage("error", "Failed to update status");
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleDeleteEntry = async (id: number) => {
+    if (!confirm("Are you sure you want to permanently delete this admission entry? This action cannot be undone and will remove the student from the database completely.")) {
+      return;
+    }
+    try {
+      setUpdating(id);
+      await admissionService.deleteAdmissionEntry(id);
+      await fetchData();
+      showMessage("success", "Application deleted successfully");
+    } catch (error) {
+      console.error("Error deleting entry:", error);
+      showMessage("error", "Failed to delete application");
     } finally {
       setUpdating(null);
     }
@@ -579,7 +604,7 @@ const AdmissionsPage: React.FC = () => {
                   className="px-3 py-2 border border-gray-300 rounded-md"
                   value={filters.program}
                   onChange={(e) =>
-                    setFilters({ ...filters, program: e.target.value, page: 1 })
+                    setFilters({ ...filters, program: e.target.value, departmentId: "all", page: 1 })
                   }
                 >
                   <option value="all">All Programs</option>
@@ -847,6 +872,18 @@ const AdmissionsPage: React.FC = () => {
                                     <Loader2 className="w-3 h-3 animate-spin" />
                                   )}
                                   Reject
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteEntry(student.id)}
+                                  disabled={updating === student.id}
+                                  className="text-gray-500 hover:text-red-600 font-medium transition-colors disabled:opacity-50 flex items-center gap-1 ml-2"
+                                  title="Permanently Delete Application"
+                                >
+                                  {updating === student.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
                                 </button>
                               </>
                             )}
@@ -1309,7 +1346,12 @@ const AdmissionsPage: React.FC = () => {
                 <select
                   className="px-3 py-2 border border-gray-300 rounded-md"
                   value={assignmentProgramFilter}
-                  onChange={(e) => setAssignmentProgramFilter(e.target.value)}
+                  onChange={(e) => {
+                    const newProgram = e.target.value;
+                    const newFilters = { ...filters, program: newProgram, departmentId: "all", page: 1 };
+                    setFilters(newFilters);
+                    setAssignmentProgramFilter(newProgram);
+                  }}
                 >
                   <option value="all">All Programs</option>
                   {AVAILABLE_PROGRAMS.map((prog) => (

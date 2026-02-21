@@ -278,6 +278,11 @@ export const getPendingApprovals = async (
 
     const whereClause: any = {
       isArchived: false,
+      student: {
+        status: {
+          notIn: [StudentStatus.graduated, StudentStatus.deleted],
+        },
+      },
     };
 
     // Filter by semester
@@ -288,6 +293,7 @@ export const getPendingApprovals = async (
     // Filter by student search
     if (search) {
       whereClause.student = {
+        ...whereClause.student,
         OR: [
           { name: { contains: search as string, mode: "insensitive" } },
           {
@@ -383,8 +389,8 @@ export const getPendingApprovals = async (
       // Filter dues to only show what the staff is allowed to see/act on
       const visibleDues = isSubjectStaff
         ? req.noDues.filter(
-            (d) => d.comments && allowedCourseComments.includes(d.comments),
-          )
+          (d) => d.comments && allowedCourseComments.includes(d.comments),
+        )
         : req.noDues;
 
       return {
@@ -394,7 +400,7 @@ export const getPendingApprovals = async (
         semester: req.targetSemester,
         status:
           visibleDues.every((d) => d.status === "cleared") &&
-          visibleDues.length > 0
+            visibleDues.length > 0
             ? "cleared"
             : "pending",
         dues: visibleDues.map((due) => {

@@ -9,7 +9,7 @@ interface FilterBarProps {
   categories: string[];
   programs: string[];
   genders: string[];
-  admission_quotas: string[]; // Added this line
+  admission_types: string[]; // Changed to admission_types
   feeStatuses: string[];
   years: string[];
   semesters?: string[];
@@ -24,7 +24,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   categories,
   programs,
   genders,
-  admission_quotas, // Destructure the new prop
+  admission_types, // Destructure the new prop
   feeStatuses,
   years,
   semesters = [],
@@ -33,13 +33,34 @@ const FilterBar: React.FC<FilterBarProps> = ({
 }) => {
   const hasActiveFilters = Object.values(filters).some((value) => value !== "");
 
+  const formatOption = (option: string, label?: string) => {
+    if (!option) return option;
+
+    // Category values should be all caps
+    if (label === "Category") {
+      return option.toUpperCase();
+    }
+
+    // Special handling for common acronyms
+    const acronyms = ["NRI", "BTECH", "MTECH", "MCA", "HOD", "TC", "SC", "ST", "OBC"];
+    if (acronyms.includes(option.toUpperCase())) {
+      return option.toUpperCase();
+    }
+
+    return option
+      .split(/[_\s-]/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
+
   // Reusable component for dropdowns to keep code DRY
   const FilterDropdown: React.FC<{
     label: string;
     filterKey: keyof FilterConfig;
     options: string[];
     placeholder: string;
-  }> = ({ label, filterKey, options, placeholder }) => (
+    showAllOption?: boolean;
+  }> = ({ label, filterKey, options, placeholder, showAllOption = true }) => (
     <div className="relative z-10">
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {label}
@@ -49,14 +70,14 @@ const FilterBar: React.FC<FilterBarProps> = ({
         onChange={(e) => onFilterChange(filterKey, e.target.value)}
         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-150 ease-in-out"
       >
-        <option value="">{placeholder}</option>
+        {showAllOption && <option value="">{placeholder}</option>}
         {options.map((option) => (
           <option key={option} value={option}>
             {label === "Year"
               ? `Year ${option}`
               : label === "Semester"
                 ? `Semester ${option}`
-                : option}
+                : formatOption(option, label)}
           </option>
         ))}
       </select>
@@ -79,34 +100,32 @@ const FilterBar: React.FC<FilterBarProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4">
         <FilterDropdown
-          label="Department"
-          filterKey="department"
-          options={departments}
-          placeholder="All Departments"
-        />
-        {/* <FilterDropdown
-          label="Branch"
-          filterKey="branch"
-          options={branches}
-          placeholder="All Branches"
-        /> */}
-        <FilterDropdown
           label="Program"
           filterKey="program"
           options={programs}
           placeholder="All Programs"
+          showAllOption={false}
+        />
+        <FilterDropdown
+          label="Department"
+          filterKey="department"
+          options={departments}
+          placeholder="All Departments"
+          showAllOption={false}
         />
         <FilterDropdown
           label="Year"
           filterKey="year"
           options={years}
           placeholder="All Years"
+          showAllOption={false}
         />
         <FilterDropdown
           label="Semester"
           filterKey="semester"
           options={semesters}
           placeholder="All Semesters"
+          showAllOption={false}
         />
         <FilterDropdown
           label="Category"
@@ -120,12 +139,12 @@ const FilterBar: React.FC<FilterBarProps> = ({
           options={genders}
           placeholder="All Genders"
         />
-        {/* New Admission Quota Filter */}
+        {/* New Admission Type Filter */}
         <FilterDropdown
-          label="Admission Quota"
-          filterKey="admission_quota"
-          options={admission_quotas}
-          placeholder="All Quotas"
+          label="Admission Type"
+          filterKey="admission_type"
+          options={admission_types}
+          placeholder="All Types"
         />
         <FilterDropdown
           label="Fee Status"

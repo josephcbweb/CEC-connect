@@ -36,11 +36,27 @@ const AssignFeeModal: React.FC<AssignFeeModalProps> = ({
     fetchFeeStructures();
   }, []);
 
+  const getTomorrowStr = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  };
+
   const handleSubmit = async () => {
     if (!selectedFeeId || !dueDate) {
       setError("Please select a fee structure and a due date.");
       return;
     }
+
+    const selectedDate = new Date(dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate <= today) {
+      setError("Please select a future date (at least tomorrow).");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -74,6 +90,19 @@ const AssignFeeModal: React.FC<AssignFeeModalProps> = ({
         </h2>
         {loading ? (
           <p>Loading fee structures...</p>
+        ) : feeStructures.length === 0 ? (
+          <div className="text-center py-4">
+            <svg
+              className="mx-auto h-12 w-12 text-yellow-500 mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-lg text-gray-800 font-medium mb-2">No Fee Structures Found</p>
+            <p className="text-sm text-gray-600">Please create a fee structure from the Manage Fee Structures panel before assigning fees to students.</p>
+          </div>
         ) : (
           <div className="space-y-4">
             <div>
@@ -108,6 +137,7 @@ const AssignFeeModal: React.FC<AssignFeeModalProps> = ({
                 type="date"
                 id="dueDate"
                 value={dueDate}
+                min={getTomorrowStr()}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="mt-1 focus:ring-teal-500 focus:border-teal-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
               />
@@ -124,8 +154,8 @@ const AssignFeeModal: React.FC<AssignFeeModalProps> = ({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={submitting || loading}
-            className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 disabled:bg-teal-400"
+            disabled={submitting || loading || feeStructures.length === 0}
+            className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 disabled:bg-teal-400 disabled:cursor-not-allowed"
           >
             {submitting ? "Assigning..." : "Assign Fee"}
           </button>

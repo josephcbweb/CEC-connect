@@ -22,6 +22,7 @@ import {
   getPublicDepartments,
   autoAssignBatch,
   deleteStaleAdmissions,
+  deleteAdmissionEntry,
 } from "../controllers/admissionController";
 
 const router = express.Router();
@@ -38,6 +39,7 @@ router.get("/admin/admissions", getAdmissions);
 router.get("/admin/stats", getStats);
 router.get("/admin/admissions/:id", getAdmissionById);
 router.put("/admin/admissions/:id/status", updateAdmissionStatus);
+router.delete("/admin/admissions/:id", deleteAdmissionEntry);
 router.post("/admin/admissions/bulk-update", bulkUpdateStatus);
 router.get("/admin/admission-windows", getAdmissionWindows);
 router.post("/admin/admission-windows", createAdmissionWindow);

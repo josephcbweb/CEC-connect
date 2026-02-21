@@ -105,9 +105,32 @@ export const getBatchById = async (req: Request, res: Response) => {
             });
         }
 
+        // Fetch all departments that match the batch's program but are not yet linked to this batch
+        const program = batch.admissionWindow?.program;
+        let availableDepartments: any[] = [];
+
+        if (program) {
+            const linkedDeptIds = batch.batchDepartments.map(bd => bd.department.id);
+            availableDepartments = await prisma.department.findMany({
+                where: {
+                    program: program,
+                    id: { notIn: linkedDeptIds },
+                    status: "ACTIVE"
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    department_code: true,
+                }
+            });
+        }
+
         res.json({
             success: true,
-            data: batch,
+            data: {
+                ...batch,
+                availableDepartments
+            },
         });
     } catch (error) {
         console.error("Error fetching batch:", error);
@@ -337,6 +360,88 @@ export const deleteClass = async (req: Request, res: Response) => {
         res.status(500).json({
             success: false,
             error: "Failed to delete class",
+        });
+    }
+};
+
+/**
+ * Add a department to an existing batch
+ */
+export const addDepartmentToBatch = async (req: Request, res: Response) => {
+    try {
+        const { id: batchId } = req.params;
+        const { departmentId } = req.body;
+
+        if (!batchId || !departmentId) {
+            return res.status(400).json({
+                success: false,
+                error: "Batch ID and Department ID are required",
+            });
+        }
+
+        // Check if batch exists
+        const batch = await prisma.batch.findUnique({
+            where: { id: parseInt(batchId) },
+        });
+
+        if (!batch) {
+            return res.status(404).json({
+                success: false,
+                error: "Batch not found",
+            });
+        }
+
+        // Check if relationship already exists
+        const existing = await prisma.batchDepartment.findUnique({
+            where: {
+                batchId_departmentId: {
+                    batchId: parseInt(batchId),
+                    departmentId: parseInt(departmentId),
+                },
+            },
+        });
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                error: "Department is already part of this batch",
+            });
+        }
+
+        const newBatchDept = await prisma.batchDepartment.create({
+            data: {
+                batchId: parseInt(batchId),
+                departmentId: parseInt(departmentId),
+            },
+            include: {
+                department: true,
+                classes: {
+                    include: {
+                        advisor: {
+                            select: {
+                                id: true,
+                                username: true,
+                                email: true,
+                            },
+                        },
+                        _count: {
+                            select: { students: true },
+                        },
+                    },
+                },
+            },
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "Department added to batch successfully",
+            data: newBatchDept,
+        });
+    } catch (error) {
+        console.error("Error adding department to batch:", error);
+        res.status(500).json({
+            success: false,
+            error: "Failed to add department to batch",
         });
     }
 };

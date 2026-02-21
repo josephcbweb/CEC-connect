@@ -4,6 +4,11 @@ import { prisma } from "../lib/prisma";
 export const getStudents = async (req: Request, res: Response) => {
   try {
     const result = await prisma.student.findMany({
+      where: {
+        status: {
+          notIn: ["graduated", "deleted"],
+        },
+      },
       include: {
         department: true,
         invoices: { include: { FeeStructure: true } },
@@ -121,7 +126,6 @@ export const getStudentProfile = async (req: Request, res: Response) => {
       guardianPhone: student.local_guardian_phone_number,
 
       admittedCategory: student.admitted_category,
-      admissionQuota: student.admission_quota,
 
       physics: student.physics_score,
       chemistry: student.chemistry_score,
@@ -139,19 +143,19 @@ export const getStudentProfile = async (req: Request, res: Response) => {
       bus_service: student.bus_service,
       busDetails: student.bus
         ? {
-            busName: student.bus.busName,
-            busNumber: student.bus.busNumber,
-            stopName: student.busStop?.stopName,
-            feeAmount: student.busStop?.feeAmount,
-          }
+          busName: student.bus.busName,
+          busNumber: student.bus.busNumber,
+          stopName: student.busStop?.stopName,
+          feeAmount: student.busStop?.feeAmount,
+        }
         : null,
       pendingBusRequest: pendingBusRequest
         ? {
-            id: pendingBusRequest.id,
-            busName: pendingBusRequest.bus.busName,
-            stopName: pendingBusRequest.busStop.stopName,
-            status: pendingBusRequest.status,
-          }
+          id: pendingBusRequest.id,
+          busName: pendingBusRequest.bus.busName,
+          stopName: pendingBusRequest.busStop.stopName,
+          status: pendingBusRequest.status,
+        }
         : null,
     };
     console.log(formattedStudent);

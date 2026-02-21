@@ -1,4 +1,4 @@
-import { useParams,useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
   User,
@@ -73,7 +73,7 @@ const StudentDetails = () => {
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
           <div className="flex items-center justify-between">
-            
+
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {personalDetails.name}
@@ -100,7 +100,7 @@ const StudentDetails = () => {
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Personal Details</h2>
             </div>
-            
+
             <div className="space-y-4">
               <DetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={personalDetails.email} />
               <DetailItem icon={<Calendar className="h-5 w-5" />} label="Date of Birth" value={new Date(personalDetails.dateOfBirth).toLocaleDateString()} />
@@ -109,7 +109,7 @@ const StudentDetails = () => {
               <DetailItem icon={<Phone className="h-5 w-5" />} label="Phone" value={personalDetails.phone} />
               <DetailItem icon={<Globe className="h-5 w-5" />} label="Nationality" value={personalDetails.nationality} />
               <DetailItem icon={<CreditCard className="h-5 w-5" />} label="Aadhaar Number" value={personalDetails.aadhaarNumber} />
-              
+
               {/* Address Information */}
               <div className="pt-2 border-t border-gray-100">
                 <DetailItem icon={<MapPin className="h-5 w-5" />} label="Permanent Address" value={personalDetails.permanentAddress} />
@@ -126,7 +126,7 @@ const StudentDetails = () => {
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Family Information</h2>
             </div>
-            
+
             <div className="space-y-4">
               <DetailItem icon={<User className="h-5 w-5" />} label="Father Name" value={personalDetails.fatherName} />
               <DetailItem icon={<Phone className="h-5 w-5" />} label="Father Phone" value={personalDetails.fatherPhone} />
@@ -151,13 +151,12 @@ const StudentDetails = () => {
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Admission Details</h2>
             </div>
-            
+
             <div className="space-y-4">
               <DetailItem icon={<BookOpen className="h-5 w-5" />} label="Program" value={personalDetails.program} />
               <DetailItem icon={<Building className="h-5 w-5" />} label="Department" value={personalDetails.department} />
               <DetailItem icon={<Award className="h-5 w-5" />} label="Year" value={personalDetails.year} />
-              <DetailItem icon={<Shield className="h-5 w-5" />} label="Admitted Category" value={personalDetails.admittedCategory} />
-              <DetailItem icon={<Users className="h-5 w-5" />} label="Admission Quota" value={personalDetails.admissionQuota} />
+              <DetailItem icon={<Users className="h-5 w-5" />} label="Admission Type" value={personalDetails.admission_type} />
             </div>
           </div>
 
@@ -169,7 +168,7 @@ const StudentDetails = () => {
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Academic Details</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -189,7 +188,7 @@ const StudentDetails = () => {
                   <p className="text-lg font-semibold text-gray-900">{academicDetails.keamTotal}</p>
                 </div>
               </div>
-              
+
               <DetailItem icon={<Award className="h-5 w-5" />} label="Entrance Total Score" value={academicDetails.entranceTotal} />
               <DetailItem icon={<School className="h-5 w-5" />} label="Previous Institution" value={academicDetails.previousInstitution} />
               <DetailItem icon={<Award className="h-5 w-5" />} label="Previous Percentage" value={academicDetails.previousPercentage} />
@@ -204,7 +203,7 @@ const StudentDetails = () => {
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Bank Details</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-gradient-to-br from-emerald-50 to-blue-50 p-6 rounded-xl border border-emerald-100">
                 <p className="text-sm text-gray-600 mb-2">Account Number</p>

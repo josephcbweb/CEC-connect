@@ -320,8 +320,8 @@ async function main(): Promise<void> {
           rawGender === "female"
             ? "female"
             : rawGender === "other"
-            ? "other"
-            : "male";
+              ? "other"
+              : "male";
 
         const programFallback = (row.program || "btech")
           .toString()
@@ -421,7 +421,6 @@ async function main(): Promise<void> {
           ifsc_code: row.ifscCode || null,
           bank_branch: row.bankBranch || null,
           admitted_category: row.admittedCategory || null,
-          admission_quota: row.admissionQuota?.toLowerCase() || null,
         };
 
         await prisma.student.create({ data: studentData });

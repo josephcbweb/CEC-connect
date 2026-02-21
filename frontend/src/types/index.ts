@@ -8,8 +8,10 @@ export interface Student {
   program: string;
   currentSemester?: number; // Added currentSemester
   allotted_branch: string;
-  admission_quota: string;
-  category: string | null;
+  admitted_category: string | null;
+  entrance_total_score: number | null;
+  admission_type: string;
+  category: string;
   fatherName: string | null;
   father_phone_number: string | null;
   motherName: string | null;
@@ -73,12 +75,12 @@ export interface SortConfig {
 
 export interface FilterConfig {
   department: string;
-  branch: string;
+  branch: string; // Added branch
   category: string;
   gender: string;
   feeStatus: string;
   program: string;
   year: string;
   semester: string; // Added semester
-  admission_quota: string;
+  admission_type: string;
 }
