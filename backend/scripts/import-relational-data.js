@@ -169,7 +169,6 @@ async function main() {
             allottedBranch: row.allottedBranch,
             admissionDate: parseCustomDate(row.admissionDate),
             admissionType: row.admissionType?.toLowerCase(),
-            admissionQuota: row.admissionQuota?.toLowerCase() || null,
             admittedCategory: row.admittedCategory || null,
             entranceType: row.entranceType || null,
             isFeeConcessionEligible:

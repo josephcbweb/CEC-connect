@@ -139,7 +139,6 @@ model Student {
   ifsc_code                           String?
   bank_branch                         String?
   admitted_category                   String?
-  admission_quota                     String?
   bus_service                         Boolean         @default(false)
   hostel_service                      Boolean         @default(false)
   busId                               Int?            @map("bus_id")

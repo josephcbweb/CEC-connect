@@ -6,6 +6,7 @@ import {
     createClass,
     updateClass,
     deleteClass,
+    addDepartmentToBatch,
 } from "../controllers/batchController";
 
 const router = express.Router();
@@ -13,6 +14,7 @@ const router = express.Router();
 // Batch routes
 router.get("/batches", getAllBatches);
 router.get("/batches/:id", getBatchById);
+router.post("/batches/:id/departments", addDepartmentToBatch);
 
 // Available advisors
 router.get("/users/available-advisors", getAvailableAdvisors);

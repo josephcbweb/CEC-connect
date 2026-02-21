@@ -115,11 +115,10 @@ const StudentProfile: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
                       ? "border-indigo-600 text-indigo-600"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -313,11 +312,11 @@ const StudentProfile: React.FC = () => {
         </div>
       </div>
       <EditStudentModal
-  isOpen={isEditOpen}
-  onClose={() => setIsEditOpen(false)}
-  student={student}
-  onSuccess={fetchStudentData}
-/>
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        student={student}
+        onSuccess={fetchStudentData}
+      />
 
     </div>
   );

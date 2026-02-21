@@ -22,7 +22,7 @@ interface AnalyticsData {
   totalDepartments: number;
   totalRevenue: number;
   totalPending: number;
-  studentsByDept: { name: string; value: number }[];
+  studentsByProgram: { name: string; value: number }[];
   monthlyCollections: { month: string; collected: number; pending: number }[];
   admissionTrend: { year: string; count: number }[];
   recentInvoices: Invoice[];
@@ -37,18 +37,19 @@ const AnalyticsDashboard: React.FC = () => {
     const fetchAnalyticsData = async () => {
       try {
         setLoading(true);
-        // OPTIMIZATION: Fetch all student data, which now includes invoices, in a single call.
-        const response = await fetch(
-          "http://localhost:3000/students/all?include=department,invoices"
-        );
+        const [studentsRes, deptsRes] = await Promise.all([
+          fetch("http://localhost:3000/students/all?include=department,invoices"),
+          fetch("http://localhost:3000/api/departments")
+        ]);
 
-        if (!response.ok) {
+        if (!studentsRes.ok || !deptsRes.ok) {
           throw new Error(
-            "Failed to fetch student and fee data from the server."
+            "Failed to fetch data from the server."
           );
         }
 
-        const students: Student[] = await response.json();
+        const students: Student[] = await studentsRes.json();
+        const departments: any[] = await deptsRes.json();
 
         // --- Create a flat list of all invoices from the students data ---
         const allInvoices: Invoice[] = students.flatMap(
@@ -57,6 +58,18 @@ const AnalyticsDashboard: React.FC = () => {
 
         // --- Process Data for Analytics ---
         const totalStudents = students.length;
+        const totalDepartments = departments.length;
+
+        // Count students in each program
+        const programCounts = students.reduce((acc, student) => {
+          const prog = student.program || "Unknown";
+          acc[prog] = (acc[prog] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const studentsByProgram = Object.entries(programCounts).map(
+          ([name, value]) => ({ name, value })
+        );
 
         // FIX: Ensure all calculations use parseFloat to handle decimal-to-string conversion from Prisma.
         const totalRevenue = allInvoices
@@ -66,12 +79,6 @@ const AnalyticsDashboard: React.FC = () => {
         const totalPending = allInvoices
           .filter((inv) => inv.status !== "paid")
           .reduce((sum, inv) => sum + parseFloat(inv.amount as any), 0);
-
-        const studentsByDept = students.reduce((acc, student) => {
-          const deptName = student.department?.name || "No Department";
-          acc[deptName] = (acc[deptName] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
 
         const monthlyCollections = allInvoices.reduce((acc, inv) => {
           const date = new Date(inv.issueDate);
@@ -100,12 +107,10 @@ const AnalyticsDashboard: React.FC = () => {
 
         setData({
           totalStudents,
-          totalDepartments: Object.keys(studentsByDept).length,
+          totalDepartments,
           totalRevenue,
           totalPending,
-          studentsByDept: Object.entries(studentsByDept).map(
-            ([name, value]) => ({ name, value })
-          ),
+          studentsByProgram,
           monthlyCollections: Object.values(monthlyCollections).sort(
             (a, b) => new Date(a.month).getTime() - new Date(b.month).getTime()
           ),
@@ -197,12 +202,12 @@ const AnalyticsDashboard: React.FC = () => {
         </div>
         <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border">
           <h3 className="font-semibold text-lg mb-4">
-            Student Distribution by Department
+            Student Distribution by Program
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={data.studentsByDept}
+                data={data.studentsByProgram}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -211,7 +216,7 @@ const AnalyticsDashboard: React.FC = () => {
                 fill="#8884d8"
                 label
               >
-                {data.studentsByDept.map((entry, index) => (
+                {data.studentsByProgram.map((_, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={PIE_COLORS[index % PIE_COLORS.length]}
@@ -261,11 +266,10 @@ const AnalyticsDashboard: React.FC = () => {
                 <div className="text-right">
                   <p className="font-semibold">{formatCurrency(inv.amount)}</p>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-xs ${
-                      inv.status === "paid"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
+                    className={`px-2 py-0.5 rounded-full text-xs ${inv.status === "paid"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-yellow-100 text-yellow-800"
+                      }`}
                   >
                     {inv.status}
                   </span>

@@ -29,6 +29,11 @@ export const getAdmissions = async (req: Request, res: Response) => {
 
     if (status && status !== "all") {
       where.status = status;
+    } else {
+      // Exclude graduated and deleted when showing "all" or no status
+      where.status = {
+        notIn: [StudentStatus.graduated, StudentStatus.deleted],
+      };
     }
 
     if (program && program !== "all") {
@@ -287,6 +292,39 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
     res
       .status(500)
       .json({ success: false, error: "Failed to update admission status" });
+  }
+};
+
+// Delete admission entry
+export const deleteAdmissionEntry = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const studentId = parseInt(id);
+
+    // Verify student exists and is pending
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+    });
+
+    if (!student) {
+      return res.status(404).json({ success: false, error: "Admission entry not found" });
+    }
+
+    if (student.status !== "pending") {
+      return res.status(400).json({ success: false, error: "Only pending applications can be deleted" });
+    }
+
+    await prisma.student.delete({
+      where: { id: studentId },
+    });
+
+    res.json({
+      success: true,
+      message: "Application deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting admission entry:", error);
+    res.status(500).json({ success: false, error: "Failed to delete admission entry" });
   }
 };
 
@@ -989,8 +1027,8 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
 
         // Education Info
         last_institution: formData.qualifyingSchool || "Not Specified",
-        qualifying_exam_name: formData.qualifyingExam,
-        qualifying_exam_register_no: formData.qualifyingExamRegisterNo,
+        qualifying_exam_name: formData.qualifyingExam || formData.bachelorDegree || "Not Specified",
+        qualifying_exam_register_no: formData.qualifyingExamRegisterNo || null,
         physics_score: formData.physicsScore
           ? parseFloat(formData.physicsScore)
           : null,
@@ -1031,7 +1069,6 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
 
         // Additional Info
         category: formData.category || "General",
-        admission_quota: formData.admissionQuota || "general",
         admitted_category: formData.admittedCategory || formData.category,
 
         // System fields

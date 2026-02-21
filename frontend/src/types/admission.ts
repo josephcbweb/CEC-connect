@@ -47,8 +47,7 @@ export interface AdmissionStudent {
   bank_name?: string;
   ifsc_code?: string;
   bank_branch?: string;
-  category?: string;
-  admission_quota?: string;
+  admitted_category?: string;
   department?: {
     id: number;
     name: string;
@@ -163,8 +162,7 @@ export interface AdmissionFormData {
     bankBranch: string;
   };
   additionalInfo: {
-    category: string;
-    admissionQuota: string;
+    admittedCategory: string;
     feeConcessionEligible?: boolean;
     allottedBranch?: string;
   };

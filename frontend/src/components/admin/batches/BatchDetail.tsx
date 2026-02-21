@@ -9,6 +9,7 @@ import {
     X,
     Trash2,
     Calendar,
+    Building,
 } from "lucide-react";
 
 interface Advisor {
@@ -43,6 +44,7 @@ interface Batch {
     endYear: number;
     status: string;
     batchDepartments: BatchDepartment[];
+    availableDepartments: Department[];
     admissionWindow: {
         program: "BTECH" | "MCA" | "MTECH";
     } | null;
@@ -110,6 +112,25 @@ const BatchDetail = () => {
         const dept = batch?.batchDepartments.find((bd) => bd.id === selectedDeptId);
         if (!dept) return "---";
         return `${dept.department.department_code}${suffix.trim().toUpperCase()}`;
+    };
+
+    const handleAddDepartment = async (deptId: number) => {
+        try {
+            const response = await fetch(`${API_BASE}/api/batches/${id}/departments`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ departmentId: deptId }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                fetchBatchDetails();
+            } else {
+                alert(data.error || "Failed to add department");
+            }
+        } catch (error) {
+            console.error("Error adding department:", error);
+            alert("Failed to add department");
+        }
     };
 
     const handleSubmitClass = async () => {
@@ -337,6 +358,37 @@ const BatchDetail = () => {
                 ))}
             </div>
 
+            {/* Available Departments (Program-specific) */}
+            {batch.availableDepartments && batch.availableDepartments.length > 0 && (
+                <div className="mt-12">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Building className="w-5 h-5 text-gray-400" />
+                        <h2 className="text-lg font-semibold text-gray-700">Available Departments for {batch.admissionWindow?.program}</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {batch.availableDepartments.map((dept) => (
+                            <div
+                                key={dept.id}
+                                className="bg-gray-50 border border-gray-200 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:bg-white hover:border-indigo-300 transition-all group"
+                            >
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm border border-gray-100 group-hover:scale-110 transition-transform">
+                                    <Building className="w-6 h-6 text-indigo-400" />
+                                </div>
+                                <h3 className="font-semibold text-gray-800 mb-1">{dept.name}</h3>
+                                <p className="text-xs text-gray-500 mb-4 uppercase tracking-wider">{dept.department_code}</p>
+                                <button
+                                    onClick={() => handleAddDepartment(dept.id)}
+                                    className="px-4 py-2 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center gap-2"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Add to Batch
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Add Class Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -423,7 +475,7 @@ const BatchDetail = () => {
                             <button
                                 onClick={handleSubmitClass}
                                 disabled={submitting || !suffix.trim()}
-                                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+                                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                                 Create Class

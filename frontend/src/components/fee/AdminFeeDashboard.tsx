@@ -6,7 +6,6 @@ import StatsCards from "./StatsCards";
 import AssignFeeModal from "./AssignFeeModal";
 import StudentDetailsModal from "./StudentDetailsModal";
 import type { Student, StudentFee, SortConfig } from "../../types";
-import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
 
 interface FilterConfig {
@@ -18,7 +17,7 @@ interface FilterConfig {
   program: string;
   year: string;
   semester: string;
-  admission_quota: string;
+  admission_type: string;
 }
 
 const getUniqueValues = <T, K extends keyof T>(
@@ -46,7 +45,7 @@ const AdminFeesDashboard: React.FC = () => {
     program: "",
     year: "",
     semester: "",
-    admission_quota: "",
+    admission_type: "",
   });
   const navigate = useNavigate();
   const token = localStorage.getItem("authToken");
@@ -60,6 +59,9 @@ const AdminFeesDashboard: React.FC = () => {
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState<boolean>(false);
   const [viewingStudent, setViewingStudent] = useState<StudentFee | null>(null);
+  const [availableDepartments, setAvailableDepartments] = useState<
+    { id: number; name: string; department_code: string }[]
+  >([]);
 
   const fetchStudents = async (): Promise<void> => {
     try {
@@ -130,8 +132,8 @@ const AdminFeesDashboard: React.FC = () => {
         return false;
       if (filters.program && student.program !== filters.program) return false;
       if (
-        filters.admission_quota &&
-        student.admission_quota !== filters.admission_quota
+        filters.admission_type &&
+        student.admission_type !== filters.admission_type
       )
         return false;
       if (
@@ -171,19 +173,24 @@ const AdminFeesDashboard: React.FC = () => {
 
   const handleFilterChange = (key: keyof FilterConfig, value: string): void => {
     setFilters((prev) => ({ ...prev, [key]: value }));
+    setSelectedStudents([]);
   };
 
   const clearFilters = (): void => {
+    const allPrograms = getUniqueValues(students, "program");
+    const firstProgram = allPrograms[0] || "";
+    const validDeptNames = availableDepartments.map((d) => d.name);
+
     setFilters({
-      department: "",
+      department: validDeptNames[0] || "",
       branch: "",
       category: "",
       gender: "",
       feeStatus: "",
-      program: "",
-      year: "",
-      semester: "",
-      admission_quota: "",
+      program: firstProgram,
+      year: "1",
+      semester: "1",
+      admission_type: "",
     });
     setSearchQuery("");
   };
@@ -195,23 +202,107 @@ const AdminFeesDashboard: React.FC = () => {
     fetchStudents();
   };
 
-  const filterOptions = useMemo(
-    () => ({
-      departments: getUniqueValues(
-        students.filter((s) => s.department).map((s) => s.department),
-        "name",
-      ),
+  const fetchDepartments = async (program: string) => {
+    try {
+      const url =
+        program === "all" || !program
+          ? "http://localhost:3000/api/departments"
+          : `http://localhost:3000/api/departments?program=${program}`;
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch departments");
+      const data = await response.json();
+      console.log("FETCHED DEPARTMENTS API RESPONSE:", data);
+      const depts = Array.isArray(data) ? data : data.data || [];
+      console.log("PARSED INTO AVAILABLE DEPARTMENTS:", depts);
+      setAvailableDepartments(depts);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      setAvailableDepartments([]);
+    }
+  };
+
+  useEffect(() => {
+    if (students.length > 0 && !filters.program) {
+      const allPrograms = getUniqueValues(students, "program");
+      const firstProgram = allPrograms[0] || "";
+
+      setFilters((prev) => ({
+        ...prev,
+        program: firstProgram,
+        year: "1",
+        semester: "1",
+      }));
+    }
+  }, [students]);
+
+  useEffect(() => {
+    if (filters.program) {
+      fetchDepartments(filters.program);
+    } else if (students.length > 0) {
+      // Should not hit widely due to upper useEffect, but safety net
+      const allPrograms = getUniqueValues(students, "program");
+      if (allPrograms[0]) fetchDepartments(allPrograms[0]);
+    }
+  }, [filters.program, students.length]);
+
+  useEffect(() => {
+    if (availableDepartments.length > 0) {
+      const validDeptNames = availableDepartments.map((d) => d.name);
+      if (!filters.department || !validDeptNames.includes(filters.department)) {
+        setFilters((prev) => ({
+          ...prev,
+          department: validDeptNames[0] || "",
+        }));
+      }
+    } else if (availableDepartments.length === 0 && filters.department !== "") {
+      setFilters((prev) => ({ ...prev, department: "" }));
+    }
+  }, [availableDepartments]);
+
+  useEffect(() => {
+    const isPG = filters.program === "MCA" || filters.program === "MTECH";
+    const maxYear = isPG ? 2 : 4;
+    const maxSem = isPG ? 4 : 8;
+
+    setFilters((prev) => {
+      let updated = false;
+      const next = { ...prev };
+      if (Number(prev.year) > maxYear) {
+        next.year = "1";
+        updated = true;
+      }
+      if (Number(prev.semester) > maxSem) {
+        next.semester = "1";
+        updated = true;
+      }
+      return updated ? next : prev;
+    });
+  }, [filters.program]);
+
+  const filterOptions = useMemo(() => {
+    const allPrograms = getUniqueValues(students, "program");
+    const currentProgram = filters.program || allPrograms[0] || "";
+    const isPG = currentProgram === "MCA" || currentProgram === "MTECH";
+
+    return {
+      departments: availableDepartments.map((d) => d.name),
       branches: getUniqueValues(students, "allotted_branch"),
       categories: getUniqueValues(students, "category"),
-      programs: getUniqueValues(students, "program"),
+      programs: allPrograms,
       genders: getUniqueValues(students, "gender"),
-      admission_quotas: getUniqueValues(students, "admission_quota"),
+      admission_types: getUniqueValues(students, "admission_type"),
       feeStatuses: ["pending", "due", "paid", "overdue"],
-      years: ["1", "2", "3", "4"],
-      semesters: ["1", "2", "3", "4", "5", "6", "7", "8"],
-    }),
-    [students],
-  );
+      years: isPG ? ["1", "2"] : ["1", "2", "3", "4"],
+      semesters: isPG
+        ? ["1", "2", "3", "4"]
+        : ["1", "2", "3", "4", "5", "6", "7", "8"],
+    };
+  }, [students, availableDepartments, filters.program]);
 
   if (loading) {
     return (
@@ -224,9 +315,8 @@ const AdminFeesDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">
       <div
-        className={`transition-transform duration-500 ease-in-out ${
-          showFeeStructures ? "-translate-x-full" : "translate-x-0"
-        }`}
+        className={`transition-transform duration-500 ease-in-out ${showFeeStructures ? "-translate-x-full" : "translate-x-0"
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-8">
@@ -291,14 +381,14 @@ const AdminFeesDashboard: React.FC = () => {
             onRefresh={fetchStudents}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            filters={filters}
           />
         </div>
       </div>
 
       <div
-        className={`fixed inset-0 bg-white z-50 transition-transform duration-500 ease-in-out ${
-          showFeeStructures ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed inset-0 bg-white z-50 transition-transform duration-500 ease-in-out ${showFeeStructures ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <FeeStructuresPanel onClose={() => setShowFeeStructures(false)} />
       </div>

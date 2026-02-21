@@ -50,6 +50,15 @@ export const admissionService = {
     return response.data;
   },
 
+  // Delete admission entry
+  deleteAdmissionEntry: async (id: number) => {
+    const response = await axios.delete(
+      `${API_BASE}/api/admission/admin/admissions/${id}`,
+      { headers: getAuthHeader() },
+    );
+    return response.data;
+  },
+
   // Bulk update status
   bulkUpdateStatus: async (ids: number[], status: string) => {
     const response = await axios.post(

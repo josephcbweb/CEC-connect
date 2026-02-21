@@ -3,13 +3,24 @@ import { prisma } from "../lib/prisma";
 
 export const fetchStats = async (req: Request, res: Response) => {
   try {
-    const totalStudents = await prisma.student.count();
+    const totalStudents = await prisma.student.count({
+      where: {
+        status: {
+          notIn: ["graduated", "deleted"],
+        },
+      },
+    });
     const departmentStats = await prisma.department.findMany({
       select: {
         name: true,
         students: {
+          where: {
+            status: {
+              notIn: ["graduated", "deleted"],
+            },
+          },
           select: {
-            id: true, // Just to count
+            id: true,
           },
         },
       },
@@ -42,7 +53,11 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
     if (statusFilter === "graduated") {
       whereCondition = { status: "graduated" };
     } else if (statusFilter === "all") {
-      whereCondition = {}; // fetch all statuses check if exclusion is needed
+      whereCondition = {
+        status: {
+          notIn: ["graduated", "deleted"],
+        },
+      }; // fetch all active statuses
     }
 
     // Only fetch students that match the status
@@ -272,8 +287,7 @@ export const getStudentDetails = async (req: Request, res: Response) => {
         guardianName: student.guardian_name,
         guardianAddress: student.local_guardian_address,
         guardianPhone: student.local_guardian_phone_number,
-        admittedCategory: student.admitted_category,
-        admissionQuota: student.admission_quota,
+        admittedCategory: student.admitted_category
       },
       academicDetails: {
         physics: student.physics_score,
