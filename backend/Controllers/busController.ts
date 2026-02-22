@@ -542,6 +542,118 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
   }
 };
 
+// ─── 4. GET /semester-status?semester=X ───
+// Unified view: merges student data with bus-fee invoice status for a semester
+export const getSemesterBillingStatus = async (req: Request, res: Response) => {
+  const semester = parseInt(req.query.semester as string);
+  if (isNaN(semester)) {
+    return res.status(400).json({ error: "Valid semester is required" });
+  }
+
+  try {
+    // 1. Fetch all bus-service students for this semester with joins
+    const students = await prisma.student.findMany({
+      where: {
+        bus_service: true,
+        currentSemester: semester,
+      },
+      select: {
+        id: true,
+        name: true,
+        admission_number: true,
+        busStop: {
+          select: { stopName: true, feeAmount: true },
+        },
+        class: {
+          select: {
+            batchDepartment: {
+              select: {
+                batch: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    // 2. Get all bus-fee invoices for these students in this semester
+    const studentIds = students.map((s) => s.id);
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        studentId: { in: studentIds },
+        fee: {
+          feeType: { contains: "Bus Fee" },
+          semester,
+          archived: false,
+        },
+      },
+      select: {
+        id: true,
+        studentId: true,
+        amount: true,
+        status: true,
+        dueDate: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // 3. Map: studentId → latest invoice
+    const invoiceMap = new Map<number, (typeof invoices)[0]>();
+    for (const inv of invoices) {
+      if (!invoiceMap.has(inv.studentId)) {
+        invoiceMap.set(inv.studentId, inv); // latest first (ordered by createdAt desc)
+      }
+    }
+
+    // 4. Build unified response
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const result = students.map((student) => {
+      const invoice = invoiceMap.get(student.id);
+      let status: "not_billed" | "unpaid" | "paid" | "overdue" = "not_billed";
+
+      if (invoice) {
+        if (invoice.status === "paid") {
+          status = "paid";
+        } else if (invoice.status === "unpaid") {
+          status = today > new Date(invoice.dueDate) ? "overdue" : "unpaid";
+        } else {
+          status = invoice.status as any;
+        }
+      }
+
+      return {
+        studentId: student.id,
+        name: student.name,
+        admissionNumber: student.admission_number || "N/A",
+        batchName: student.class?.batchDepartment?.batch?.name || "Unassigned",
+        stopName: student.busStop?.stopName || "N/A",
+        feeAmount: student.busStop?.feeAmount || 0,
+        status,
+        invoiceId: invoice?.id || null,
+        invoiceAmount: invoice?.amount || null,
+        dueDate: invoice?.dueDate || null,
+      };
+    });
+
+    // 5. Counts
+    const counts = {
+      total: result.length,
+      notBilled: result.filter((r) => r.status === "not_billed").length,
+      unpaid: result.filter((r) => r.status === "unpaid" || r.status === "overdue").length,
+      paid: result.filter((r) => r.status === "paid").length,
+    };
+
+    res.json({ students: result, counts });
+  } catch (error) {
+    console.error("Semester status error:", error);
+    res.status(500).json({ error: "Failed to fetch semester billing status" });
+  }
+};
+
 export const getFeeBatches = async (_req: Request, res: Response) => {
   try {
     const batches = await prisma.feeDetails.groupBy({
