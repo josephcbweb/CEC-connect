@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Check, X, Loader2, AlertCircle } from "lucide-react";
 
+interface BusRequestsTabProps {
+    onActionSuccess?: () => void;
+}
+
 interface BusRequest {
     id: number;
     student: {
@@ -21,7 +25,7 @@ interface BusRequest {
     createdAt: string;
 }
 
-const BusRequestsTab = () => {
+const BusRequestsTab:React.FC<BusRequestsTabProps>= ({ onActionSuccess }) => {
     const [requests, setRequests] = useState<BusRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState<number | null>(null);
@@ -49,6 +53,9 @@ const BusRequestsTab = () => {
             await axios.patch(`http://localhost:3000/bus/requests/${requestId}`, { status: action });
             // Remove from list locally for instant feedback
             setRequests(prev => prev.filter(r => r.id !== requestId));
+            if (onActionSuccess) {
+                onActionSuccess();
+            }
         } catch (err) {
             console.error(`Failed to ${action} request`, err);
             alert(`Failed to ${action} request`);
