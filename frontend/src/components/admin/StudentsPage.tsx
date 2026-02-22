@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import StudentSummary from "../StudentSummary";
 import StudentRow from "../StudentRow";
 import { Search } from "lucide-react";
@@ -16,9 +16,15 @@ interface Student {
   id: number;
   name: string;
   program: string;
-  department: string;
+  department: string; // The short code (e.g., CSE)
   year: number | null;
   currentSemester: number;
+}
+
+// Interface to map codes to complete names
+interface DepartmentInfo {
+  name: string;
+  department_code: string;
 }
 
 interface StatItem {
@@ -30,12 +36,11 @@ const StudentsPage = () => {
   const [viewStatus, setViewStatus] = useState<"approved" | "graduated">(
     "approved",
   );
-  const [stats, setStats] = useState<StatItem[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [programs, setPrograms] = useState<string[]>([]);
-  const [selectedProgram, setSelectedProgram] = useState("All");
-  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState("BTECH");
+  const [departmentsInfo, setDepartmentsInfo] = useState<DepartmentInfo[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState("All");
   const [loading, setLoading] = useState(true);
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
@@ -51,23 +56,17 @@ const StudentsPage = () => {
   // Undo Delete State
   const [showUndoToast, setShowUndoToast] = useState(false);
   const [lastDeletedIds, setLastDeletedIds] = useState<number[]>([]);
-  const [undoDeleteTimer, setUndoDeleteTimer] = useState<number | null>(
-    null,
-  );
+  const [undoDeleteTimer, setUndoDeleteTimer] = useState<number | null>(null);
 
   const fetchStudents = async () => {
     try {
       const res = await fetch(`${baseURL}/admin/students?status=${viewStatus}`);
       const data = await res.json();
-      const students: Student[] = data.students;
-      setStudents(students);
+      setStudents(data.students);
       setPrograms(data.programs);
-      const uniqueDepartments = Array.from(
-        new Set(students.map((s) => s.department).filter(Boolean)),
-      );
-      setDepartments(uniqueDepartments);
-      // Calculate stats for Semester grouping if needed or just rely on backend
-      // But typically, we want to group display by Semester if possible
+
+      // Store the mapping of { name, department_code } from the backend
+      setDepartmentsInfo(data.departments || []);
     } catch (error) {
       console.error("Failed to fetch students:", error);
     }
@@ -75,20 +74,65 @@ const StudentsPage = () => {
 
   useEffect(() => {
     setSelectedStudentIds([]); // Clear selection on view change
-    const fetchStats = async () => {
-      try {
-        const res = await fetch(`${baseURL}/admin/viewStats`);
-        const data: StatItem[] = await res.json();
-        setStats(data);
-      } catch (error) {
-        console.error("Failed to fetch stats:", error);
-      }
-    };
+    fetchStudents().finally(() => setLoading(false));
+  }, [viewStatus]);
 
-    Promise.all([fetchStats(), fetchStudents()])
-      .catch((error) => console.error("Failed to fetch:", error))
-      .finally(() => setLoading(false));
-  }, [viewStatus]); // Re-fetch when viewStatus changes
+  // 1. DYNAMIC STATS (Total Students + Complete Department Names)
+  const derivedStats = useMemo(() => {
+    const programStudents =
+      selectedProgram === "All"
+        ? students
+        : students.filter((s) => s.program === selectedProgram);
+
+    // Count by department short code
+    const deptCounts = programStudents.reduce(
+      (acc, student) => {
+        const code = student.department || "Unknown";
+        acc[code] = (acc[code] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const statsArray: StatItem[] = [
+      {
+        title: `Total ${selectedProgram !== "All" ? selectedProgram : ""} Students`,
+        count: programStudents.length,
+      },
+      ...Object.entries(deptCounts).map(([code, count]) => {
+        // Look up the complete name from departmentsInfo
+        const deptObj = departmentsInfo.find(
+          (d) =>
+            d.department_code?.trim().toLowerCase() ===
+              code.trim().toLowerCase() ||
+            d.name?.trim().toLowerCase() === code.trim().toLowerCase(),
+        );
+
+        return {
+          // If we found the mapping, use the complete name. If not, fallback to the code.
+          title: deptObj ? deptObj.name : code,
+          count,
+        };
+      }),
+    ];
+
+    return statsArray;
+  }, [students, selectedProgram, departmentsInfo]);
+
+  // 2. DYNAMIC BUTTONS (Only codes for the selected program)
+  const derivedDepartmentCodes = useMemo(() => {
+    const programStudents =
+      selectedProgram === "All"
+        ? students
+        : students.filter((s) => s.program === selectedProgram);
+
+    // Extract unique codes only for the currently viewed program
+    const uniqueCodes = Array.from(
+      new Set(programStudents.map((s) => s.department).filter(Boolean)),
+    );
+
+    return uniqueCodes.sort(); // Sort alphabetically for consistency
+  }, [students, selectedProgram]);
 
   const filteredStudents = students.filter((student) => {
     const matchesName = student.name
@@ -97,9 +141,7 @@ const StudentsPage = () => {
     const matchesProgram =
       selectedProgram === "All" || student.program === selectedProgram;
     const matchesDepartment =
-      selectedProgram !== "BTECH" ||
-      selectedDepartment === "All" ||
-      student.department === selectedDepartment;
+      selectedDepartment === "All" || student.department === selectedDepartment;
     const matchesSemester =
       selectedSemester === "All" ||
       (student.currentSemester &&
@@ -141,24 +183,29 @@ const StudentsPage = () => {
       filters.departments && filters.departments.length > 0
         ? filters.departments
         : Array.from(
-          new Set(students.map((s) => s.department).filter(Boolean)),
-        );
+            new Set(students.map((s) => s.department).filter(Boolean)),
+          );
 
-    departmentsToExport.forEach((dept) => {
+    departmentsToExport.forEach((deptCode) => {
       const filtered = students.filter((s) => {
         return (
           s.program === filters.program &&
-          s.department === dept &&
+          s.department === deptCode &&
           (!filters.year || filters.year.includes(s.year ?? 0))
         );
       });
 
       if (filtered.length === 0) return;
 
+      const deptObj = departmentsInfo.find(
+        (d) => d.department_code === deptCode,
+      );
+      const displayDept = deptObj ? deptObj.name : deptCode;
+
       // Department heading
       doc.setFontSize(13);
       doc.setFont("helvetica", "bold");
-      doc.text(`Department: ${dept}`, 14, currentY);
+      doc.text(`Department: ${displayDept}`, 14, currentY);
       currentY += 6;
 
       autoTable(doc, {
@@ -187,18 +234,11 @@ const StudentsPage = () => {
           lineColor: [180, 180, 180],
           lineWidth: 0.5,
         },
-        alternateRowStyles: {
-          fillColor: [245, 245, 245],
-        },
-        columnStyles: {
-          0: { halign: "center" },
-          4: { halign: "center" },
-        },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        columnStyles: { 0: { halign: "center" }, 4: { halign: "center" } },
         theme: "grid",
         didDrawPage: (data) => {
-          if (data.cursor) {
-            currentY = data.cursor.y + 10;
-          }
+          if (data.cursor) currentY = data.cursor.y + 10;
         },
       });
     });
@@ -223,38 +263,31 @@ const StudentsPage = () => {
     }
   };
 
-  const handleDeleteClick = () => {
-    setIsDeleteModalOpen(true);
-  };
+  const handleDeleteClick = () => setIsDeleteModalOpen(true);
 
   const handleConfirmDelete = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:3000/admin/deleteStudents",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: selectedStudentIds }),
-        },
-      );
+      const response = await fetch(`${baseURL}/admin/deleteStudents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedStudentIds }),
+      });
 
       const result = await response.json();
 
       if (response.ok) {
-        // Soft delete success
         setLastDeletedIds(selectedStudentIds);
         setShowUndoToast(true);
         setSelectedStudentIds([]);
         setIsDeleteModalOpen(false);
         fetchStudents();
 
-        // 15 seconds timer to clear undo opportunity
         if (undoDeleteTimer) clearTimeout(undoDeleteTimer);
         const timer = setTimeout(() => {
           setShowUndoToast(false);
           setLastDeletedIds([]);
         }, 15000);
-        setUndoDeleteTimer(timer);
+        setUndoDeleteTimer(timer as unknown as number);
       } else {
         console.error("Deletion failed:", result.error);
         alert("Failed to delete students");
@@ -267,14 +300,11 @@ const StudentsPage = () => {
   const handleUndoDelete = async () => {
     if (undoDeleteTimer) clearTimeout(undoDeleteTimer);
     try {
-      const response = await fetch(
-        "http://localhost:3000/admin/restoreStudents",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: lastDeletedIds }),
-        },
-      );
+      const response = await fetch(`${baseURL}/admin/restoreStudents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: lastDeletedIds }),
+      });
       if (response.ok) {
         fetchStudents();
         setShowUndoToast(false);
@@ -295,14 +325,11 @@ const StudentsPage = () => {
     )
       return;
     try {
-      const response = await fetch(
-        "http://localhost:3000/admin/demoteStudents",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: selectedStudentIds }),
-        },
-      );
+      const response = await fetch(`${baseURL}/admin/demoteStudents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedStudentIds }),
+      });
       if (response.ok) {
         alert("Students transferred back successfully.");
         fetchStudents();
@@ -315,10 +342,6 @@ const StudentsPage = () => {
     }
   };
 
-  const handleCloseModal = () => {
-    setIsDeleteModalOpen(false);
-  };
-
   const handleUndoPromotion = async () => {
     if (
       !window.confirm(
@@ -326,7 +349,6 @@ const StudentsPage = () => {
       )
     )
       return;
-
     setUndoLoading(true);
     try {
       const res = await fetch(`${baseURL}/api/promotion/undo`, {
@@ -361,27 +383,28 @@ const StudentsPage = () => {
         <div>
           <h2 className="font-bold text-3xl">Student Management</h2>
           <p className="mt-1 text-gray-400">
-            View,Edit and Manage all students
+            View, Edit and Manage all students
           </p>
         </div>
         <div className="flex gap-3">
-          {/* View Toggle */}
           <div className="flex bg-gray-100 p-1 rounded-md h-fit">
             <button
               onClick={() => setViewStatus("approved")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewStatus === "approved"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-                }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                viewStatus === "approved"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               Active
             </button>
             <button
               onClick={() => setViewStatus("graduated")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewStatus === "graduated"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-                }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                viewStatus === "graduated"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               Graduated
             </button>
@@ -420,83 +443,113 @@ const StudentsPage = () => {
         allStudents={students}
       />
 
-      <div className="flex flex-col md:flex-row flex-wrap gap-4 w-full my-4 bg-gradient-to-r from-violet-50 to-blue-50 p-4">
-        {stats.map((item) => (
-          <div key={item.title} className="flex-1 min-w-[250px] max-w-[300px]">
-            <div className="h-full flex flex-col">
-              <StudentSummary title={item.title} count={item.count} />
-            </div>
-          </div>
+      <div className="flex mt-6 bg-gray-200/60 p-1 rounded-xl w-fit relative mb-4 shadow-inner">
+        {["All", ...programs].map((prog) => (
+          <button
+            key={prog}
+            onClick={() => {
+              setSelectedProgram(prog);
+              setSelectedDepartment("All"); // Reset department filter on program change
+            }}
+            className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ease-in-out ${
+              selectedProgram === prog
+                ? "bg-white text-indigo-600 shadow-sm transform scale-100"
+                : "text-gray-500 hover:text-gray-800 scale-95 hover:scale-100"
+            }`}
+          >
+            {prog}
+          </button>
         ))}
       </div>
 
+      <div className="flex flex-col md:flex-row flex-wrap gap-4 w-full mb-4 bg-gradient-to-r from-violet-50 to-blue-50 p-4 rounded-xl">
+        {derivedStats.length > 0 ? (
+          derivedStats.map((item) => (
+            <div
+              key={item.title}
+              className="flex-1 min-w-[250px] max-w-[300px]"
+            >
+              <div className="h-full flex flex-col">
+                <StudentSummary title={item.title} count={item.count} />
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500 w-full text-center py-2">
+            No students match this program.
+          </p>
+        )}
+      </div>
+
       <hr className="border-t border-gray-200 my-6" />
-      <div className="flex justify-end w-full gap-3 items-center">
-        {selectedProgram === "BTECH" && (
-          <div className="flex flex-wrap mb-6 ml-0 mr-auto bg-gray-100 p-1 rounded-[7px]">
-            {["All", ...departments].map((dept) => (
-              <button
-                key={dept}
-                onClick={() => setSelectedDepartment(dept)}
-                className={`px-4 py-2 text-sm font-medium ${selectedDepartment === dept
+
+      <div className="flex flex-wrap justify-between w-full gap-3 items-center">
+        <div className="flex flex-wrap mb-6 ml-0 mr-auto bg-gray-100 p-1 rounded-[7px]">
+          {/* "All" IS EXPLICITLY RENDERED FIRST */}
+          <button
+            onClick={() => setSelectedDepartment("All")}
+            className={`px-4 py-2 text-sm font-medium ${
+              selectedDepartment === "All"
+                ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
+                : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
+            }`}
+          >
+            All
+          </button>
+
+          {/* DYNAMIC SHORT CODES RENDERED AFTER */}
+          {derivedDepartmentCodes.map((code) => (
+            <button
+              key={code}
+              onClick={() => setSelectedDepartment(code)}
+              className={`px-4 py-2 text-sm font-medium ${
+                selectedDepartment === code
                   ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
                   : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
-                  }`}
-              >
-                {dept}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="relative">
-          <Search className="h-5 w-5 text-gray-400 absolute top-2.5 left-3" />
-          <input
-            type="text"
-            placeholder="Search by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="mb-6 w-full max-w-md px-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-300"
-          />
-        </div>
-        <select
-          value={selectedProgram}
-          onChange={(e) => setSelectedProgram(e.target.value)}
-          className="mb-6 max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 font-semibold"
-        >
-          <option value="All">All</option>
-          {programs.map((program) => (
-            <option key={program} value={program}>
-              {program}
-            </option>
+              }`}
+            >
+              {code}
+            </button>
           ))}
-        </select>
-        {selectedProgram !== "All" && (
-          <select
-            value={selectedSemester}
-            onChange={(e) => setSelectedSemester(e.target.value)}
-            className="mb-6 max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 font-semibold"
-          >
-            <option value="All">All Semesters</option>
-            {/* Generate S1 to S8 */}
-            {Array.from({ length: 8 }, (_, i) => i + 1).map((sem) => (
-              <option key={sem} value={sem.toString()}>
-                S{sem}
-              </option>
-            ))}
-          </select>
-        )}
+        </div>
 
-        {selectedStudentIds.length > 0 && (
-          <div className="flex gap-2">
-            {selectedStudentIds.every((id) => {
-              const student = students.find((s) => s.id === id);
-              return (
-                student &&
-                student.currentSemester >= 4 &&
-                student.currentSemester <= 7
-              );
-            }) && (
+        <div className="flex items-center gap-3 ml-auto">
+          <div className="relative">
+            <Search className="h-5 w-5 text-gray-400 absolute top-2.5 left-3" />
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="mb-6 w-full max-w-md px-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            />
+          </div>
+
+          {selectedProgram !== "All" && (
+            <select
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
+              className="mb-6 max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 font-semibold"
+            >
+              <option value="All">All Semesters</option>
+              {Array.from({ length: 8 }, (_, i) => i + 1).map((sem) => (
+                <option key={sem} value={sem.toString()}>
+                  S{sem}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {selectedStudentIds.length > 0 && (
+            <div className="flex gap-2 mb-6">
+              {selectedStudentIds.every((id) => {
+                const student = students.find((s) => s.id === id);
+                return (
+                  student &&
+                  student.currentSemester >= 4 &&
+                  student.currentSemester <= 7
+                );
+              }) && (
                 <button
                   onClick={handleDemote}
                   className="bg-orange-500 hover:bg-orange-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3 text-sm font-semibold"
@@ -504,9 +557,10 @@ const StudentsPage = () => {
                   Year Back
                 </button>
               )}
-            <DeleteBtn onClick={handleDeleteClick} />
-          </div>
-        )}
+              <DeleteBtn onClick={handleDeleteClick} />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow border border-gray-200">
@@ -543,7 +597,6 @@ const StudentsPage = () => {
               Year
             </span>
           </div>
-          {/* Add the new Actions column header */}
           <div className="w-2/12 pr-4 text-right">
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Actions
@@ -576,7 +629,7 @@ const StudentsPage = () => {
       </div>
       <DeleteModal
         isOpen={isDeleteModalOpen}
-        onClose={handleCloseModal}
+        onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
         studentCount={selectedStudentIds.length}
       />
@@ -585,10 +638,9 @@ const StudentsPage = () => {
         onClose={() => setisPdfModalOpen(false)}
         onGenerate={handleGeneratePDF}
         programs={programs}
-        departments={departments}
+        departments={derivedDepartmentCodes} // Pass only relevant department codes to PDF generator
       />
 
-      {/* Undo Toast */}
       {showUndoToast && (
         <div className="fixed bottom-10 right-10 bg-gray-900 text-white px-6 py-4 rounded shadow-lg flex items-center gap-4 z-50 animate-bounce-in">
           <span>{lastDeletedIds.length} student(s) deleted.</span>

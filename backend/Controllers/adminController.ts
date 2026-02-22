@@ -3,16 +3,11 @@ import { prisma } from "../lib/prisma";
 
 export const fetchStats = async (req: Request, res: Response) => {
   try {
-    const totalStudents = await prisma.student.count({
-      where: {
-        status: {
-          notIn: ["graduated", "deleted"],
-        },
-      },
-    });
+    // We removed the 'totalStudents' query to eliminate the "All" section
+
     const departmentStats = await prisma.department.findMany({
       select: {
-        name: true,
+        name: true, // Assuming 'name' holds the complete department name in your DB
         students: {
           where: {
             status: {
@@ -27,14 +22,12 @@ export const fetchStats = async (req: Request, res: Response) => {
     });
 
     const departmentCounts = departmentStats.map((dept) => ({
-      title: dept.name,
+      title: dept.name, // Maps the full department name directly from the database
       count: dept.students.length,
     }));
 
-    res.json([
-      { title: "Total Students", count: totalStudents },
-      ...departmentCounts,
-    ]);
+    // Return only the specific department stats
+    res.json(departmentCounts);
   } catch (error) {
     console.error("Failed to fetch student stats:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -45,7 +38,6 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
   try {
     const statusFilter = req.query.status as string;
 
-    // Default to "approved" if no status provided, or allow "all"
     let whereCondition: any = {
       status: "approved",
     };
@@ -57,10 +49,9 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
         status: {
           notIn: ["graduated", "deleted"],
         },
-      }; // fetch all active statuses
+      }; 
     }
 
-    // Only fetch students that match the status
     const students = await prisma.student.findMany({
       where: whereCondition,
       select: {
@@ -98,14 +89,22 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
       };
     });
 
-    // Extract unique programs
     const uniquePrograms = Array.from(
       new Set(students.map((s) => s.program).filter(Boolean)),
     );
 
+    // NEW: Fetch all available departments directly from the DB
+    // This ensures we get all departments for ALL programs, not just the currently filtered students
+    const allDepartments = await prisma.department.findMany({
+      select: { name: true },
+      orderBy: { name: "asc" }
+    });
+    const uniqueDepartments = allDepartments.map(dept => dept.name);
+
     res.json({
       students: enriched,
       programs: uniquePrograms,
+      departments: uniqueDepartments, // Send the dynamic list to the frontend
     });
   } catch (error) {
     console.error("Error fetching students:", error);
