@@ -10,6 +10,7 @@ import {
     getActiveBusSemesters,
     previewBulkBusFees,
     assignBulkBusFees,
+    getSemesterBillingStatus,
     getFeeBatches,
     getBatchDetails,
     updatePaymentStatus,
@@ -31,6 +32,7 @@ router.get("/fetchBusStudents", fetchBusStudents);//fetch all students who are a
 router.get("/active-semesters", getActiveBusSemesters);//semesters with bus-service students
 router.get("/preview-bulk-fees", previewBulkBusFees);//preview which batches will be billed
 router.post("/assign-bulk-fees", assignBulkBusFees);//batch-aware fee assignment
+router.get("/semester-status", getSemesterBillingStatus);//unified semester billing view
 router.get('/fee-batches', getFeeBatches);//retrieve fee-batches(sem 1,sem 2 etc.)
 router.get('/batch-details', getBatchDetails);//details of a particular fee batch
 router.patch('/update-payment-status/:id', updatePaymentStatus);//allows admin to manually update the payment status.
