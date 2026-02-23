@@ -1,19 +1,29 @@
-// certificateRoutes.ts
+// backend/src/routes/certificateRoutes.ts
 import express from 'express';
 import { certificateController } from '../controllers/certificateController';
 
 const router = express.Router();
 
+// Add a test route to verify the router is working
+router.get('/test', (req, res) => {
+  res.json({ message: 'Certificate routes are working' });
+});
+
 // Student routes
-router.post('/student/certificates', certificateController.submitRequest);
-router.get('/student/certificates/:studentId', certificateController.getStudentCertificates);
+router.post('/', certificateController.submitRequest);
+router.get('/student/:studentId', certificateController.getStudentCertificates);
 
-// Admin routes
-router.get('/admin/certificates', certificateController.getAllCertificates);
-router.put('/admin/certificates/:id', certificateController.updateCertificateStatus);
-router.post('/admin/certificates/:id/generate', certificateController.generateCertificate);
+// Role-based routes (Advisor, HOD, Office, Principal)
+router.get('/role/:role/:userId', certificateController.getCertificatesByRole);
 
-// Download route - FIXED: use :id instead of :certificateId
-router.get('/certificates/:id/download', certificateController.downloadCertificate);
+// Process certificate (approve/reject/forward)
+router.put('/:id/process', certificateController.processCertificate);
+
+// Get workflow status
+router.get('/:id/workflow', certificateController.getWorkflowStatus);
+
+// Generate and download
+router.post('/:id/generate', certificateController.generateCertificate);
+router.get('/:id/download', certificateController.downloadCertificate);
 
 export default router;
