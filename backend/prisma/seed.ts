@@ -68,6 +68,7 @@ async function main(): Promise<void> {
   await prisma.invoice.deleteMany({});
   await prisma.feeDetails.deleteMany({});
   await prisma.certificate.deleteMany({});
+  await prisma.busRequest.deleteMany({});
   await prisma.student.deleteMany({});
   await prisma.hodDetails.deleteMany({});
   await prisma.advisorDetails.deleteMany({});
@@ -102,9 +103,9 @@ async function main(): Promise<void> {
 
   for (const dept of academicDepartments) {
     await prisma.department.upsert({
-      where: { name: dept.name },
+      where: { name_program: { name: dept.name, program: "BTECH" } },
       update: { department_code: dept.code },
-      create: { name: dept.name, department_code: dept.code },
+      create: { name: dept.name, department_code: dept.code, program: "BTECH" },
     });
   }
 
@@ -276,7 +277,7 @@ async function main(): Promise<void> {
     console.log("🎓 Reading students from CSV file...");
     const studentsFromCsv = await readStudentsFromCsv(filePath);
     console.log(
-      `✅ CSV file processed. Found ${studentsFromCsv.length} students.`
+      `✅ CSV file processed. Found ${studentsFromCsv.length} students.`,
     );
 
     let successCount = 0;
@@ -309,7 +310,7 @@ async function main(): Promise<void> {
 
         if (!department) {
           console.warn(
-            `Department not found for branch: ${branch}, mapped to ${targetDeptName}`
+            `Department not found for branch: ${branch}, mapped to ${targetDeptName}`,
           );
           continue;
         }
@@ -431,7 +432,7 @@ async function main(): Promise<void> {
       }
     }
     console.log(
-      `\n✨ Import complete. Success: ${successCount}, Failures: ${errorCount}`
+      `\n✨ Import complete. Success: ${successCount}, Failures: ${errorCount}`,
     );
   } else {
     console.log("⚠️ CSV file not found, skipping student import.");

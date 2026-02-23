@@ -10,6 +10,7 @@ interface AddCourseModalProps {
 interface Department {
   id: number;
   name: string;
+  program: string;
 }
 
 interface User {
@@ -27,6 +28,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     code: "",
     type: "THEORY",
     category: "ELECTIVE",
+    program: "",
     departmentId: "",
     semester: "1",
     staffId: "",
@@ -34,18 +36,16 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   const [departments, setDepartments] = useState<Department[]>([]);
   const [staffList, setStaffList] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch departments
     const fetchDepartments = async () => {
       try {
         const token = localStorage.getItem("authToken");
-        const response = await fetch(
-          "http://localhost:3000/department/alldepartments",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        const response = await fetch("http://localhost:3000/api/departments", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (response.ok) {
           const data = await response.json();
           setDepartments(data);
@@ -79,6 +79,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem("authToken");
       const response = await fetch("http://localhost:3000/api/courses", {
@@ -93,10 +94,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       if (response.ok) {
         onSuccess();
       } else {
-        alert("Failed to create course");
+        const data = await response.json();
+        setError(data.message || "Failed to create course");
       }
     } catch (error) {
       console.error("Error creating course", error);
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -122,6 +125,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
           <h2 className="text-xl font-bold text-slate-900 mb-6">
             Add New Course
           </h2>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -175,14 +184,74 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                   Category
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
-                  value={formData.category}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20 disabled:bg-slate-100 disabled:text-slate-500"
+                  value={formData.type === "LAB" ? "" : formData.category}
+                  disabled={formData.type === "LAB"}
                   onChange={(e) =>
                     setFormData({ ...formData, category: e.target.value })
                   }
                 >
+                  <option value="">Select Category</option>
+                  <option value="CORE">Core</option>
                   <option value="ELECTIVE">Elective</option>
                   <option value="HONOURS">Honours</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Program
+                </label>
+                <select
+                  required
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
+                  value={formData.program}
+                  onChange={(e) => {
+                    const newProgram = e.target.value;
+                    let newSemester = formData.semester;
+                    if (
+                      (newProgram === "MCA" || newProgram === "MTECH") &&
+                      parseInt(newSemester) > 4
+                    ) {
+                      newSemester = "1";
+                    }
+                    setFormData({
+                      ...formData,
+                      program: newProgram,
+                      departmentId: "",
+                      semester: newSemester,
+                    });
+                  }}
+                >
+                  <option value="">Select Program</option>
+                  <option value="BTECH">B.Tech</option>
+                  <option value="MCA">MCA</option>
+                  <option value="MTECH">M.Tech</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Department
+                </label>
+                <select
+                  required
+                  disabled={!formData.program}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20 disabled:bg-slate-100 disabled:text-slate-500"
+                  value={formData.departmentId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, departmentId: e.target.value })
+                  }
+                >
+                  <option value="">Select Department</option>
+                  {departments
+                    .filter((dept) => dept.program === formData.program)
+                    .map((dept) => (
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>
@@ -199,7 +268,10 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     setFormData({ ...formData, semester: e.target.value })
                   }
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                  {(formData.program === "MCA" || formData.program === "MTECH"
+                    ? [1, 2, 3, 4]
+                    : [1, 2, 3, 4, 5, 6, 7, 8]
+                  ).map((sem) => (
                     <option key={sem} value={sem}>
                       Semester {sem}
                     </option>
@@ -208,44 +280,24 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Department
+                  Assign Staff
                 </label>
                 <select
                   required
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
-                  value={formData.departmentId}
+                  value={formData.staffId}
                   onChange={(e) =>
-                    setFormData({ ...formData, departmentId: e.target.value })
+                    setFormData({ ...formData, staffId: e.target.value })
                   }
                 >
-                  <option value="">Select Department</option>
-                  {departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name}
+                  <option value="">Select Staff</option>
+                  {staffList.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.username} ({staff.email})
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Assign Staff (Optional)
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
-                value={formData.staffId}
-                onChange={(e) =>
-                  setFormData({ ...formData, staffId: e.target.value })
-                }
-              >
-                <option value="">Select Staff</option>
-                {staffList.map((staff) => (
-                  <option key={staff.id} value={staff.id}>
-                    {staff.username} ({staff.email})
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div className="pt-4">

@@ -305,9 +305,9 @@ model Course {
   departmentId Int               @map("department_id")
   semester     Int
   isActive     Boolean           @default(true) @map("is_active")
-  category     CourseCategory    @default(CORE)
-  staffId      Int?              @map("staff_id")
-  staff        User?             @relation(fields: [staffId], references: [id])
+  category     CourseCategory?   @default(CORE)
+  staffId      Int               @map("staff_id")
+  staff        User              @relation(fields: [staffId], references: [id])
   selections   CourseSelection[]
   department   Department        @relation(fields: [departmentId], references: [id])
 
@@ -720,4 +720,23 @@ model PromotionHistory {
   adminId            Int?     @map("admin_id")
 
   @@map("promotion_history")
+}
+
+model EmailQueue {
+  id          Int         @id @default(autoincrement())
+  to          String
+  subject     String
+  content     String
+  description String?
+  status      EmailStatus @default(PENDING)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@map("email_queue")
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
 }
