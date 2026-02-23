@@ -7,7 +7,7 @@ import { Landing } from "./components/Landing";
 import StudentsPage from "./components/admin/StudentsPage";
 import AdminFeesDashboard from "./components/fee/AdminFeeDashboard";
 import AdminFeesPage from "./components/fee/AdminFeeDashboard";
-import AdminCertificatPage from "./components/certificate/AdminCertificatePage";
+import StaffCertificatePage from "./components/certificate/StaffCertificatePage";
 import StudentDetails from "./components/admin/StudentDetails";
 import StudentCertificatePage from "./components/certificate/StudentCertificatePage";
 import StudentLayout from "./components/StudentWrapper";
@@ -43,7 +43,7 @@ const App = () => {
           <Route path="studentDetails/:id" element={<StudentDetails />} />
           <Route path="/admin/fee" element={<AdminFeesDashboard />} />
           <Route path="/admin/fee" element={<AdminFeesPage />} />
-          <Route path="/admin/certificate" element={<AdminCertificatPage />} />
+          <Route path="/admin/certificate" element={<StaffCertificatePage />} />
           <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/staff-roles" element={<StaffRolesPage />} />
           <Route path="admissions" element={<AdmissionsPage />} />
