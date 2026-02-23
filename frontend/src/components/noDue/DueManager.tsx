@@ -22,26 +22,31 @@ import { Settings as SettingsIcon, LayoutList, BookCopy } from "lucide-react";
 
 interface DueItem {
   id: number;
+  requestId: number;
+  student: {
+    name: string;
+    registerNo: string;
+    semester: number;
+    program: string;
+    department: {
+      name: string;
+    };
+  };
   dueType: string;
   status: "pending" | "cleared";
   updatedAt: string;
 }
 
-interface DueRequest {
-  id: number;
-  studentName: string;
-  registerNo: string;
-  semester: number;
-  status: "pending" | "cleared";
-  dues: DueItem[];
-  updatedAt: string;
-}
-
 const DueManager = () => {
-  const [approvals, setApprovals] = useState<DueRequest[]>([]);
+  const [approvals, setApprovals] = useState<DueItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [semesterFilter, setSemesterFilter] = useState<string>("all");
+  const [programFilter, setProgramFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [departments, setDepartments] = useState<
+    { id: number; name: string; program: string }[]
+  >([]);
   const [typeFilter, setTypeFilter] = useState<"all" | "academic" | "service">(
     "all",
   );
@@ -73,6 +78,24 @@ const DueManager = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        const response = await fetch("http://localhost:3000/api/departments", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDepartments(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch departments", error);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
   const handleSelectDue = (dueId: number) => {
     setSelectedDueIds((prev) =>
       prev.includes(dueId)
@@ -81,27 +104,8 @@ const DueManager = () => {
     );
   };
 
-  const handleSelectRequest = (request: DueRequest) => {
-    const pendingDueIds = request.dues
-      .filter((d) => d.status === "pending")
-      .map((d) => d.id);
-
-    const allSelected = pendingDueIds.every((id) =>
-      selectedDueIds.includes(id),
-    );
-
-    setSelectedDueIds((prev) => {
-      if (allSelected) {
-        return prev.filter((id) => !pendingDueIds.includes(id));
-      } else {
-        return [...new Set([...prev, ...pendingDueIds])];
-      }
-    });
-  };
-
   const handleSelectAll = () => {
     const allPendingDueIds = approvals
-      .flatMap((req) => req.dues)
       .filter((d) => d.status === "pending")
       .map((d) => d.id);
 
@@ -211,6 +215,9 @@ const DueManager = () => {
       const queryParams = new URLSearchParams();
       if (semesterFilter !== "all")
         queryParams.append("semester", semesterFilter);
+      if (programFilter !== "all") queryParams.append("program", programFilter);
+      if (departmentFilter !== "all")
+        queryParams.append("departmentId", departmentFilter);
       if (typeFilter !== "all") queryParams.append("type", typeFilter);
       queryParams.append("status", statusFilter);
       if (searchTerm) queryParams.append("search", searchTerm);
@@ -244,16 +251,32 @@ const DueManager = () => {
   useEffect(() => {
     // Reset to page 1 when filters change
     setPage(1);
-  }, [searchTerm, semesterFilter, statusFilter, typeFilter]);
+  }, [
+    searchTerm,
+    semesterFilter,
+    programFilter,
+    departmentFilter,
+    statusFilter,
+    typeFilter,
+  ]);
 
   useEffect(() => {
     const debounce = setTimeout(() => {
       fetchApprovals();
     }, 500);
     return () => clearTimeout(debounce);
-  }, [searchTerm, semesterFilter, statusFilter, typeFilter, page, limit]);
+  }, [
+    searchTerm,
+    semesterFilter,
+    programFilter,
+    departmentFilter,
+    statusFilter,
+    typeFilter,
+    page,
+    limit,
+  ]);
 
-  const handleClearDue = async (dueId: number, requestId: number) => {
+  const handleClearDue = async (dueId: number) => {
     setProcessingDueIds((prev) => [...prev, dueId]);
     try {
       const userString = localStorage.getItem("user");
@@ -270,22 +293,9 @@ const DueManager = () => {
       if (response.ok) {
         // Optimistic update
         setApprovals((prev) =>
-          prev.map((req) => {
-            if (req.id !== requestId) return req;
-
-            // Update the specific due within the request
-            const updatedDues = req.dues.map((d) =>
-              d.id === dueId ? { ...d, status: "cleared" as const } : d,
-            );
-
-            // Check if all dues are now cleared for this request
-            const allCleared = updatedDues.every((d) => d.status === "cleared");
-
-            return {
-              ...req,
-              dues: updatedDues,
-              status: allCleared ? "cleared" : req.status,
-            };
+          prev.map((due) => {
+            if (due.id !== dueId) return due;
+            return { ...due, status: "cleared" as const };
           }),
         );
       }
@@ -362,30 +372,33 @@ const DueManager = () => {
         <div className="flex gap-6 border-b border-slate-200">
           <button
             onClick={() => setActiveTab("approvals")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "approvals"
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
+              activeTab === "approvals"
                 ? "text-teal-600 border-b-2 border-teal-600"
                 : "text-slate-500 hover:text-slate-700"
-              }`}
+            }`}
           >
             <LayoutList size={18} />
             Approvals
           </button>
           <button
             onClick={() => setActiveTab("courses")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "courses"
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
+              activeTab === "courses"
                 ? "text-teal-600 border-b-2 border-teal-600"
                 : "text-slate-500 hover:text-slate-700"
-              }`}
+            }`}
           >
             <BookCopy size={18} />
             Courses
           </button>
           <button
             onClick={() => setActiveTab("settings")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "settings"
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
+              activeTab === "settings"
                 ? "text-teal-600 border-b-2 border-teal-600"
                 : "text-slate-500 hover:text-slate-700"
-              }`}
+            }`}
           >
             <SettingsIcon size={18} />
             Settings
@@ -413,11 +426,48 @@ const DueManager = () => {
               </div>
               <select
                 className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
+                value={programFilter}
+                onChange={(e) => {
+                  const newProgram = e.target.value;
+                  setProgramFilter(newProgram);
+                  setDepartmentFilter("all"); // Reset department when program changes
+                  if (
+                    (newProgram === "MCA" || newProgram === "MTECH") &&
+                    semesterFilter !== "all" &&
+                    parseInt(semesterFilter) > 4
+                  ) {
+                    setSemesterFilter("all");
+                  }
+                }}
+              >
+                <option value="all">All Programs</option>
+                <option value="BTECH">B.Tech</option>
+                <option value="MTECH">M.Tech</option>
+                <option value="MCA">MCA</option>
+              </select>
+              <select
+                className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20 disabled:opacity-50"
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+                disabled={programFilter === "all"}
+              >
+                <option value="all">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
                 value={semesterFilter}
                 onChange={(e) => setSemesterFilter(e.target.value)}
               >
                 <option value="all">All Semesters</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                {(programFilter === "MCA" || programFilter === "MTECH"
+                  ? [1, 2, 3, 4]
+                  : [1, 2, 3, 4, 5, 6, 7, 8]
+                ).map((sem) => (
                   <option key={sem} value={sem}>
                     Semester {sem}
                   </option>
@@ -439,10 +489,11 @@ const DueManager = () => {
                 <button
                   key={tab}
                   onClick={() => setStatusFilter(tab)}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${statusFilter === tab
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
+                    statusFilter === tab
                       ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-500 hover:text-slate-700"
-                    }`}
+                  }`}
                 >
                   {tab}
                 </button>
@@ -461,11 +512,9 @@ const DueManager = () => {
                       className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                       checked={
                         approvals.length > 0 &&
+                        approvals.filter((d) => d.status === "pending").length >
+                          0 &&
                         approvals
-                          .flatMap((req) => req.dues)
-                          .filter((d) => d.status === "pending").length > 0 &&
-                        approvals
-                          .flatMap((req) => req.dues)
                           .filter((d) => d.status === "pending")
                           .every((d) => selectedDueIds.includes(d.id))
                       }
@@ -475,7 +524,7 @@ const DueManager = () => {
                   <th className="px-6 py-4">Register No</th>
                   <th className="px-6 py-4">Student Name</th>
                   <th className="px-6 py-4">Semester</th>
-                  <th className="px-6 py-4">Pending Dues</th>
+                  <th className="px-6 py-4">Due Type</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Action</th>
                 </tr>
@@ -503,181 +552,60 @@ const DueManager = () => {
                     </td>
                   </tr>
                 ) : (
-                  approvals.map((request) => (
-                    <React.Fragment key={request.id}>
-                      <tr
-                        className={`hover:bg-slate-50 transition-colors ${expandedRequestId === request.id ? "bg-slate-50" : ""}`}
-                      >
-                        <td className="px-6 py-4">
-                          <input
-                            type="checkbox"
-                            className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 disabled:opacity-50"
-                            disabled={
-                              request.status === "cleared" ||
-                              request.dues.every((d) => d.status !== "pending")
-                            }
-                            checked={
-                              request.dues.some(
-                                (d) => d.status === "pending",
-                              ) &&
-                              request.dues
-                                .filter((d) => d.status === "pending")
-                                .every((d) => selectedDueIds.includes(d.id))
-                            }
-                            onChange={() => handleSelectRequest(request)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </td>
-                        <td className="px-6 py-4 font-mono text-slate-600">
-                          {request.registerNo}
-                        </td>
-                        <td className="px-6 py-4 font-medium text-slate-900">
-                          {request.studentName}
-                        </td>
-                        <td className="px-6 py-4 text-slate-600">
-                          S{request.semester}
-                        </td>
-                        <td className="px-6 py-4 text-slate-600">
-                          {request.status === "cleared"
-                            ? "None"
-                            : `${request.dues.filter((d) => d.status === "pending").length} Pending`}
-                        </td>
-                        <td className="px-6 py-4">
-                          {request.status === "pending" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 transition-all duration-300">
-                              <Clock size={12} /> Pending
-                            </span>
-                          )}
-                          {request.status === "cleared" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 animate-in zoom-in duration-300">
-                              <CheckCircle size={12} /> Cleared
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
+                  approvals.map((due) => (
+                    <tr
+                      key={due.id}
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 disabled:opacity-50"
+                          disabled={due.status !== "pending"}
+                          checked={selectedDueIds.includes(due.id)}
+                          onChange={() => handleSelectDue(due.id)}
+                        />
+                      </td>
+                      <td className="px-6 py-4 font-mono text-slate-600">
+                        {due.student.registerNo}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-900">
+                        {due.student.name}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        S{due.student.semester}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {due.dueType}
+                      </td>
+                      <td className="px-6 py-4">
+                        {due.status === "pending" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 transition-all duration-300">
+                            <Clock size={12} /> Pending
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 animate-in zoom-in duration-300">
+                            <CheckCircle size={12} /> Cleared
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {due.status === "pending" && (
                           <button
-                            onClick={() => toggleExpand(request.id)}
-                            className="text-slate-500 hover:text-slate-700 font-medium text-xs flex items-center gap-1"
+                            onClick={() => handleClearDue(due.id)}
+                            disabled={processingDueIds.includes(due.id)}
+                            className="text-white bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
                           >
-                            {expandedRequestId === request.id
-                              ? "Hide Details"
-                              : "View Dues"}
-                            {expandedRequestId === request.id ? (
-                              <ChevronUp size={14} />
+                            {processingDueIds.includes(due.id) ? (
+                              <Loader2 size={12} className="animate-spin" />
                             ) : (
-                              <ChevronDown size={14} />
+                              <CheckCircle size={12} />
                             )}
+                            Clear
                           </button>
-                        </td>
-                      </tr>
-
-                      {/* Expanded Row for Dues */}
-                      {expandedRequestId === request.id && (
-                        <tr className="bg-slate-50/50 animate-in fade-in slide-in-from-top-1">
-                          <td colSpan={7} className="px-6 py-4 pl-14">
-                            <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-                              <table className="w-full text-sm">
-                                <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-medium">
-                                  <tr>
-                                    <th className="px-4 py-2 border-b w-8">
-                                      {/* Select */}
-                                    </th>
-                                    <th className="px-4 py-2 border-b">
-                                      Due Type / Department
-                                    </th>
-                                    <th className="px-4 py-2 border-b">
-                                      Status
-                                    </th>
-                                    <th className="px-4 py-2 border-b">
-                                      Last Updated
-                                    </th>
-                                    <th className="px-4 py-2 border-b text-right">
-                                      Action
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                  {request.dues.map((due) => (
-                                    <tr
-                                      key={due.id}
-                                      className="hover:bg-slate-50"
-                                    >
-                                      <td className="px-4 py-3">
-                                        <input
-                                          type="checkbox"
-                                          className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 disabled:opacity-50"
-                                          disabled={due.status !== "pending"}
-                                          checked={selectedDueIds.includes(
-                                            due.id,
-                                          )}
-                                          onChange={() =>
-                                            handleSelectDue(due.id)
-                                          }
-                                        />
-                                      </td>
-                                      <td className="px-4 py-3 font-medium text-slate-700">
-                                        {due.dueType}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        {due.status === "pending" ? (
-                                          <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded text-xs font-medium">
-                                            Pending
-                                          </span>
-                                        ) : (
-                                          <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-xs font-medium">
-                                            Cleared
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3 text-slate-500 text-xs">
-                                        {new Date(
-                                          due.updatedAt,
-                                        ).toLocaleDateString()}
-                                      </td>
-                                      <td className="px-4 py-3 text-right">
-                                        {due.status === "pending" && (
-                                          <button
-                                            onClick={() =>
-                                              handleClearDue(due.id, request.id)
-                                            }
-                                            disabled={processingDueIds.includes(
-                                              due.id,
-                                            )}
-                                            className="text-white bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded transition-colors disabled:opacity-50 flex items-center gap-1 ml-auto"
-                                          >
-                                            {processingDueIds.includes(
-                                              due.id,
-                                            ) ? (
-                                              <Loader2
-                                                size={12}
-                                                className="animate-spin"
-                                              />
-                                            ) : (
-                                              <CheckCircle size={12} />
-                                            )}
-                                            Clear
-                                          </button>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                  {request.dues.length === 0 && (
-                                    <tr>
-                                      <td
-                                        colSpan={5}
-                                        className="px-4 py-3 text-center text-slate-400 italic"
-                                      >
-                                        No specific due items found.
-                                      </td>
-                                    </tr>
-                                  )}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                        )}
+                      </td>
+                    </tr>
                   ))
                 )}
               </tbody>
@@ -821,13 +749,19 @@ const DueManager = () => {
                   checkingStats ||
                   initiationStats?.toBeInitiated === 0
                 }
-                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:bg-teal-400 transition-colors flex items-center gap-2"
               >
-                {bulkLoading && <Loader2 size={16} className="animate-spin" />}
-                {bulkLoading
-                  ? "Initiating..."
-                  : `Initiate for ${initiationStats?.toBeInitiated ?? "..."} Students`}
-                {bulkLoading ? "Processing..." : "Initiate All"}
+                {bulkLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Initiating...</span>
+                  </>
+                ) : (
+                  <span>
+                    Initiate for {initiationStats?.toBeInitiated ?? "..."}{" "}
+                    Students
+                  </span>
+                )}
               </button>
             </div>
           </div>

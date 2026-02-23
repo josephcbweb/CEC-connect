@@ -5,7 +5,7 @@ import {
   getStudentNotifications,
   updateNotification,
   deleteNotification,
-} from "../Controllers/notificationController";
+} from "../controllers/notificationController";
 import AuthMiddleware from "../middlewares/authMiddlewares";
 
 const router = express.Router();
@@ -17,6 +17,10 @@ router.put("/:id", updateNotification);
 router.delete("/:id", deleteNotification);
 
 // Student routes - protected
-router.get("/my-notifications", AuthMiddleware.authenticate, getStudentNotifications);
+router.get(
+  "/my-notifications",
+  AuthMiddleware.authenticate,
+  getStudentNotifications,
+);
 
 export default router;

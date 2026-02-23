@@ -3,7 +3,7 @@ import {
   getPromotionStats,
   promoteStudents,
   undoLastPromotion,
-} from "../Controllers/promotionController";
+} from "../controllers/promotionController";
 
 const router = express.Router();
 

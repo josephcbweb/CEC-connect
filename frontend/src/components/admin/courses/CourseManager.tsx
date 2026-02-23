@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Edit, Trash2, RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
 import AddCourseModal from "./AddCourseModal";
+import EditCourseModal from "./EditCourseModal";
 
 interface Course {
   id: number;
@@ -10,9 +11,12 @@ interface Course {
   type: "LAB" | "THEORY";
   category: "CORE" | "ELECTIVE" | "HONOURS";
   semester: number;
+  departmentId: number;
+  staffId: number;
   department: {
     name: string;
     department_code: string;
+    program: string;
   };
   isActive: boolean;
 }
@@ -20,10 +24,14 @@ interface Course {
 const CourseManager = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [semesterFilter, setSemesterFilter] = useState<string>("all");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchCourses = async () => {
+    setIsRefreshing(true);
     try {
       const token = localStorage.getItem("authToken"); // Changed to authToken to be consistent
       const response = await fetch("http://localhost:3000/api/courses", {
@@ -37,12 +45,41 @@ const CourseManager = () => {
       }
     } catch (error) {
       console.error("Failed to fetch courses", error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchCourses();
   }, []);
+
+  const handleDeleteCourse = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this course?")) return;
+
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`http://localhost:3000/api/courses/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        fetchCourses();
+      } else {
+        alert("Failed to delete course");
+      }
+    } catch (error) {
+      console.error("Error deleting course", error);
+    }
+  };
+
+  const handleEditClick = (course: Course) => {
+    setSelectedCourse(course);
+    setIsEditModalOpen(true);
+  };
 
   const filteredCourses = courses.filter((course) => {
     const matchesSearch =
@@ -65,13 +102,26 @@ const CourseManager = () => {
             Manage theory and lab courses for all semesters
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-800 transition-colors"
-        >
-          <Plus size={20} />
-          Add Course
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchCourses}
+            disabled={isRefreshing}
+            className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw
+              size={20}
+              className={isRefreshing ? "animate-spin" : ""}
+            />
+            Refresh
+          </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-800 transition-colors"
+          >
+            <Plus size={20} />
+            Add Course
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -114,6 +164,7 @@ const CourseManager = () => {
                 <th className="px-6 py-4">Department</th>
                 <th className="px-6 py-4">Semester</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -147,10 +198,12 @@ const CourseManager = () => {
                           ? "bg-indigo-50 text-indigo-700"
                           : course.category === "ELECTIVE"
                             ? "bg-amber-50 text-amber-700"
-                            : "bg-rose-50 text-rose-700"
+                            : course.category === "HONOURS"
+                              ? "bg-rose-50 text-rose-700"
+                              : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {course.category}
+                      {course.category || "N/A"}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-600">
@@ -170,12 +223,30 @@ const CourseManager = () => {
                       {course.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEditClick(course)}
+                        className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                        title="Edit Course"
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCourse(course.id)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        title="Delete Course"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
                 </motion.tr>
               ))}
               {filteredCourses.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-8 text-center text-slate-500"
                   >
                     No courses found matching your criteria.
@@ -192,6 +263,21 @@ const CourseManager = () => {
           onClose={() => setIsModalOpen(false)}
           onSuccess={() => {
             setIsModalOpen(false);
+            fetchCourses();
+          }}
+        />
+      )}
+
+      {isEditModalOpen && selectedCourse && (
+        <EditCourseModal
+          course={selectedCourse}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedCourse(null);
+          }}
+          onSuccess={() => {
+            setIsEditModalOpen(false);
+            setSelectedCourse(null);
             fetchCourses();
           }}
         />

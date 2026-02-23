@@ -252,6 +252,8 @@ export const getPendingApprovals = async (
       status,
       search,
       type,
+      program,
+      departmentId,
       userId: queryUserId,
       page = 1,
       limit = 10,
@@ -277,23 +279,25 @@ export const getPendingApprovals = async (
     }
 
     const whereClause: any = {
-      isArchived: false,
-      student: {
-        status: {
-          notIn: [StudentStatus.graduated, StudentStatus.deleted],
+      request: {
+        isArchived: false,
+        student: {
+          status: {
+            notIn: [StudentStatus.graduated, StudentStatus.deleted],
+          },
         },
       },
     };
 
     // Filter by semester
     if (semester && semester !== "all") {
-      whereClause.targetSemester = Number(semester);
+      whereClause.request.targetSemester = Number(semester);
     }
 
     // Filter by student search
     if (search) {
-      whereClause.student = {
-        ...whereClause.student,
+      whereClause.request.student = {
+        ...whereClause.request.student,
         OR: [
           { name: { contains: search as string, mode: "insensitive" } },
           {
@@ -306,78 +310,61 @@ export const getPendingApprovals = async (
       };
     }
 
-    // Apply Subject Staff limitation common filter
-    if (isSubjectStaff) {
-      // Only show requests that have at least one due belonging to the staff's courses
-      whereClause.noDues = {
-        some: {
-          comments: { in: allowedCourseComments },
-        },
+    // Filter by program
+    if (program && program !== "all") {
+      whereClause.request.student = {
+        ...whereClause.request.student,
+        program: program as string,
       };
     }
 
-    // Filter by status (GROUPED LOGIC)
-    // "pending" = Has at least one pending due
-    // "cleared" = All dues are cleared (and has dues)
+    // Filter by department
+    if (departmentId && departmentId !== "all") {
+      whereClause.request.student = {
+        ...whereClause.request.student,
+        departmentId: Number(departmentId),
+      };
+    }
+
+    // Apply Subject Staff limitation common filter
+    if (isSubjectStaff) {
+      whereClause.comments = { in: allowedCourseComments };
+    }
+
+    // Filter by status
     if (status === "pending") {
-      whereClause.noDues = {
-        ...whereClause.noDues, // Merge with subject staff filter if exists
-        some: {
-          ...(whereClause.noDues?.some || {}),
-          status: "pending",
-        },
-      };
+      whereClause.status = "pending";
     } else if (status === "cleared") {
-      whereClause.noDues = {
-        ...whereClause.noDues,
-        every: { status: "cleared" },
-        some: { ...(whereClause.noDues?.some || {}) }, // Ensure it has at least one due
-      };
-      // Also optionally check request status if it's updated correctly
-      // whereClause.status = "approved";
+      whereClause.status = "cleared";
     }
 
     // Filter by Due Type (Academic vs Service)
-    // This is tricky when grouping requests. We likely want to show requests
-    // that contain *at least one* due of the selected type.
     if (type === "academic") {
-      whereClause.noDues = {
-        ...whereClause.noDues,
-        some: {
-          ...(whereClause.noDues?.some || {}),
-          departmentId: { not: null },
-        },
-      };
+      whereClause.departmentId = { not: null };
     } else if (type === "service") {
-      whereClause.noDues = {
-        ...whereClause.noDues,
-        some: {
-          ...(whereClause.noDues?.some || {}),
-          serviceDepartmentId: { not: null },
-        },
-      };
+      whereClause.serviceDepartmentId = { not: null };
     }
 
     // Pagination
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-    const [total, requests] = await Promise.all([
-      prisma.noDueRequest.count({ where: whereClause }),
-      prisma.noDueRequest.findMany({
+    const [total, dues] = await Promise.all([
+      prisma.noDue.count({ where: whereClause }),
+      prisma.noDue.findMany({
         where: whereClause,
         include: {
-          student: true,
-          noDues: {
+          request: {
             include: {
-              department: true,
-              serviceDepartment: true,
+              student: {
+                include: {
+                  department: true,
+                },
+              },
             },
-            orderBy: { id: "asc" },
           },
-          courseSelections: {
-            include: { course: true },
-          },
+          department: true,
+          serviceDepartment: true,
         },
         orderBy: { updatedAt: "desc" },
         skip,
@@ -385,45 +372,31 @@ export const getPendingApprovals = async (
       }),
     ]);
 
-    const formattedRequests = requests.map((req) => {
-      // Filter dues to only show what the staff is allowed to see/act on
-      const visibleDues = isSubjectStaff
-        ? req.noDues.filter(
-          (d) => d.comments && allowedCourseComments.includes(d.comments),
-        )
-        : req.noDues;
+    const formattedDues = dues.map((due) => {
+      let dueType =
+        due.department?.name || due.serviceDepartment?.name || "Unknown";
+      if (due.comments && due.comments.startsWith("Course: ")) {
+        dueType = due.comments.replace("Course: ", "");
+      } else if (due.comments) {
+        dueType = `${dueType} (${due.comments})`;
+      }
 
       return {
-        id: req.id,
-        studentName: req.student.name,
-        registerNo: req.student.admission_number,
-        semester: req.targetSemester,
-        status:
-          visibleDues.every((d) => d.status === "cleared") &&
-            visibleDues.length > 0
-            ? "cleared"
-            : "pending",
-        dues: visibleDues.map((due) => {
-          let dueType =
-            due.department?.name || due.serviceDepartment?.name || "Unknown";
-          if (due.comments && due.comments.startsWith("Course: ")) {
-            dueType = due.comments.replace("Course: ", "");
-          } else if (due.comments) {
-            dueType = `${dueType} (${due.comments})`;
-          }
-          return {
-            id: due.id,
-            dueType,
-            status: due.status,
-            updatedAt: due.updatedAt,
-          };
-        }),
-        updatedAt: req.updatedAt,
+        id: due.id,
+        requestId: due.requestId,
+        studentName: due.request.student.name,
+        registerNo: due.request.student.admission_number,
+        semester: due.request.targetSemester,
+        program: due.request.student.program,
+        department: due.request.student.department?.name || "N/A",
+        dueType,
+        status: due.status,
+        updatedAt: due.updatedAt,
       };
     });
 
     res.json({
-      data: formattedRequests,
+      data: formattedDues,
       pagination: {
         total,
         page: Number(page),
@@ -678,6 +651,20 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
           data: duesToCreate,
         });
       }
+
+      // Queue email notification
+      if (student.email) {
+        await prisma.emailQueue.create({
+          data: {
+            to: student.email,
+            subject: "No Due Clearance Initiated",
+            content:
+              "The due page is open now, you can access it in your student profile to clear your dues.",
+            description: `Bulk initiation for Semester ${targetSemester}`,
+            status: "PENDING",
+          },
+        });
+      }
     }
     res.json({ message: `Initiated for ${count} students` });
   } catch (error) {
@@ -797,5 +784,58 @@ export const bulkClearDues = async (
     res
       .status(500)
       .json({ message: "Failed to bulk clear dues", error: error.message });
+  }
+};
+
+// 3.9 POST /api/nodue/send-emails
+export const sendPendingEmails = async (req: Request, res: Response) => {
+  try {
+    const pendingEmails = await prisma.emailQueue.findMany({
+      where: { status: "PENDING" },
+      take: 50, // Process in batches
+    });
+
+    if (pendingEmails.length === 0) {
+      res.json({ message: "No pending emails to send." });
+      return;
+    }
+
+    let sentCount = 0;
+    let failedCount = 0;
+
+    for (const email of pendingEmails) {
+      try {
+        // Here you would integrate with your actual email service (e.g., Nodemailer, SendGrid, AWS SES)
+        // For now, we simulate sending the email
+        console.log(`Sending email to ${email.to}: ${email.subject}`);
+
+        // Simulate async email sending
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        await prisma.emailQueue.update({
+          where: { id: email.id },
+          data: { status: "SENT" },
+        });
+        sentCount++;
+      } catch (err) {
+        console.error(`Failed to send email to ${email.to}:`, err);
+        await prisma.emailQueue.update({
+          where: { id: email.id },
+          data: { status: "FAILED" },
+        });
+        failedCount++;
+      }
+    }
+
+    res.json({
+      message: `Processed ${pendingEmails.length} emails.`,
+      sent: sentCount,
+      failed: failedCount,
+    });
+  } catch (error: any) {
+    console.error("Error sending pending emails:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to send emails", error: error.message });
   }
 };
