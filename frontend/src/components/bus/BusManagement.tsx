@@ -8,6 +8,8 @@ import AddBusModal from "./AddBusModal";
 import BusStudentList from "./BusStudentList";
 import BusFeeManager from "./BusFeeManager";
 import BusRequestsTab from "./BusRequestsTab";
+// New Component
+import BusPaymentVerificationTab from "./BusPaymentVerificationTab"; 
 
 export interface Bus {
   id: number;
@@ -22,6 +24,7 @@ const BusListPage = () => {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("buses");
+  const [refreshKey, setRefreshKey] = useState(0); // Added for syncing tabs
 
   // Modal States
   const [isBusModalOpen, setIsBusModalOpen] = useState(false);
@@ -40,6 +43,11 @@ const BusListPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleActionSuccess = () => {
+    // When a request is approved, increment key to refresh the payments list
+    setRefreshKey(prev => prev + 1);
   };
 
   if (loading) {
@@ -72,57 +80,28 @@ const BusListPage = () => {
 
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl px-4 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("buses")}
-            className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${activeTab === "buses"
-              ? "text-violet-600"
-              : "text-gray-400 hover:text-gray-600"
+          {[
+            { id: "buses", label: "Bus List" },
+            { id: "requests", label: "Requests" },
+            { id: "payments", label: "Payments" }, // New Tab
+            { id: "students", label: "Student List" },
+            { id: "busFee", label: "Bus Fee" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${
+                activeTab === tab.id
+                  ? "text-violet-600"
+                  : "text-gray-400 hover:text-gray-600"
               }`}
-          >
-            Bus List
-            {activeTab === "buses" && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-600" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("requests")}
-            className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${activeTab === "requests"
-              ? "text-violet-600"
-              : "text-gray-400 hover:text-gray-600"
-              }`}
-          >
-            Requests
-            {activeTab === "requests" && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-600" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${activeTab === "students"
-              ? "text-violet-600"
-              : "text-gray-400 hover:text-gray-600"
-              }`}
-          >
-            Student List
-            {activeTab === "students" && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-600" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("busFee")}
-            className={`py-4 px-6 font-semibold text-sm transition-all relative whitespace-nowrap ${activeTab === "busFee"
-              ? "text-violet-600"
-              : "text-gray-400 hover:text-gray-600"
-              }`}
-          >
-            Bus Fee
-            {activeTab === "busFee" && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-600" />
-            )}
-          </button>
+            >
+              {tab.label}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-600" />
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Dynamic Content Container */}
@@ -145,18 +124,26 @@ const BusListPage = () => {
           {/* 2. REQUESTS TAB */}
           {activeTab === "requests" && (
             <div className="animate-in fade-in duration-500">
-              <BusRequestsTab />
+              {/* Pass success handler to sync data across tabs */}
+              <BusRequestsTab onActionSuccess={handleActionSuccess} />
             </div>
           )}
 
-          {/* 3. STUDENT LIST TAB */}
+          {/* 3. PAYMENTS TAB (NEW) */}
+          {activeTab === "payments" && (
+            <div className="animate-in fade-in duration-500">
+              <BusPaymentVerificationTab key={refreshKey} />
+            </div>
+          )}
+
+          {/* 4. STUDENT LIST TAB */}
           {activeTab === "students" && (
             <div className="animate-in fade-in duration-500">
               <BusStudentList />
             </div>
           )}
 
-          {/* 4. BUS FEE TAB */}
+          {/* 5. BUS FEE TAB */}
           {activeTab === "busFee" && (
             <div className="animate-in fade-in duration-500">
               <BusFeeManager />
@@ -169,13 +156,10 @@ const BusListPage = () => {
       <AddBusModal
         isOpen={isBusModalOpen}
         onClose={() => setIsBusModalOpen(false)}
-        onSuccess={() => {
-          fetchBuses();
-        }}
+        onSuccess={() => fetchBuses()}
       />
     </div>
   );
 };
 
 export default BusListPage;
-

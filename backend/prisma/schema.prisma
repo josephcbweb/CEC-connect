@@ -20,7 +20,6 @@ model User {
   advisorDetails        AdvisorDetails?
   auditLogs             AuditLog[]
   courses               Course[]
-  approvedCertificates  Certificate[]
   hodDetails            HodDetails?
   approvals             NoDueApproval[]
   receivedNotifications Notification[]      @relation("ReceivedNotifications")
@@ -434,21 +433,58 @@ model Setting {
 }
 
 model Certificate {
-  id              Int               @id @default(autoincrement()) @map("certificate_id")
-  studentId       Int               @map("student_id")
+  id              Int                       @id @default(autoincrement()) @map("certificate_id")
+  studentId       Int                       @map("student_id")
   type            CertificateType
   reason          String
-  status          CertificateStatus @default(PENDING)
-  requestedAt     DateTime          @default(now()) @map("requested_at")
-  approvedAt      DateTime?         @map("approved_at")
-  rejectedAt      DateTime?         @map("rejected_at")
-  approvedById    Int?              @map("approved_by_id")
+  status          CertificateStatus         @default(PENDING)
+  workflowStatus  CertificateWorkflowStatus @default(SUBMITTED) @map("workflow_status")
+  requestedAt     DateTime                  @default(now()) @map("requested_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+  
+  // Approval tracking - store only IDs
+  advisorId       Int?                      @map("advisor_id")
+  advisorActionAt DateTime?                  @map("advisor_action_at")
+  advisorRemarks  String?                    @map("advisor_remarks")
+  
+  hodId           Int?                      @map("hod_id")
+  hodActionAt     DateTime?                  @map("hod_action_at")
+  hodRemarks      String?                    @map("hod_remarks")
+  
+  officeId        Int?                      @map("office_id")
+  officeActionAt  DateTime?                  @map("office_action_at")
+  officeRemarks   String?                    @map("office_remarks")
+  
+  principalId     Int?                      @map("principal_id")
+  principalActionAt DateTime?                 @map("principal_action_at")
+  principalRemarks String?                    @map("principal_remarks")
+  
+  // Final status
+  approvedAt      DateTime?                  @map("approved_at")
+  rejectedAt      DateTime?                  @map("rejected_at")
   rejectionReason String?
-  certificateUrl  String?           @map("certificate_url")
-  approvedBy      User?             @relation(fields: [approvedById], references: [id])
-  student         Student           @relation(fields: [studentId], references: [id])
+  certificateUrl  String?                    @map("certificate_url")
+  
+  // Relations
+  student         Student                    @relation(fields: [studentId], references: [id])
+  approvals       CertificateApproval[]
 
   @@map("certificates")
+}
+
+model CertificateApproval {
+  id            Int            @id @default(autoincrement()) @map("approval_id")
+  certificateId Int            @map("certificate_id")
+  approverId    Int            @map("approver_id")
+  role          String         // "ADVISOR", "HOD", "OFFICE", "PRINCIPAL", "STUDENT"
+  action        String         // "APPROVE", "REJECT", "FORWARD", "SUBMIT"
+  remarks       String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  
+  // Relations
+  certificate   Certificate    @relation(fields: [certificateId], references: [id])
+
+  @@map("certificate_approvals")
 }
 
 model Bus {
@@ -614,7 +650,16 @@ enum CertificateStatus {
   REJECTED
   GENERATED
 }
-
+// Add this enum to your schema.prisma file
+enum CertificateWorkflowStatus {
+  SUBMITTED
+  WITH_ADVISOR
+  WITH_HOD
+  WITH_OFFICE
+  WITH_PRINCIPAL
+  COMPLETED
+  REJECTED
+}
 enum UserStatus {
   active
   inactive

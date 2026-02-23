@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Bus, MapPin, CheckCircle, Clock, AlertCircle, Loader2, IndianRupee } from "lucide-react";
+import {
+  Bus,
+  MapPin,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Loader2,
+  IndianRupee,
+  AlertTriangle,
+  CreditCard,
+  ShieldAlert,
+} from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import { Select, ConfigProvider } from "antd";
 
@@ -41,8 +52,6 @@ const BusServiceManager = () => {
 
   const fetchStudentData = async () => {
     try {
-      // Use id from context if available, fallback to localStorage
-      // studentData comes from wrapper, but we need fresh profile with bus details
       const studentId = studentData?.id || JSON.parse(localStorage.getItem("studentAuthToken") || "{}").userId;
 
       if (!studentId) return;
@@ -83,15 +92,6 @@ const BusServiceManager = () => {
 
     setSubmitting(true);
     try {
-      // We need the student's ID (database ID)
-      // The profile endpoint returns the full student object which usually has the ID if we mapped it, 
-      // but let's check what getStudentProfile returns. 
-      // Actually, looking at the controller, getStudentProfile returns a formatted object which DOES NOT have 'id' at top level explicitly in my edit?
-      // Wait, I mapped: name, email, ... busDetails. 
-      // I DID NOT map 'id' in the `formattedStudent` object in `getStudentProfile`. 
-      // I need to use the token's ID or ensure `studentData` context has it.
-      // `studentData` from context is the full object from `getStudents` which HAS 'id'.
-
       const studentId = studentData?.id;
 
       await axios.post("http://localhost:3000/students/request-bus", {
@@ -113,31 +113,48 @@ const BusServiceManager = () => {
 
   if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-[#009689] w-12 h-12" /></div>;
 
-  // 1. PENDING STATE
-  if (student?.pendingBusRequest) {
-    const { busName, stopName, status } = student.pendingBusRequest;
+  // ─── CASE E: Suspended (bus_service: true AND hasUnpaidBusFee: true) ───
+  if (student?.bus_service && student?.hasUnpaidBusFee) {
+    const { busName, busNumber, stopName } = student.busDetails || {};
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center space-y-4">
-          <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
-            <Clock className="w-8 h-8 text-yellow-600" />
+        <div className="bg-red-50 border-2 border-red-200 rounded-3xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-red-600 p-6 text-white flex items-center gap-4">
+            <div className="bg-red-500/30 w-14 h-14 rounded-full flex items-center justify-center">
+              <ShieldAlert className="w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Pass Suspended</h1>
+              <p className="opacity-90 text-sm">Bus facility temporarily disabled</p>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">Request Pending</h2>
-          <p className="text-gray-600 max-w-lg mx-auto">
-            You have requested for <strong>{busName}</strong> at <strong>{stopName}</strong>.
-            Your application is currently under review by the college administration.
-          </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-yellow-200 text-yellow-700 font-medium text-sm">
-            <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
-            Status: {status.toUpperCase()}
+
+          {/* Body */}
+          <div className="p-8 space-y-6">
+            <div className="bg-white rounded-2xl p-6 border border-red-100 flex items-start gap-4">
+              <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-gray-800 text-lg">Pending Dues Detected</h3>
+                <p className="text-gray-600 mt-1">
+                  Your bus pass for <strong>{busName}</strong> ({busNumber}) at <strong>{stopName}</strong> has been
+                  suspended due to unpaid bus fees. Please clear outstanding dues to reactivate your pass.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-100/50 rounded-xl p-4 flex items-center gap-3 text-red-700 text-sm font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+              Status: SUSPENDED — Contact the accounts office to resolve pending fees
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // 2. ACTIVE SERVICE STATE
-  if (student?.bus_service && student.busDetails) {
+  // ─── CASE D: Active Pass (bus_service: true AND hasUnpaidBusFee: false) ───
+  if (student?.bus_service && !student?.hasUnpaidBusFee && student?.busDetails) {
     const { busName, busNumber, stopName, feeAmount } = student.busDetails;
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -186,7 +203,88 @@ const BusServiceManager = () => {
     );
   }
 
-  // 3. REQUEST FORM STATE
+  // ─── CASE C: Payment (pendingBusRequest.status === 'approved' AND bus_service: false) ───
+  if (student?.pendingBusRequest?.status === "approved" && !student?.bus_service) {
+    const { busName, stopName, feeAmount } = student.pendingBusRequest;
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-3xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-emerald-600 p-6 text-white flex items-center gap-4">
+            <div className="bg-emerald-500/30 w-14 h-14 rounded-full flex items-center justify-center">
+              <CreditCard className="w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Request Approved!</h1>
+              <p className="opacity-90 text-sm">Complete the payment to activate your bus pass</p>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-8 space-y-6">
+            <div className="bg-white rounded-2xl p-6 border border-emerald-100">
+              <h3 className="font-semibold text-gray-800 text-lg mb-4">Payment Details</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-gray-600">
+                  <span className="flex items-center gap-2"><Bus className="w-4 h-4" /> Bus Route</span>
+                  <span className="font-medium text-gray-900">{busName}</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-600">
+                  <span className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Boarding Point</span>
+                  <span className="font-medium text-gray-900">{stopName}</span>
+                </div>
+                <div className="pt-4 border-t flex justify-between items-center">
+                  <span className="text-gray-600 font-medium">Amount Due</span>
+                  <span className="text-3xl font-bold text-emerald-600">₹{feeAmount?.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 rounded-xl p-4 flex items-start gap-3 border border-amber-200">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-amber-800 font-medium text-sm">Payment Instructions</p>
+                <p className="text-amber-700 text-sm mt-1">
+                  Please pay the bus fee at the college accounts office. Your bus pass will be activated
+                  once the payment is verified by the administration.
+                </p>
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-emerald-200 text-emerald-700 font-medium text-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Status: APPROVED — Awaiting Payment
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── CASE B: Review (pendingBusRequest.status === 'pending') ───
+  if (student?.pendingBusRequest?.status === "pending") {
+    const { busName, stopName } = student.pendingBusRequest;
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center space-y-4">
+          <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+            <Clock className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800">Request Pending</h2>
+          <p className="text-gray-600 max-w-lg mx-auto">
+            You have requested for <strong>{busName}</strong> at <strong>{stopName}</strong>.
+            Your application is currently under review by the college administration.
+          </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-yellow-200 text-yellow-700 font-medium text-sm">
+            <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+            Status: PENDING
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── CASE A: Enrollment Form (no active request AND bus_service: false) ───
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="space-y-6">
