@@ -88,17 +88,28 @@ export const getStudentProfile = async (req: Request, res: Response) => {
     if (!student) {
       return res.status(404).json({ error: "Student not found" });
     }
-    // Fetch pending bus request
+    // Fetch pending or approved bus request (most recent first)
     const pendingBusRequest = await prisma.busRequest.findFirst({
       where: {
         studentId: student.id,
-        status: "pending",
+        status: { in: ["pending", "approved"] },
       },
+      orderBy: { createdAt: "desc" },
       include: {
         bus: true,
         busStop: true,
       },
     });
+
+    // Compute hasUnpaidBusFee: true if any unpaid invoice with "Bus Fee" in its feeType exists
+    const unpaidBusFeeInvoice = await prisma.invoice.findFirst({
+      where: {
+        studentId: student.id,
+        fee: { feeType: { contains: "Bus Fee" } },
+        status: "unpaid",
+      },
+    });
+    const hasUnpaidBusFee = !!unpaidBusFeeInvoice;
 
     console.log(student);
     const formattedStudent = {
@@ -154,9 +165,11 @@ export const getStudentProfile = async (req: Request, res: Response) => {
           id: pendingBusRequest.id,
           busName: pendingBusRequest.bus.busName,
           stopName: pendingBusRequest.busStop.stopName,
+          feeAmount: pendingBusRequest.busStop.feeAmount,
           status: pendingBusRequest.status,
         }
         : null,
+      hasUnpaidBusFee,
     };
     console.log(formattedStudent);
     return res.status(200).json(formattedStudent);

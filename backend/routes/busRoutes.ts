@@ -7,15 +7,19 @@ import {
     addBusStops,
     deleteBusStop,
     fetchBusStudents,
-    getUniqueSemester,
-    assignBusFees,
+    getActiveBusSemesters,
+    previewBulkBusFees,
+    assignBulkBusFees,
+    getSemesterBillingStatus,
     getFeeBatches,
     getBatchDetails,
     updatePaymentStatus,
     archiveFeeBatch,
     getBusRequests,
-    updateBusRequestStatus
-} from "../controllers/busController";
+    updateBusRequestStatus,
+    verifyBusPayment,
+    getBusInvoices
+} from "../Controllers/busController";
 
 const router = express.Router();
 
@@ -25,13 +29,17 @@ router.get("/busDetails/:busId", getBusDetails);
 router.post("/addStop", addBusStops);
 router.delete("/deleteStop/:id", deleteBusStop);
 router.get("/fetchBusStudents", fetchBusStudents);//fetch all students who are availing bus.
-router.get("/getSemester", getUniqueSemester);//route for fetching unique current semesters from the database so that the admin can only select semesters that are currently available while assigning fees.
-router.post('/assign-fees', assignBusFees);//route for assigning bus fees.Populates feeDetails and Invoice table.
+router.get("/active-semesters", getActiveBusSemesters);//semesters with bus-service students
+router.get("/preview-bulk-fees", previewBulkBusFees);//preview which batches will be billed
+router.post("/assign-bulk-fees", assignBulkBusFees);//batch-aware fee assignment
+router.get("/semester-status", getSemesterBillingStatus);//unified semester billing view
 router.get('/fee-batches', getFeeBatches);//retrieve fee-batches(sem 1,sem 2 etc.)
 router.get('/batch-details', getBatchDetails);//details of a particular fee batch
 router.patch('/update-payment-status/:id', updatePaymentStatus);//allows admin to manually update the payment status.
 router.patch('/archive-batch', archiveFeeBatch);//used to archive a fee details of the batch who are promoted to next semester.
 router.get('/requests', getBusRequests);
-router.patch('/requests/:requestId', updateBusRequestStatus);
+router.patch('/requests/:requestId', updateBusRequestStatus);//for approving the bus request
+router.patch("/verify-payment/:invoiceId", verifyBusPayment);
+router.get("/invoices", getBusInvoices);
 
 export default router;

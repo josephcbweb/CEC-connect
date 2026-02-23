@@ -1,88 +1,130 @@
 import { useState, useEffect } from "react";
 import {
-  ReceiptIndianRupee,
   Users,
   Calendar,
-  ArrowRight,
-  ChevronLeft,
   Loader2,
   Search,
   CheckCircle,
-  Archive,
+  AlertCircle,
   X,
-  AlertCircle
+  Zap,
+  Clock,
+  CircleDot,
+  FileText,
+  ChevronDown,
 } from "lucide-react";
 import axios from "axios";
 import AssignBusFeeModal from "./AssignBusFeeModal";
 
+interface StudentRow {
+  studentId: number;
+  name: string;
+  admissionNumber: string;
+  batchName: string;
+  stopName: string;
+  feeAmount: number;
+  status: "not_billed" | "unpaid" | "paid" | "overdue";
+  invoiceId: number | null;
+  invoiceAmount: number | null;
+  dueDate: string | null;
+}
+
+interface Counts {
+  total: number;
+  notBilled: number;
+  unpaid: number;
+  paid: number;
+}
+
+const statusConfig = {
+  not_billed: {
+    label: "Not Billed",
+    bg: "bg-gray-100",
+    text: "text-gray-600",
+    dot: "bg-gray-400",
+  },
+  unpaid: {
+    label: "Unpaid",
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    dot: "bg-amber-400",
+  },
+  overdue: {
+    label: "Overdue",
+    bg: "bg-red-50",
+    text: "text-red-700",
+    dot: "bg-red-500",
+  },
+  paid: {
+    label: "Paid",
+    bg: "bg-green-50",
+    text: "text-green-700",
+    dot: "bg-green-500",
+  },
+};
+
 const BusFeeManager = () => {
-  const [batches, setBatches] = useState<any[]>([]);
-  const [selectedBatch, setSelectedBatch] = useState<any | null>(null);
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [batchDetails, setBatchDetails] = useState<any[]>([]);
+  const [semesters, setSemesters] = useState<number[]>([]);
+  const [selectedSemester, setSelectedSemester] = useState<string>("");
+  const [students, setStudents] = useState<StudentRow[]>([]);
+  const [counts, setCounts] = useState<Counts>({ total: 0, notBilled: 0, unpaid: 0, paid: 0 });
   const [loading, setLoading] = useState(false);
+  const [semLoading, setSemLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
 
   // Confirmation modal states
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-  const [targetInvoice, setTargetInvoice] = useState<any>(null);
-  const [targetBatch, setTargetBatch] = useState<any>(null);
+  const [targetStudent, setTargetStudent] = useState<StudentRow | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Load semesters on mount
   useEffect(() => {
-    fetchBatches();
+    setSemLoading(true);
+    axios
+      .get("http://localhost:3000/bus/active-semesters")
+      .then((res) => setSemesters(res.data))
+      .catch((err) => console.error(err))
+      .finally(() => setSemLoading(false));
   }, []);
 
-  const fetchBatches = async () => {
-    try {
-      const res = await axios.get("http://localhost:3000/bus/fee-batches");
-      setBatches(res.data);
-    } catch (error) {
-      console.error("Error fetching batches", error);
-    }
-  };
-
-  const fetchBatchDetails = async (batch: any) => {
-    if (!batch || !batch.dueDate) return;
+  // Fetch semester status
+  const fetchSemesterStatus = async (sem: string) => {
+    if (!sem) return;
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:3000/bus/batch-details`, {
-        params: {
-          semester: batch.semester,
-          feeName: batch.feeName,
-          dueDate: batch.dueDate,
-        },
-      });
-      setBatchDetails(res.data);
+      const res = await axios.get(`http://localhost:3000/bus/semester-status?semester=${sem}`);
+      setStudents(res.data.students);
+      setCounts(res.data.counts);
     } catch (error) {
-      console.error("Error fetching student details", error);
+      console.error("Error fetching semester status:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMarkAsPaidClick = (invoice: any) => {
-    setTargetInvoice(invoice);
+  useEffect(() => {
+    if (selectedSemester) {
+      fetchSemesterStatus(selectedSemester);
+    }
+  }, [selectedSemester]);
+
+  const handleVerifyPaymentClick = (student: StudentRow) => {
+    setTargetStudent(student);
     setIsConfirmModalOpen(true);
   };
 
-  const handleArchiveClick = (e: React.MouseEvent, batch: any) => {
-    e.stopPropagation(); 
-    setTargetBatch(batch);
-    setIsArchiveModalOpen(true);
-  };
-
   const confirmPaymentUpdate = async () => {
-    if (!targetInvoice) return;
+    if (!targetStudent?.invoiceId) return;
     setIsUpdating(true);
     try {
       const response = await axios.patch(
-        `http://localhost:3000/bus/update-payment-status/${targetInvoice.id}`,
+        `http://localhost:3000/bus/update-payment-status/${targetStudent.invoiceId}`,
         { status: "paid" }
       );
       if (response.status === 200) {
-        await fetchBatchDetails(selectedBatch);
+        await fetchSemesterStatus(selectedSemester);
         setIsConfirmModalOpen(false);
       }
     } catch (error: any) {
@@ -92,238 +134,275 @@ const BusFeeManager = () => {
     }
   };
 
-  const confirmArchive = async () => {
-    if (!targetBatch) return;
-    setIsUpdating(true);
-    try {
-      // Logic to update archived status in FeeDetails table
-      await axios.patch("http://localhost:3000/bus/archive-batch", {
-        feeName: targetBatch.feeName,
-        semester: targetBatch.semester,
-        dueDate: targetBatch.dueDate,
-      });
-      await fetchBatches();
-      setIsArchiveModalOpen(false);
-    } catch (error: any) {
-      alert("Failed to archive the fee batch. Ensure all records match.");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  // Filters
+  const filteredStudents = students.filter((s) => {
+    const matchesSearch =
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || s.status === statusFilter ||
+      (statusFilter === "unpaid" && s.status === "overdue");
+    return matchesSearch && matchesStatus;
+  });
 
-  const filteredDetails = batchDetails.filter((item) =>
-    item.student.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // VIEW 1: Grid of Fee History Cards
-  if (!selectedBatch) {
+  // ── Empty state (no semester selected) ──
+  if (!selectedSemester) {
     return (
       <div className="p-6 animate-in fade-in duration-500">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h3 className="text-xl font-bold text-gray-800">Fee Assignment History</h3>
-            <p className="text-sm text-gray-500">View and track bus fee collection status</p>
-          </div>
-          <button
-            onClick={() => setIsAssignModalOpen(true)}
-            className="flex items-center gap-2 py-2.5 px-6 bg-[#4134bd] text-white font-semibold rounded-xl hover:shadow-lg transition-all active:scale-95 whitespace-nowrap"
-          >
-            <ReceiptIndianRupee className="w-5 h-5" /> Assign New Fee
-          </button>
+        <div className="mb-8">
+          <h3 className="text-xl font-bold text-gray-800">Bus Fee Manager</h3>
+          <p className="text-sm text-gray-500 mt-1">Select a semester to view billing status</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {batches.length > 0 ? (
-            batches.map((batch) => (
-              <div
-                key={`${batch.feeName}-${batch.semester}-${batch.dueDate}`}
-                onClick={() => {
-                  setSelectedBatch(batch);
-                  fetchBatchDetails(batch);
-                }}
-                className="group relative bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md hover:border-[#4134bd] transition-all cursor-pointer"
-              >
-                {/* Larger Archive Button */}
-                <button
-                  onClick={(e) => handleArchiveClick(e, batch)}
-                  className="absolute top-3 right-3 p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 z-10 border border-transparent hover:border-red-100 shadow-sm"
-                  title="Archive this batch"
-                >
-                  <Archive className="w-5 h-5" />
-                </button>
-
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-violet-50 rounded-xl text-[#4134bd]">
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1 mr-10">
-                    Semester {batch.semester}
-                  </span>
-                </div>
-                <h4 className="text-lg font-bold text-gray-800 group-hover:text-[#4134bd] transition-colors line-clamp-1 pr-8">
-                  {batch.feeName}
-                </h4>
-                <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {new Date(batch.dueDate).toLocaleDateString(undefined, { dateStyle: "medium" })}
-                  </span>
-                  <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="col-span-full py-20 text-center border-2 border-dashed border-gray-100 rounded-3xl">
-              <p className="text-gray-400">No active fee assignments found.</p>
+        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-100 rounded-3xl">
+          {semLoading ? (
+            <div className="flex items-center gap-3 text-gray-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Loading semesters...</span>
             </div>
+          ) : (
+            <>
+              <div className="p-4 bg-violet-50 rounded-2xl mb-6">
+                <Calendar className="w-8 h-8 text-[#4134bd]" />
+              </div>
+              <p className="text-gray-400 mb-6 text-center max-w-xs">
+                Choose a semester to see bus billing status for all students
+              </p>
+              <select
+                value={selectedSemester}
+                onChange={(e) => setSelectedSemester(e.target.value)}
+                className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 font-medium focus:ring-2 focus:ring-[#4134bd] focus:border-transparent outline-none appearance-none min-w-[200px] text-center"
+              >
+                <option value="">Select Semester</option>
+                {semesters.map((sem) => (
+                  <option key={sem} value={sem}>Semester {sem}</option>
+                ))}
+              </select>
+            </>
           )}
         </div>
-
-        <AssignBusFeeModal
-          isOpen={isAssignModalOpen}
-          onClose={() => setIsAssignModalOpen(false)}
-          onSuccess={fetchBatches}
-        />
-
-        {/* Archive Confirmation Modal */}
-        {isArchiveModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 animate-in zoom-in duration-200">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-2 text-red-600">
-                  <AlertCircle className="w-5 h-5" />
-                  <h3 className="text-lg font-bold">Archive Batch?</h3>
-                </div>
-                <button onClick={() => setIsArchiveModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                Archiving <strong>{targetBatch?.feeName}</strong> will hide it. You must archive the current batch before assigning new fees to Semester {targetBatch?.semester} students.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  disabled={isUpdating}
-                  onClick={() => setIsArchiveModalOpen(false)}
-                  className="flex-1 py-2 px-4 border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={isUpdating}
-                  onClick={confirmArchive}
-                  className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 shadow-md flex justify-center items-center gap-2"
-                >
-                  {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Archive Now"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
 
-  // VIEW 2: Detailed Student List
+  // ── Main view ──
   return (
-    <div className="p-6 animate-in slide-in-from-right duration-300">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <button
-          onClick={() => { setSelectedBatch(null); setSearchTerm(""); }}
-          className="flex items-center gap-2 text-gray-500 hover:text-[#4134bd] font-medium transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" /> Back to History
-        </button>
-
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search student name..."
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#4134bd]/20 focus:border-[#4134bd] transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div className="p-6 animate-in fade-in duration-500">
+      {/* Header Row */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800">Bus Fee Manager</h3>
+            <p className="text-sm text-gray-500">Semester-wide billing overview</p>
+          </div>
+          <div className="relative">
+            <select
+              value={selectedSemester}
+              onChange={(e) => {
+                setSelectedSemester(e.target.value);
+                setSearchTerm("");
+                setStatusFilter("all");
+              }}
+              className="pl-4 pr-8 py-2 bg-violet-50 border border-violet-100 rounded-xl text-[#4134bd] font-bold text-sm focus:ring-2 focus:ring-[#4134bd] outline-none appearance-none cursor-pointer"
+            >
+              {semesters.map((sem) => (
+                <option key={sem} value={sem}>Sem {sem}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4134bd] pointer-events-none" />
+          </div>
         </div>
+
+        <button
+          onClick={() => setIsAssignModalOpen(true)}
+          disabled={counts.notBilled === 0}
+          className="flex items-center gap-2 py-2.5 px-6 bg-[#4134bd] text-white font-semibold rounded-xl hover:bg-[#3529a3] hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+        >
+          <Zap className="w-4 h-4" />
+          {counts.notBilled > 0
+            ? `Run Bulk Billing (${counts.notBilled})`
+            : "All Students Billed"}
+        </button>
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
-        <div className="bg-gray-50/50 p-6 border-b border-gray-100 flex justify-between items-center">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-800">{selectedBatch.feeName}</h3>
-            <p className="text-gray-500 text-sm italic">Semester {selectedBatch.semester} Records</p>
+      {/* Smart Summary Stats */}
+      {loading ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-[88px] rounded-2xl bg-gray-50 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3">
+            <div className="p-2.5 bg-gray-100 rounded-xl">
+              <Users className="w-5 h-5 text-gray-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-black text-gray-800">{counts.total}</p>
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Bus Users</p>
+            </div>
           </div>
-          <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 text-center min-w-[100px]">
-            <p className="text-xs font-bold text-gray-400 uppercase">Total Students</p>
-            <p className="text-xl font-black text-[#4134bd]">{batchDetails.length}</p>
+          <div
+            className={`border rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all ${statusFilter === "not_billed" ? "bg-amber-50 border-amber-200 shadow-sm" : "bg-white border-gray-100 hover:border-amber-100"}`}
+            onClick={() => setStatusFilter(statusFilter === "not_billed" ? "all" : "not_billed")}
+          >
+            <div className="p-2.5 bg-amber-50 rounded-xl">
+              <CircleDot className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-black text-amber-600">{counts.notBilled}</p>
+              <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">Pending Billing</p>
+            </div>
+          </div>
+          <div
+            className={`border rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all ${statusFilter === "unpaid" ? "bg-orange-50 border-orange-200 shadow-sm" : "bg-white border-gray-100 hover:border-orange-100"}`}
+            onClick={() => setStatusFilter(statusFilter === "unpaid" ? "all" : "unpaid")}
+          >
+            <div className="p-2.5 bg-orange-50 rounded-xl">
+              <Clock className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-black text-orange-600">{counts.unpaid}</p>
+              <p className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Awaiting Payment</p>
+            </div>
+          </div>
+          <div
+            className={`border rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all ${statusFilter === "paid" ? "bg-green-50 border-green-200 shadow-sm" : "bg-white border-gray-100 hover:border-green-100"}`}
+            onClick={() => setStatusFilter(statusFilter === "paid" ? "all" : "paid")}
+          >
+            <div className="p-2.5 bg-green-50 rounded-xl">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-black text-green-600">{counts.paid}</p>
+              <p className="text-[11px] font-bold text-green-400 uppercase tracking-wider">Payments Received</p>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-4">
-              <Loader2 className="w-10 h-10 text-[#4134bd] animate-spin" />
-              <p className="text-gray-500 font-medium">Fetching records...</p>
-            </div>
-          ) : (
+      {/* Search Bar */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search by name or admission number..."
+          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#4134bd]/20 focus:border-[#4134bd] transition-all text-sm"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        {(searchTerm || statusFilter !== "all") && (
+          <button
+            onClick={() => { setSearchTerm(""); setStatusFilter("all"); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Unified Table */}
+      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="py-20 flex flex-col items-center justify-center gap-4">
+            <Loader2 className="w-10 h-10 text-[#4134bd] animate-spin" />
+            <p className="text-gray-500 font-medium">Loading student data...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b bg-gray-50/30">
-                  <th className="py-4 pl-8">Student Name</th>
-                  <th className="py-4">Bus Stop</th>
-                  <th className="py-4">Amount</th>
-                  <th className="py-4">Status</th>
-                  <th className="py-4 pr-8 text-right">Actions</th>
+                <tr className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b bg-gray-50/50">
+                  <th className="py-3.5 pl-6">Student</th>
+                  <th className="py-3.5">Batch</th>
+                  <th className="py-3.5">Bus Stop</th>
+                  <th className="py-3.5">Fee Amount</th>
+                  <th className="py-3.5">Status</th>
+                  <th className="py-3.5 pr-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filteredDetails.length > 0 ? (
-                  filteredDetails.map((row) => (
-                    <tr key={row.id} className="hover:bg-gray-50/50 transition-colors group">
-                      <td className="py-4 pl-8 font-semibold text-gray-700">{row.student.name}</td>
-                      <td className="py-4 text-gray-500">{row.student.busStop?.stopName || "N/A"}</td>
-                      <td className="py-4 font-mono font-bold text-gray-900">₹{row.amount}</td>
-                      <td className="py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tighter ${
-                          row.status === "paid" 
-                            ? "bg-green-100 text-green-700" 
-                            : row.status === "overdue" 
-                            ? "bg-amber-100 text-amber-700 border border-amber-200" 
-                            : "bg-red-100 text-red-700"
-                        }`}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="py-4 pr-8 text-right">
-                        {(row.status === "unpaid" || row.status === "overdue") && (
-                          <button
-                            onClick={() => handleMarkAsPaidClick(row)}
-                            className="text-[#4134bd] hover:bg-violet-50 p-2 rounded-lg transition-all flex items-center gap-1 ml-auto text-sm font-bold active:scale-95"
-                          >
-                            <CheckCircle className="w-4 h-4" /> Mark as Paid
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                {filteredStudents.length > 0 ? (
+                  filteredStudents.map((row) => {
+                    const cfg = statusConfig[row.status];
+                    return (
+                      <tr key={row.studentId} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="py-3.5 pl-6">
+                          <p className="font-semibold text-gray-800 text-sm">{row.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{row.admissionNumber}</p>
+                        </td>
+                        <td className="py-3.5">
+                          <span className="text-xs font-bold bg-violet-50 text-[#4134bd] px-2.5 py-1 rounded-lg">
+                            {row.batchName}
+                          </span>
+                        </td>
+                        <td className="py-3.5 text-sm text-gray-600">{row.stopName}</td>
+                        <td className="py-3.5 font-mono font-bold text-sm text-gray-800">
+                          ₹{Number(row.feeAmount).toLocaleString()}
+                        </td>
+                        <td className="py-3.5">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${cfg.bg} ${cfg.text}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`}></span>
+                            {cfg.label}
+                          </span>
+                        </td>
+                        <td className="py-3.5 pr-6 text-right">
+                          {(row.status === "unpaid" || row.status === "overdue") && row.invoiceId && (
+                            <button
+                              onClick={() => handleVerifyPaymentClick(row)}
+                              className="text-[#4134bd] hover:bg-violet-50 px-3 py-1.5 rounded-lg transition-all text-xs font-bold active:scale-95"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 inline mr-1" />
+                              Verify Payment
+                            </button>
+                          )}
+                          {row.status === "paid" && row.dueDate && (
+                            <span className="text-xs text-gray-400">
+                              <FileText className="w-3.5 h-3.5 inline mr-1" />
+                              Settled
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-gray-400">No matching records found.</td>
+                    <td colSpan={6} className="py-14 text-center text-gray-400">
+                      {searchTerm || statusFilter !== "all"
+                        ? "No students match your filters."
+                        : "No bus-service students found for this semester."}
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Confirmation Modal for Marking Paid */}
+      {/* Assign Modal */}
+      <AssignBusFeeModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        onSuccess={() => fetchSemesterStatus(selectedSemester)}
+      />
+
+      {/* Confirm Payment Modal */}
       {isConfirmModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 animate-in zoom-in duration-200">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Payment</h3>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2 text-[#4134bd]">
+                <CheckCircle className="w-5 h-5" />
+                <h3 className="text-lg font-bold">Verify Payment</h3>
+              </div>
+              <button onClick={() => setIsConfirmModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              Mark fee for <strong>{targetInvoice?.student?.name}</strong> as paid? This action reflects a manual cash collection.
+              Mark the bus fee for <strong>{targetStudent?.name}</strong> (₹{Number(targetStudent?.invoiceAmount || targetStudent?.feeAmount).toLocaleString()}) as paid? This reflects a manual cash collection.
             </p>
             <div className="flex gap-3">
               <button
@@ -338,7 +417,7 @@ const BusFeeManager = () => {
                 onClick={confirmPaymentUpdate}
                 className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 shadow-md flex justify-center items-center gap-2"
               >
-                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm Paid"}
               </button>
             </div>
           </div>
