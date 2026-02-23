@@ -8,26 +8,27 @@ datasource db {
 }
 
 model User {
-  id                    Int               @id @default(autoincrement()) @map("user_id")
-  username              String            @unique
-  passwordHash          String            @map("password_hash")
-  email                 String            @unique
-  status                UserStatus        @default(active)
-  lastLogin             DateTime?         @map("last_login")
-  createdAt             DateTime          @default(now()) @map("created_at")
-  updatedAt             DateTime          @updatedAt @map("updated_at")
-  advisedClass          Class?            @relation("ClassAdvisor")
+  id                    Int                 @id @default(autoincrement()) @map("user_id")
+  username              String              @unique
+  passwordHash          String              @map("password_hash")
+  email                 String              @unique
+  status                UserStatus          @default(active)
+  lastLogin             DateTime?           @map("last_login")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  advisedClass          Class?              @relation("ClassAdvisor")
   advisorDetails        AdvisorDetails?
   auditLogs             AuditLog[]
   courses               Course[]
   approvedCertificates  Certificate[]
   hodDetails            HodDetails?
   approvals             NoDueApproval[]
-  receivedNotifications Notification[]    @relation("ReceivedNotifications")
-  sentNotifications     Notification[]    @relation("SentNotifications")
+  receivedNotifications Notification[]      @relation("ReceivedNotifications")
+  sentNotifications     Notification[]      @relation("SentNotifications")
   principalDetails      PrincipalDetails?
   students              Student[]
   userRoles             UserRole[]
+  assignedDueTypes      ServiceDepartment[] @relation("AssignedDueTypes")
 
   @@map("users")
 }
@@ -244,27 +245,33 @@ model NoDueRequest {
 }
 
 model ServiceDepartment {
-  id         Int                @id @default(autoincrement()) @map("service_dept_id")
-  name       String             @unique
-  code       String             @unique
-  createdAt  DateTime           @default(now()) @map("created_at")
-  updatedAt  DateTime           @updatedAt @map("updated_at")
-  dueConfigs DueConfiguration[]
-  noDues     NoDue[]
+  id             Int                @id @default(autoincrement()) @map("service_dept_id")
+  name           String
+  code           String
+  program        Program            @default(BTECH)
+  assignedUserId Int?               @map("assigned_user_id")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  assignedUser   User?              @relation("AssignedDueTypes", fields: [assignedUserId], references: [id])
+  dueConfigs     DueConfiguration[]
+  noDues         NoDue[]
 
+  @@unique([name, program])
+  @@unique([code, program])
   @@map("service_departments")
 }
 
 model DueConfiguration {
   id                  Int                @id @default(autoincrement()) @map("config_id")
   semester            Int
+  program             Program            @default(BTECH)
   serviceDepartmentId Int?               @map("service_department_id")
   name                String?
   dueDate             DateTime?          @map("due_date")
   isActive            Boolean            @default(true) @map("is_active")
   serviceDepartment   ServiceDepartment? @relation(fields: [serviceDepartmentId], references: [id])
 
-  @@unique([semester, serviceDepartmentId, name])
+  @@unique([semester, program, serviceDepartmentId, name])
   @@map("due_configurations")
 }
 
@@ -272,11 +279,13 @@ model NoDue {
   id                  Int                @id @default(autoincrement()) @map("no_due_id")
   requestId           Int                @map("request_id")
   departmentId        Int?               @map("department_id")
+  courseId            Int?               @map("course_id")
   status              NoDueStatus        @default(pending)
   comments            String?
   updatedAt           DateTime           @updatedAt @map("updated_at")
   serviceDepartmentId Int?               @map("service_department_id")
   approvals           NoDueApproval[]
+  course              Course?            @relation(fields: [courseId], references: [id])
   department          Department?        @relation(fields: [departmentId], references: [id])
   request             NoDueRequest       @relation(fields: [requestId], references: [id])
   serviceDepartment   ServiceDepartment? @relation(fields: [serviceDepartmentId], references: [id])
@@ -310,6 +319,7 @@ model Course {
   staff        User              @relation(fields: [staffId], references: [id])
   selections   CourseSelection[]
   department   Department        @relation(fields: [departmentId], references: [id])
+  noDues       NoDue[]
 
   @@map("courses")
 }

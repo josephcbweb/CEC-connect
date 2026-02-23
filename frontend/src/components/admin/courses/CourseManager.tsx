@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Search, Filter, Edit, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Search, Filter, Edit, Trash2, RefreshCw, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import AddCourseModal from "./AddCourseModal";
 import EditCourseModal from "./EditCourseModal";
@@ -28,6 +28,11 @@ const CourseManager = () => {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [semesterFilter, setSemesterFilter] = useState<string>("all");
+  const [programFilter, setProgramFilter] = useState<string>("BTECH");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [departments, setDepartments] = useState<
+    { id: number; name: string; program: string }[]
+  >([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchCourses = async () => {
@@ -50,8 +55,24 @@ const CourseManager = () => {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch("http://localhost:3000/api/departments", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDepartments(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch departments", error);
+    }
+  };
+
   useEffect(() => {
     fetchCourses();
+    fetchDepartments();
   }, []);
 
   const handleDeleteCourse = async (id: number) => {
@@ -87,8 +108,20 @@ const CourseManager = () => {
       course.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSemester =
       semesterFilter === "all" || course.semester.toString() === semesterFilter;
+    const matchesProgram =
+      programFilter === "all" || course.department?.program === programFilter;
+    const matchesDepartment =
+      departmentFilter === "all" || course.departmentId.toString() === departmentFilter;
+
+    // Legacy filter: keep "isNotCore" if it was strictly filtering non-core?
+    // Wait, the original code had: const isNotCore = course.category !== "CORE";
+    // If the goal is to manage all theory and lab courses, why filter out core?
+    // Actually we'll just keep it matching the original behavior or fix it if it was a bug.
+    // The previous implementation had: const isNotCore = course.category !== "CORE";
+    // I will leave it exactly as it was.
     const isNotCore = course.category !== "CORE";
-    return matchesSearch && matchesSemester && isNotCore;
+
+    return matchesSearch && matchesSemester && matchesProgram && matchesDepartment && isNotCore;
   });
 
   return (
@@ -141,11 +174,52 @@ const CourseManager = () => {
           </div>
           <select
             className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
+            value={programFilter}
+            onChange={(e) => {
+              const newProgram = e.target.value;
+              setProgramFilter(newProgram);
+              setDepartmentFilter("all");
+              if (
+                (newProgram === "MCA" || newProgram === "MTECH") &&
+                semesterFilter !== "all" &&
+                parseInt(semesterFilter) > 4
+              ) {
+                setSemesterFilter("all");
+              }
+            }}
+          >
+            <option value="BTECH">B.Tech</option>
+            <option value="MTECH">M.Tech</option>
+            <option value="MCA">MCA</option>
+          </select>
+          <select
+            className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20 disabled:opacity-50"
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            disabled={programFilter === "all"}
+          >
+            <option value="all">All Departments</option>
+            {departments
+              .filter((d) => programFilter === "all" || d.program === programFilter)
+              .map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
+          </select>
+          <select
+            className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
             value={semesterFilter}
             onChange={(e) => setSemesterFilter(e.target.value)}
           >
             <option value="all">All Semesters</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+            {Array.from(
+              {
+                length:
+                  programFilter === "MCA" || programFilter === "MTECH" ? 4 : 8,
+              },
+              (_, i) => i + 1,
+            ).map((sem) => (
               <option key={sem} value={sem}>
                 Semester {sem}
               </option>
@@ -168,82 +242,90 @@ const CourseManager = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredCourses.map((course, index) => (
-                <motion.tr
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  key={course.id}
-                  className="hover:bg-slate-50"
-                >
-                  <td className="px-6 py-4 font-medium text-slate-900">
-                    {course.code}
+              {isRefreshing ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-500 gap-3">
+                      <Loader2 size={32} className="animate-spin text-slate-900" />
+                      <p className="text-sm font-medium">Loading courses...</p>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-600">{course.name}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        course.type === "LAB"
+                </tr>
+              ) : (
+                filteredCourses.map((course, index) => (
+                  <motion.tr
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    key={course.id}
+                    className="hover:bg-slate-50"
+                  >
+                    <td className="px-6 py-4 font-medium text-slate-900">
+                      {course.code}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">{course.name}</td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${course.type === "LAB"
                           ? "bg-purple-50 text-purple-700"
                           : "bg-blue-50 text-blue-700"
-                      }`}
-                    >
-                      {course.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        course.category === "CORE"
+                          }`}
+                      >
+                        {course.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${course.category === "CORE"
                           ? "bg-indigo-50 text-indigo-700"
                           : course.category === "ELECTIVE"
                             ? "bg-amber-50 text-amber-700"
                             : course.category === "HONOURS"
                               ? "bg-rose-50 text-rose-700"
                               : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {course.category || "N/A"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">
-                    {course.department?.name}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">
-                    S{course.semester}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        course.isActive
+                          }`}
+                      >
+                        {course.category || "N/A"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {course.department?.name}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      S{course.semester}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${course.isActive
                           ? "bg-emerald-50 text-emerald-700"
                           : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {course.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleEditClick(course)}
-                        className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                        title="Edit Course"
+                          }`}
                       >
-                        <Edit size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteCourse(course.id)}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Delete Course"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-              {filteredCourses.length === 0 && (
+                        {course.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEditClick(course)}
+                          className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                          title="Edit Course"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCourse(course.id)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Delete Course"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+              {!isRefreshing && filteredCourses.length === 0 && (
                 <tr>
                   <td
                     colSpan={8}
