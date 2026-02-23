@@ -1,102 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Save, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, Edit2, X, Check } from "lucide-react";
+
+interface User {
+  id: number;
+  username: string;
+}
 
 interface ServiceDepartment {
   id: number;
   name: string;
   code: string;
+  program: string;
+  assignedUserId: number | null;
+  assignedUser?: User;
 }
-
-// Reusable toggle with confirm dialog
-const ToggleWithConfirm: React.FC<{
-  label: string;
-  helper: string;
-  value: boolean;
-  onChange: (next: boolean) => void;
-  loading?: boolean;
-  confirmMessage?: string;
-}> = ({ label, helper, value, onChange, loading, confirmMessage }) => {
-  const [pending, setPending] = useState<boolean | null>(null);
-
-  const openConfirm = () => setPending(!value);
-  const confirm = () => {
-    if (pending !== null) onChange(pending);
-    setPending(null);
-  };
-  const cancel = () => setPending(null);
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-start justify-between gap-4 transition-all hover:shadow-md">
-      <div>
-        <div className="text-sm font-medium text-gray-900">{label}</div>
-        <div className="text-xs text-gray-600 mt-1">{helper}</div>
-      </div>
-      <button
-        onClick={openConfirm}
-        disabled={loading}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          value ? "bg-teal-600" : "bg-gray-300"
-        } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-        aria-pressed={value}
-        aria-label={label}
-      >
-        <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-            value ? "translate-x-5" : "translate-x-1"
-          }`}
-        />
-      </button>
-
-      {pending !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fade-in">
-          <div className="bg-white rounded-lg shadow-lg p-5 w-full max-w-sm relative animate-scale-in">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
-              onClick={cancel}
-              aria-label="Close dialog"
-            >
-              &times;
-            </button>
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              Confirm change
-            </h2>
-            <div className="mb-4">
-              {confirmMessage ? (
-                <div className="rounded-md bg-amber-50 p-3 mb-2 flex gap-2 text-amber-800 text-sm">
-                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                  <p>{confirmMessage}</p>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-700">
-                  Are you sure you want to {pending ? "enable" : "disable"} this
-                  setting?
-                </p>
-              )}
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={cancel}
-                className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirm}
-                className="px-4 py-2 text-sm rounded-md bg-teal-600 text-white hover:bg-teal-700 transition-colors"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 interface DueConfig {
   id: number;
   semester: number;
+  program: string;
   serviceDepartmentId: number | null;
   serviceDepartment?: ServiceDepartment;
   name: string | null;
@@ -107,82 +29,35 @@ interface DueConfig {
 const DueSettingsPanel = () => {
   const [configs, setConfigs] = useState<DueConfig[]>([]);
   const [departments, setDepartments] = useState<ServiceDepartment[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [noDueRequestEnabled, setNoDueRequestEnabled] = useState(false);
-  const [activeRequestCount, setActiveRequestCount] = useState(0);
-  const [newDeptName, setNewDeptName] = useState("");
-  const [selectedSemesterForAdd, setSelectedSemesterForAdd] = useState<
-    number | null
-  >(null);
+  const [selectedProgram, setSelectedProgram] = useState("BTECH");
+  const [selectedSemesterForAdd, setSelectedSemesterForAdd] = useState<number | null>(null);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [creatingDept, setCreatingDept] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newDueData, setNewDueData] = useState({ name: "", assignedUserId: "" });
+  const [creatingDue, setCreatingDue] = useState(false);
   const [deletingDeptId, setDeletingDeptId] = useState<number | null>(null);
+  const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
+  const [editDeptData, setEditDeptData] = useState({ name: "", assignedUserId: "" });
+  const [updatingDept, setUpdatingDept] = useState(false);
 
   useEffect(() => {
-    const initData = async () => {
-      setLoading(true);
-      await Promise.all([
-        fetchDepartments(),
-        fetchConfigs(false),
-        fetchSystemSettings(),
-        fetchActiveRequestCount(),
-      ]);
-      setLoading(false);
-    };
     initData();
-  }, []);
+  }, [selectedProgram]);
 
-  const fetchActiveRequestCount = async () => {
-    try {
-      const res = await fetch(
-        "http://localhost:3000/settings/active-requests-count",
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setActiveRequestCount(data.count);
-      }
-    } catch (error) {
-      console.error("Failed to fetch active requests count", error);
-    }
+  const initData = async () => {
+    setLoading(true);
+    await Promise.all([fetchDepartments(), fetchConfigs(false), fetchUsers()]);
+    setLoading(false);
   };
 
-  const fetchSystemSettings = async () => {
-    try {
-      const res = await fetch("http://localhost:3000/settings");
-      if (res.ok) {
-        const data = await res.json();
-        const noDueSetting = data.find(
-          (s: any) => s.key === "noDueRequestEnabled",
-        );
-        if (noDueSetting) setNoDueRequestEnabled(noDueSetting.enabled);
-      }
-    } catch (error) {
-      console.error("Failed to fetch settings", error);
-    }
-  };
-
-  const handleToggleNoDue = async (value: boolean) => {
-    try {
-      const res = await fetch("http://localhost:3000/settings/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "noDueRequestEnabled", value }),
-      });
-      if (res.ok) {
-        setNoDueRequestEnabled(value);
-        // Refresh active count as disabling might archive requests
-        fetchActiveRequestCount();
-      }
-    } catch (error) {
-      console.error("Failed to toggle setting", error);
-    }
-  };
 
   const fetchDepartments = async () => {
     try {
       const res = await fetch(
-        "http://localhost:3000/settings/service-departments",
+        `http://localhost:3000/settings/service-departments?program=${selectedProgram}`,
       );
       if (res.ok) setDepartments(await res.json());
     } catch (error) {
@@ -190,10 +65,21 @@ const DueSettingsPanel = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/settings/users");
+      if (res.ok) setUsers(await res.json());
+    } catch (error) {
+      console.error("Failed to fetch users", error);
+    }
+  };
+
   const fetchConfigs = async (shouldSetLoading = true) => {
     if (shouldSetLoading) setLoading(true);
     try {
-      const res = await fetch("http://localhost:3000/settings/due-configs");
+      const res = await fetch(
+        `http://localhost:3000/settings/due-configs?program=${selectedProgram}`,
+      );
       if (res.ok) {
         const data = await res.json();
         setConfigs(data);
@@ -214,10 +100,11 @@ const DueSettingsPanel = () => {
         body: JSON.stringify({
           semester,
           serviceDepartmentId: deptId,
+          program: selectedProgram,
         }),
       });
       if (res.ok) {
-        await fetchConfigs();
+        await fetchConfigs(false);
         setSelectedSemesterForAdd(null);
       }
     } catch (error) {
@@ -241,9 +128,9 @@ const DueSettingsPanel = () => {
     }
   };
 
-  const handleCreateDept = async () => {
-    if (!newDeptName) return;
-    setCreatingDept(true);
+  const handleCreateDue = async () => {
+    if (!newDueData.name) return;
+    setCreatingDue(true);
     try {
       const res = await fetch(
         "http://localhost:3000/settings/service-departments",
@@ -251,19 +138,55 @@ const DueSettingsPanel = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: newDeptName,
-            code: newDeptName.toUpperCase().slice(0, 3),
+            name: newDueData.name,
+            program: selectedProgram,
+            assignedUserId: newDueData.assignedUserId
+              ? Number(newDueData.assignedUserId)
+              : null,
           }),
         },
       );
       if (res.ok) {
-        setNewDeptName("");
+        setNewDueData({ name: "", assignedUserId: "" });
+        setShowCreateModal(false);
         fetchDepartments();
       }
     } catch (error) {
-      console.error("Failed to create department", error);
+      console.error("Failed to create due", error);
     } finally {
-      setCreatingDept(false);
+      setCreatingDue(false);
+    }
+  };
+
+  const handleUpdateDept = async (id: number) => {
+    if (!editDeptData.name) return;
+    setUpdatingDept(true);
+    try {
+      const res = await fetch(
+        `http://localhost:3000/settings/service-departments/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: editDeptData.name,
+            program: selectedProgram,
+            assignedUserId: editDeptData.assignedUserId
+              ? Number(editDeptData.assignedUserId)
+              : null,
+          }),
+        },
+      );
+      if (res.ok) {
+        setEditingDeptId(null);
+        fetchDepartments();
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to update default due.");
+      }
+    } catch (error) {
+      console.error("Failed to update due", error);
+    } finally {
+      setUpdatingDept(false);
     }
   };
 
@@ -311,24 +234,31 @@ const DueSettingsPanel = () => {
         </p>
       </div>
 
-      <div className="mb-6">
-        <ToggleWithConfirm
-          label="Enable No Due Request"
-          helper="This will allow students to initiate No Due requests. Turn off to disable new requests."
-          value={noDueRequestEnabled}
-          onChange={handleToggleNoDue}
-          confirmMessage={
-            noDueRequestEnabled && activeRequestCount > 0
-              ? `Warning: There are ${activeRequestCount} active no-due requests. Disabling this will archive them and stop the process for these students.`
-              : undefined
-          }
-        />
+      <div className="flex border-b border-slate-200 mb-6">
+        {["BTECH", "MTECH", "MCA"].map((prog) => (
+          <button
+            key={prog}
+            onClick={() => setSelectedProgram(prog)}
+            className={`px-6 py-3 font-medium text-sm transition-all relative ${selectedProgram === prog
+              ? "text-emerald-600"
+              : "text-slate-500 hover:text-slate-700"
+              }`}
+          >
+            {prog === "BTECH" ? "B.Tech" : prog === "MTECH" ? "M.Tech" : "MCA"}
+            {selectedProgram === prog && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 animate-in fade-in duration-300" />
+            )}
+          </button>
+        ))}
       </div>
 
       <div
         className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-opacity duration-300`}
       >
-        {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => {
+        {Array.from(
+          { length: selectedProgram === "BTECH" ? 8 : 4 },
+          (_, i) => i + 1,
+        ).map((sem) => {
           const semConfigs = configs.filter((c) => c.semester === sem);
           return (
             <div
@@ -380,57 +310,226 @@ const DueSettingsPanel = () => {
 
       {/* Common Dues Management */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-8">
-        <h3 className="font-semibold text-slate-900 mb-4">Manage Fee Types</h3>
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-3">
-            {departments.map((dept) => (
-              <div
-                key={dept.id}
-                className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg"
-              >
-                <span className="text-slate-700">{dept.name}</span>
-                <button
-                  onClick={() => handleDeleteDept(dept.id)}
-                  disabled={deletingDeptId === dept.id}
-                  className="text-slate-400 hover:text-red-500 p-1 disabled:opacity-50"
-                  title="Delete Fee Type"
-                >
-                  {deletingDeptId === dept.id ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-slate-900 mb-3">
-              Create New Fee Type
-            </h4>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="e.g. PTA Fee"
-                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                value={newDeptName}
-                onChange={(e) => setNewDeptName(e.target.value)}
-              />
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="font-semibold text-slate-900">Manage Default Dues</h3>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Create New Default Due
+          </button>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {departments.map((dept) => (
+            <div
+              key={dept.id}
+              className={`flex flex-col p-4 bg-slate-50 border rounded-xl transition-all ${editingDeptId === dept.id
+                ? "border-emerald-400 shadow-md ring-2 ring-emerald-500/20"
+                : "border-slate-200 hover:border-emerald-200 group"
+                }`}
+            >
+              {editingDeptId === dept.id ? (
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    value={editDeptData.name}
+                    onChange={(e) =>
+                      setEditDeptData({ ...editDeptData, name: e.target.value })
+                    }
+                    placeholder="Due Name"
+                  />
+                  <select
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    value={editDeptData.assignedUserId}
+                    onChange={(e) =>
+                      setEditDeptData({
+                        ...editDeptData,
+                        assignedUserId: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Unassigned</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.username}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => setEditingDeptId(null)}
+                      className="p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 rounded-md transition-colors"
+                      disabled={updatingDept}
+                    >
+                      <X size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleUpdateDept(dept.id)}
+                      disabled={!editDeptData.name || updatingDept}
+                      className="p-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-md transition-colors disabled:opacity-50"
+                    >
+                      {updatingDept ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Check size={16} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex flex-col">
+                    <span className="text-slate-900 font-medium">{dept.name}</span>
+                    <span className="text-xs text-slate-500">
+                      {dept.assignedUser
+                        ? `Assigned to: ${dept.assignedUser.username}`
+                        : "Unassigned"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        setEditingDeptId(dept.id);
+                        setEditDeptData({
+                          name: dept.name,
+                          assignedUserId: dept.assignedUserId
+                            ? String(dept.assignedUserId)
+                            : "",
+                        });
+                      }}
+                      className="text-slate-400 hover:text-emerald-600 p-1.5 hover:bg-emerald-50 rounded-md transition-colors"
+                      title="Edit Due"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDept(dept.id)}
+                      disabled={deletingDeptId === dept.id}
+                      className="text-slate-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                      title="Delete Due"
+                    >
+                      {deletingDeptId === dept.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {departments.length === 0 && (
+            <div className="col-span-full py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 text-slate-500">
+              No default dues found for {selectedProgram}.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                Create New Default Due
+              </h3>
               <button
-                onClick={handleCreateDept}
-                disabled={!newDeptName || creatingDept}
-                className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                disabled={creatingDue}
               >
-                {creatingDept ? (
-                  <Loader2 size={16} className="animate-spin" />
+                &times;
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Due Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Library Fees"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  value={newDueData.name}
+                  onChange={(e) =>
+                    setNewDueData({ ...newDueData, name: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Assign Person
+                </label>
+                <select
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  value={newDueData.assignedUserId}
+                  onChange={(e) =>
+                    setNewDueData({
+                      ...newDueData,
+                      assignedUserId: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">Select User (Unassigned)</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Program
+                  </label>
+                  <div className="bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm">
+                    {selectedProgram}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Category
+                  </label>
+                  <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl border border-indigo-100 text-sm font-medium">
+                    Default
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-50 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl transition-colors font-medium"
+                disabled={creatingDue}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateDue}
+                disabled={!newDueData.name || creatingDue}
+                className="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-emerald-200"
+              >
+                {creatingDue ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Creating...
+                  </>
                 ) : (
-                  "Create"
+                  "Create Due"
                 )}
               </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Add Modal */}
       {selectedSemesterForAdd && (

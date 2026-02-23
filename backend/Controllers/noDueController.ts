@@ -109,9 +109,13 @@ export const registerSemester = async (
 
         // Only generate common dues if it's a NEW request
         if (!existingRequest) {
-          // Fetch configured dues for this semester
+          // Fetch configured dues for this semester + student's program
           const dueConfigs = await tx.dueConfiguration.findMany({
-            where: { semester: targetSemester, isActive: true },
+            where: {
+              semester: targetSemester,
+              program: student.program,
+              isActive: true,
+            },
           });
 
           for (const config of dueConfigs) {
@@ -161,41 +165,21 @@ export const registerSemester = async (
         // Academic Departments (Labs, Electives, Theory)
         // Create a separate NoDue entry for EACH selected course to allow granular clearance
         for (const course of courses) {
-          // MIGRATION FIX: Check for and remove any "Generic" (Department-level) due for this department
-          // This prevents having both a "Grouped" due and "Specific" dues
-          const genericDue = await tx.noDue.findFirst({
-            where: {
-              requestId,
-              departmentId: course.departmentId,
-              comments: null, // Generic dues have no comments
-              status: NoDueStatus.pending,
-            },
-          });
-
-          if (genericDue) {
-            await tx.noDue.delete({
-              where: { id: genericDue.id },
-            });
-          }
-
-          // Check if due already exists for this specific course (using comments as a tag)
-          // We use "Course: <CourseName>" to distinguish them
-          const courseTag = `Course: ${course.name}`;
-
+          // Check if due already exists for this specific course
           const existingDue = await tx.noDue.findFirst({
             where: {
               requestId,
-              departmentId: course.departmentId,
-              comments: courseTag,
+              courseId: course.id,
             },
           });
 
           if (!existingDue) {
             duesToCreate.push({
               requestId,
+              courseId: course.id,
               departmentId: course.departmentId,
               status: NoDueStatus.pending,
-              comments: courseTag, // Store course name to distinguish
+              comments: `Course: ${course.name}`, // Keeping for backward compatibility/UI
             });
           }
         }
@@ -213,6 +197,7 @@ export const registerSemester = async (
               include: {
                 department: true,
                 serviceDepartment: true,
+                course: true,
               },
             },
             courseSelections: {
@@ -261,8 +246,8 @@ export const getPendingApprovals = async (
 
     // Authorization Check: If userId is provided, check if they are limited to specific courses
     const userId = queryUserId ? Number(queryUserId) : null;
-    let allowedCourseComments: string[] = [];
     let isSubjectStaff = false;
+    let allowedCourseIds: number[] = [];
 
     if (userId) {
       const staffUser = await prisma.user.findUnique({
@@ -272,9 +257,7 @@ export const getPendingApprovals = async (
 
       if (staffUser && staffUser.courses && staffUser.courses.length > 0) {
         isSubjectStaff = true;
-        allowedCourseComments = staffUser.courses.map(
-          (c) => `Course: ${c.name}`,
-        );
+        allowedCourseIds = staffUser.courses.map((c) => c.id);
       }
     }
 
@@ -328,7 +311,7 @@ export const getPendingApprovals = async (
 
     // Apply Subject Staff limitation common filter
     if (isSubjectStaff) {
-      whereClause.comments = { in: allowedCourseComments };
+      whereClause.courseId = { in: allowedCourseIds };
     }
 
     // Filter by status
@@ -365,6 +348,7 @@ export const getPendingApprovals = async (
           },
           department: true,
           serviceDepartment: true,
+          course: true,
         },
         orderBy: { updatedAt: "desc" },
         skip,
@@ -374,9 +358,13 @@ export const getPendingApprovals = async (
 
     const formattedDues = dues.map((due) => {
       let dueType =
-        due.department?.name || due.serviceDepartment?.name || "Unknown";
-      if (due.comments && due.comments.startsWith("Course: ")) {
-        dueType = due.comments.replace("Course: ", "");
+        due.course?.name ||
+        due.serviceDepartment?.name ||
+        due.department?.name ||
+        "Unknown";
+
+      if (due.course) {
+        dueType = `${due.course.name} (${due.course.type})`;
       } else if (due.comments) {
         dueType = `${dueType} (${due.comments})`;
       }
@@ -503,6 +491,7 @@ export const getStudentStatus = async (
           include: {
             department: true,
             serviceDepartment: true,
+            course: true,
           },
         },
         courseSelections: {
@@ -534,41 +523,37 @@ export const getStudentStatus = async (
 // 3.6 POST /api/nodue/bulk-initiate
 export const bulkInitiateNoDue = async (req: Request, res: Response) => {
   try {
-    const { semester } = req.body;
+    const { semester, program } = req.body;
     const targetSemester = Number(semester);
+    const targetProgram = program || "BTECH";
 
     if (!targetSemester) {
       res.status(400).json({ message: "Semester is required" });
       return;
     }
 
-    // Find all students in this semester
+    // 1. Find eligible students
     const students = await prisma.student.findMany({
       where: {
         currentSemester: targetSemester,
+        program: targetProgram as any,
         status: StudentStatus.approved,
       },
     });
 
-    // Find configs for this semester
+    // 2. Find default due configs for this semester + program
     const configs = await prisma.dueConfiguration.findMany({
-      where: { semester: targetSemester, isActive: true },
+      where: {
+        semester: targetSemester,
+        program: targetProgram as any,
+        isActive: true,
+      },
       include: { serviceDepartment: true },
     });
 
-    // Fetch Standard Service Departments
-    const serviceDepts = await prisma.serviceDepartment.findMany({
-      where: { name: { in: ["Library", "Accounts", "Hostel"] } },
-    });
-    const libraryDept = serviceDepts.find((d) => d.name === "Library");
-    const accountsDept = serviceDepts.find((d) => d.name === "Accounts");
-    const hostelDept = serviceDepts.find((d) => d.name === "Hostel");
-
     let count = 0;
     for (const student of students) {
-      let requestId: number;
-
-      // Check if request exists
+      // 3. Check if already initiated
       const existing = await prisma.noDueRequest.findFirst({
         where: {
           studentId: student.id,
@@ -578,14 +563,16 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
         include: { noDues: true },
       });
 
+      if (existing && existing.noDues.length > 0) {
+        continue; // Already initiated with dues
+      }
+
+      let requestId: number;
       if (existing) {
-        if (existing.noDues.length > 0) {
-          continue; // Already initiated and has dues
-        }
-        requestId = existing.id; // Exists but empty (backfill)
+        requestId = existing.id;
         count++;
       } else {
-        // Create Request
+        // Create new request
         const request = await prisma.noDueRequest.create({
           data: {
             studentId: student.id,
@@ -598,61 +585,45 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
         count++;
       }
 
-      const duesToCreate = [];
+      const duesToCreate: any[] = [];
 
-      // 1. Configured Defaults
-      if (configs.length > 0) {
-        for (const config of configs) {
-          if (config.serviceDepartmentId) {
-            duesToCreate.push({
-              requestId: requestId,
-              serviceDepartmentId: config.serviceDepartmentId,
-              status: NoDueStatus.pending,
-            });
-          }
-        }
-      } else {
-        // 2. Fallbacks if no config
-        if (libraryDept) {
+      // 4. Default Due entries
+      for (const config of configs) {
+        if (config.serviceDepartmentId) {
           duesToCreate.push({
-            requestId: requestId,
-            serviceDepartmentId: libraryDept.id,
-            status: NoDueStatus.pending,
-          });
-        }
-        if (accountsDept) {
-          duesToCreate.push({
-            requestId: requestId,
-            serviceDepartmentId: accountsDept.id,
-            status: NoDueStatus.pending,
-          });
-        }
-        if (student.hostel_service && hostelDept) {
-          duesToCreate.push({
-            requestId: requestId,
-            serviceDepartmentId: hostelDept.id,
+            requestId,
+            serviceDepartmentId: config.serviceDepartmentId,
             status: NoDueStatus.pending,
           });
         }
       }
 
-      // 3. Student's Academic Department
+      // 5. Course-based entries
       if (student.departmentId) {
-        duesToCreate.push({
-          requestId: requestId,
-          departmentId: student.departmentId,
-          status: NoDueStatus.pending,
-          comments: "Department Clearance",
+        const courses = await prisma.course.findMany({
+          where: {
+            semester: targetSemester,
+            departmentId: student.departmentId,
+            isActive: true,
+          },
         });
+
+        for (const course of courses) {
+          duesToCreate.push({
+            requestId,
+            courseId: course.id,
+            departmentId: course.departmentId,
+            status: NoDueStatus.pending,
+            comments: `Course: ${course.name}`,
+          });
+        }
       }
 
       if (duesToCreate.length > 0) {
-        await prisma.noDue.createMany({
-          data: duesToCreate,
-        });
+        await prisma.noDue.createMany({ data: duesToCreate });
       }
 
-      // Queue email notification
+      // 6. Queue email
       if (student.email) {
         await prisma.emailQueue.create({
           data: {
@@ -660,12 +631,13 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
             subject: "No Due Clearance Initiated",
             content:
               "The due page is open now, you can access it in your student profile to clear your dues.",
-            description: `Bulk initiation for Semester ${targetSemester}`,
+            description: `Bulk initiation for ${targetProgram} Semester ${targetSemester}`,
             status: "PENDING",
           },
         });
       }
     }
+
     res.json({ message: `Initiated for ${count} students` });
   } catch (error) {
     console.error("Error bulk initiating:", error);
@@ -676,8 +648,9 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
 // 3.6.1 POST /api/nodue/bulk-initiate-check
 export const bulkInitiateCheck = async (req: Request, res: Response) => {
   try {
-    const { semester } = req.body;
+    const { semester, program } = req.body;
     const targetSemester = Number(semester);
+    const targetProgram = program || "BTECH";
 
     if (!targetSemester) {
       res.status(400).json({ message: "Semester is required" });
@@ -685,12 +658,17 @@ export const bulkInitiateCheck = async (req: Request, res: Response) => {
     }
 
     const totalStudents = await prisma.student.count({
-      where: { currentSemester: targetSemester },
+      where: {
+        currentSemester: targetSemester,
+        program: targetProgram as any,
+        status: StudentStatus.approved,
+      },
     });
 
     const initiatedStudents = await prisma.student.count({
       where: {
         currentSemester: targetSemester,
+        program: targetProgram as any,
         requests: {
           some: {
             targetSemester: targetSemester,

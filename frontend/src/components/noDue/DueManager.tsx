@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Search,
-  Filter,
-  CheckCircle,
-  XCircle,
   Clock,
   Loader2,
   Download,
@@ -11,11 +8,10 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronDown,
-  ChevronUp,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import CourseManager from "../admin/courses/CourseManager";
 import DueSettingsPanel from "./DueSettingsPanel";
 import { Settings as SettingsIcon, LayoutList, BookCopy } from "lucide-react";
@@ -23,7 +19,12 @@ import { Settings as SettingsIcon, LayoutList, BookCopy } from "lucide-react";
 interface DueItem {
   id: number;
   requestId: number;
-  student: {
+  studentName?: string;
+  registerNo?: string;
+  semester?: number;
+  program?: string;
+  department?: string | { name: string };
+  student?: {
     name: string;
     registerNo: string;
     semester: number;
@@ -42,7 +43,7 @@ const DueManager = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [semesterFilter, setSemesterFilter] = useState<string>("all");
-  const [programFilter, setProgramFilter] = useState<string>("all");
+  const [programFilter, setProgramFilter] = useState<string>("BTECH");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [departments, setDepartments] = useState<
     { id: number; name: string; program: string }[]
@@ -58,7 +59,8 @@ const DueManager = () => {
   );
   const [processingDueIds, setProcessingDueIds] = useState<number[]>([]);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [bulkSemester, setBulkSemester] = useState(8);
+  const [bulkSemester, setBulkSemester] = useState(1);
+  const [bulkProgram, setBulkProgram] = useState("BTECH");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [initiationStats, setInitiationStats] = useState<{
     total: number;
@@ -71,6 +73,15 @@ const DueManager = () => {
   const [activeTab, setActiveTab] = useState<
     "approvals" | "settings" | "courses"
   >("approvals");
+
+  // Global Due Request Settings
+  const [noDueRequestEnabled, setNoDueRequestEnabled] = useState(false);
+  const [activeRequestCount, setActiveRequestCount] = useState(0);
+  const [showActivationModal, setShowActivationModal] = useState<{
+    show: boolean;
+    activating: boolean;
+  }>({ show: false, activating: false });
+  const [togglingSettings, setTogglingSettings] = useState(false);
 
   // Pagination State
   const [page, setPage] = useState(1);
@@ -93,8 +104,63 @@ const DueManager = () => {
         console.error("Failed to fetch departments", error);
       }
     };
+
+    const fetchSystemSettings = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/settings");
+        if (res.ok) {
+          const data = await res.json();
+          const noDueSetting = data.find(
+            (s: any) => s.key === "noDueRequestEnabled",
+          );
+          if (noDueSetting) setNoDueRequestEnabled(noDueSetting.enabled);
+        }
+      } catch (error) {
+        console.error("Failed to fetch settings", error);
+      }
+    };
+
     fetchDepartments();
+    fetchSystemSettings();
   }, []);
+
+  const fetchActiveRequestCount = async () => {
+    try {
+      const res = await fetch(
+        "http://localhost:3000/settings/active-requests-count",
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setActiveRequestCount(data.count);
+      }
+    } catch (error) {
+      console.error("Failed to fetch active requests count", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchActiveRequestCount();
+  }, [noDueRequestEnabled]);
+
+  const handleToggleNoDue = async () => {
+    setTogglingSettings(true);
+    const targetState = showActivationModal.activating;
+    try {
+      const res = await fetch("http://localhost:3000/settings/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "noDueRequestEnabled", value: targetState }),
+      });
+      if (res.ok) {
+        setNoDueRequestEnabled(targetState);
+        setShowActivationModal({ show: false, activating: false });
+      }
+    } catch (error) {
+      console.error("Failed to toggle setting", error);
+    } finally {
+      setTogglingSettings(false);
+    }
+  };
 
   const handleSelectDue = (dueId: number) => {
     setSelectedDueIds((prev) =>
@@ -158,7 +224,7 @@ const DueManager = () => {
     } else {
       setInitiationStats(null);
     }
-  }, [showBulkModal, bulkSemester]);
+  }, [showBulkModal, bulkSemester, bulkProgram]);
 
   const checkBulkStats = async () => {
     setCheckingStats(true);
@@ -168,7 +234,10 @@ const DueManager = () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ semester: bulkSemester }),
+          body: JSON.stringify({
+            semester: bulkSemester,
+            program: bulkProgram,
+          }),
         },
       );
       if (res.ok) {
@@ -187,7 +256,10 @@ const DueManager = () => {
       const res = await fetch("http://localhost:3000/api/nodue/bulk-initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ semester: bulkSemester }),
+        body: JSON.stringify({
+          semester: bulkSemester,
+          program: bulkProgram,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -331,74 +403,96 @@ const DueManager = () => {
               Manage no-due clearances for students
             </p>
           </div>
-          {activeTab === "approvals" && (
+          <div className="flex items-center gap-4">
             <div className="flex gap-3">
-              {selectedDueIds.length > 0 && (
+              {noDueRequestEnabled ? (
                 <button
-                  onClick={handleBulkClear}
-                  disabled={bulkClearLoading}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 animate-in fade-in"
+                  onClick={() =>
+                    setShowActivationModal({ show: true, activating: false })
+                  }
+                  className="bg-amber-100 text-amber-700 px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-amber-200 transition-colors font-medium border border-amber-200"
                 >
-                  {bulkClearLoading ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <CheckCircle size={18} />
-                  )}
-                  Clear Selected ({selectedDueIds.length})
+                  <AlertCircle size={18} />
+                  Deactivate Requests
+                </button>
+              ) : (
+                <button
+                  onClick={() =>
+                    setShowActivationModal({ show: true, activating: true })
+                  }
+                  className="bg-teal-600 text-white px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-teal-700 transition-colors font-medium"
+                >
+                  <CheckCircle size={18} />
+                  Activate Requests
                 </button>
               )}
-              {statusFilter !== "cleared" && (
-                <>
-                  <button
-                    onClick={() => setShowBulkModal(true)}
-                    className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
-                  >
-                    <Clock size={18} />
-                    Bulk Initiate
-                  </button>
-                </>
-              )}
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors"
-              >
-                <Download size={18} />
-                Export PDF
-              </button>
             </div>
-          )}
+            {activeTab === "approvals" && (
+              <div className="flex gap-3 border-l border-slate-200 pl-4">
+                {selectedDueIds.length > 0 && (
+                  <button
+                    onClick={handleBulkClear}
+                    disabled={bulkClearLoading}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 animate-in fade-in"
+                  >
+                    {bulkClearLoading ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <CheckCircle size={18} />
+                    )}
+                    Clear Selected ({selectedDueIds.length})
+                  </button>
+                )}
+                {statusFilter !== "cleared" && (
+                  <>
+                    <button
+                      onClick={() => setShowBulkModal(true)}
+                      className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
+                    >
+                      <Clock size={18} />
+                      Bulk Initiate
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors"
+                >
+                  <Download size={18} />
+                  Export PDF
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-6 border-b border-slate-200">
           <button
             onClick={() => setActiveTab("approvals")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
-              activeTab === "approvals"
-                ? "text-teal-600 border-b-2 border-teal-600"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "approvals"
+              ? "text-teal-600 border-b-2 border-teal-600"
+              : "text-slate-500 hover:text-slate-700"
+              }`}
           >
             <LayoutList size={18} />
             Approvals
           </button>
           <button
             onClick={() => setActiveTab("courses")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
-              activeTab === "courses"
-                ? "text-teal-600 border-b-2 border-teal-600"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "courses"
+              ? "text-teal-600 border-b-2 border-teal-600"
+              : "text-slate-500 hover:text-slate-700"
+              }`}
           >
             <BookCopy size={18} />
             Courses
           </button>
           <button
             onClick={() => setActiveTab("settings")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${
-              activeTab === "settings"
-                ? "text-teal-600 border-b-2 border-teal-600"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
+            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "settings"
+              ? "text-teal-600 border-b-2 border-teal-600"
+              : "text-slate-500 hover:text-slate-700"
+              }`}
           >
             <SettingsIcon size={18} />
             Settings
@@ -440,7 +534,6 @@ const DueManager = () => {
                   }
                 }}
               >
-                <option value="all">All Programs</option>
                 <option value="BTECH">B.Tech</option>
                 <option value="MTECH">M.Tech</option>
                 <option value="MCA">MCA</option>
@@ -452,11 +545,13 @@ const DueManager = () => {
                 disabled={programFilter === "all"}
               >
                 <option value="all">All Departments</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
+                {departments
+                  .filter((d) => programFilter === "all" || d.program === programFilter)
+                  .map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
               </select>
               <select
                 className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/20"
@@ -464,9 +559,14 @@ const DueManager = () => {
                 onChange={(e) => setSemesterFilter(e.target.value)}
               >
                 <option value="all">All Semesters</option>
-                {(programFilter === "MCA" || programFilter === "MTECH"
-                  ? [1, 2, 3, 4]
-                  : [1, 2, 3, 4, 5, 6, 7, 8]
+                {Array.from(
+                  {
+                    length:
+                      programFilter === "MCA" || programFilter === "MTECH"
+                        ? 4
+                        : 8,
+                  },
+                  (_, i) => i + 1,
                 ).map((sem) => (
                   <option key={sem} value={sem}>
                     Semester {sem}
@@ -489,11 +589,10 @@ const DueManager = () => {
                 <button
                   key={tab}
                   onClick={() => setStatusFilter(tab)}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
-                    statusFilter === tab
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  }`}
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${statusFilter === tab
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                    }`}
                 >
                   {tab}
                 </button>
@@ -513,7 +612,7 @@ const DueManager = () => {
                       checked={
                         approvals.length > 0 &&
                         approvals.filter((d) => d.status === "pending").length >
-                          0 &&
+                        0 &&
                         approvals
                           .filter((d) => d.status === "pending")
                           .every((d) => selectedDueIds.includes(d.id))
@@ -567,13 +666,13 @@ const DueManager = () => {
                         />
                       </td>
                       <td className="px-6 py-4 font-mono text-slate-600">
-                        {due.student.registerNo}
+                        {due.registerNo || due.student?.registerNo || "N/A"}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900">
-                        {due.student.name}
+                        {due.studentName || due.student?.name || "N/A"}
                       </td>
                       <td className="px-6 py-4 text-slate-600">
-                        S{due.student.semester}
+                        S{due.semester || due.student?.semester || "?"}
                       </td>
                       <td className="px-6 py-4 text-slate-600">
                         {due.dueType}
@@ -690,20 +789,44 @@ const DueManager = () => {
               that semester.
             </p>
 
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Semester
-            </label>
-            <select
-              value={bulkSemester}
-              onChange={(e) => setBulkSemester(Number(e.target.value))}
-              className="w-full border border-slate-300 p-2 rounded-lg mb-6 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                <option key={s} value={s}>
-                  Semester {s}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Program
+                </label>
+                <select
+                  value={bulkProgram}
+                  onChange={(e) => {
+                    setBulkProgram(e.target.value);
+                    setBulkSemester(1);
+                  }}
+                  className="w-full border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                >
+                  <option value="BTECH">B.Tech</option>
+                  <option value="MTECH">M.Tech</option>
+                  <option value="MCA">MCA</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Semester
+                </label>
+                <select
+                  value={bulkSemester}
+                  onChange={(e) => setBulkSemester(Number(e.target.value))}
+                  className="w-full border border-slate-300 p-2 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                >
+                  {Array.from(
+                    { length: bulkProgram === "BTECH" ? 8 : 4 },
+                    (_, i) => i + 1,
+                  ).map((s) => (
+                    <option key={s} value={s}>
+                      Semester {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             <div className="bg-slate-50 p-4 rounded-lg mb-6 border border-slate-100">
               {checkingStats ? (
@@ -712,25 +835,62 @@ const DueManager = () => {
                   <span>Checking student records...</span>
                 </div>
               ) : initiationStats ? (
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Total Students:</span>
-                    <span className="font-medium text-slate-900">
-                      {initiationStats.total}
-                    </span>
+                <div className="space-y-4">
+                  <div className="space-y-2 text-sm bg-white p-3 rounded-lg border border-slate-200">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Total Students:</span>
+                      <span className="font-medium text-slate-900">
+                        {initiationStats.total}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-amber-600">
+                      <span>Already Initiated:</span>
+                      <span className="font-medium">
+                        {initiationStats.initiated}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-teal-600 pt-2 border-t border-slate-200 mt-2">
+                      <span className="font-semibold">To Be Initiated:</span>
+                      <span className="font-bold text-lg">
+                        {initiationStats.toBeInitiated}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-amber-600">
-                    <span>Already Initiated:</span>
-                    <span className="font-medium">
-                      {initiationStats.initiated}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-teal-600 pt-2 border-t border-slate-200 mt-2">
-                    <span className="font-semibold">To Be Initiated:</span>
-                    <span className="font-bold text-lg">
-                      {initiationStats.toBeInitiated}
-                    </span>
-                  </div>
+
+                  {initiationStats.toBeInitiated > 0 && (
+                    <div className="relative overflow-hidden border border-red-200 p-4 rounded-lg flex gap-3 shadow-sm">
+                      {/* Animated Gradient Background */}
+                      <div
+                        className="absolute inset-0 bg-gradient-to-r from-red-50 via-red-100 to-red-50 opacity-50"
+                        style={{
+                          backgroundSize: '200% 200%',
+                          animation: 'gradientMove 3s ease infinite'
+                        }}
+                      />
+                      {/* Add keyframes inline for simplicity as we don't want to touch index.css */}
+                      <style dangerouslySetInnerHTML={{
+                        __html: `
+                        @keyframes gradientMove {
+                          0% { background-position: 0% 50%; }
+                          50% { background-position: 100% 50%; }
+                          100% { background-position: 0% 50%; }
+                        }
+                      `}} />
+
+                      <div className="flex-shrink-0 mt-0.5 relative z-10">
+                        <AlertCircle className="text-red-600 animate-pulse" size={20} />
+                      </div>
+                      <div className="flex-1 text-sm text-red-800 relative z-10">
+                        <h4 className="font-bold mb-1">Irreversible Action</h4>
+                        <p>
+                          Once initiated, these dues are permanently assigned. Any
+                          <strong> new courses</strong> or changes to <strong>default dues</strong> added later
+                          will <strong>not</strong> be applied to these students.
+                        </p>
+                        <p className="mt-2 font-medium">Please proceed with caution.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -747,9 +907,12 @@ const DueManager = () => {
                 disabled={
                   bulkLoading ||
                   checkingStats ||
-                  initiationStats?.toBeInitiated === 0
+                  (initiationStats ? initiationStats.toBeInitiated === 0 : true)
                 }
-                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:bg-teal-400 transition-colors flex items-center gap-2"
+                className={`px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2 font-medium ${initiationStats?.toBeInitiated && initiationStats.toBeInitiated > 0
+                  ? "bg-red-600 hover:bg-red-700 shadow-lg shadow-red-200"
+                  : "bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400"
+                  }`}
               >
                 {bulkLoading ? (
                   <>
@@ -760,6 +923,84 @@ const DueManager = () => {
                   <span>
                     Initiate for {initiationStats?.toBeInitiated ?? "..."}{" "}
                     Students
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activation Confirmation Modal */}
+      {showActivationModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fade-in backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative animate-scale-in">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
+              {showActivationModal.activating
+                ? "Activate Due Requests"
+                : "Deactivate Due Requests"}
+            </h2>
+
+            <div className="mb-6">
+              {showActivationModal.activating ? (
+                <div className="rounded-md bg-amber-50 p-4 border border-amber-200 text-amber-800 text-sm">
+                  <div className="flex gap-3 mb-2 font-medium">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    <p>Important Notice</p>
+                  </div>
+                  <p className="ml-8 text-amber-700">
+                    Students will now be able to access the due details from
+                    their profile. Please ensure that all necessary procedures
+                    and fee structures for all students have been fully
+                    configured before activating.
+                  </p>
+                </div>
+              ) : activeRequestCount > 0 ? (
+                <div className="rounded-md bg-rose-50 p-4 border border-rose-200 text-rose-800 text-sm">
+                  <div className="flex gap-3 mb-2 font-medium">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    <p>Warning: Active Requests Discovered</p>
+                  </div>
+                  <p className="ml-8 text-rose-700">
+                    There are currently <strong>{activeRequestCount}</strong>{" "}
+                    active no-due requests. Deactivating will archive them and
+                    halt the clearance process for these students.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-slate-600">
+                  Are you sure you want to deactivate new due requests? Students
+                  will no longer be able to initiate clearances.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() =>
+                  setShowActivationModal({ show: false, activating: false })
+                }
+                disabled={togglingSettings}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleToggleNoDue}
+                disabled={togglingSettings}
+                className={`px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 ${showActivationModal.activating
+                  ? "bg-teal-600 hover:bg-teal-700"
+                  : "bg-amber-600 hover:bg-amber-700"
+                  }`}
+              >
+                {togglingSettings ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <span>
+                    {showActivationModal.activating ? "Activate" : "Deactivate"}
                   </span>
                 )}
               </button>
