@@ -8,7 +8,6 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import PdfModal from "./PdfModal";
 import PromotionModal from "./PromotionModal";
-import { RotateCcw } from "lucide-react";
 
 const baseURL = `http://localhost:3000`;
 
@@ -50,8 +49,6 @@ const StudentsPage = () => {
   const [selectedSemester, setSelectedSemester] = useState<string | "All">(
     "All",
   );
-
-  const [undoLoading, setUndoLoading] = useState(false);
 
   // Undo Delete State
   const [showUndoToast, setShowUndoToast] = useState(false);
@@ -104,7 +101,7 @@ const StudentsPage = () => {
         const deptObj = departmentsInfo.find(
           (d) =>
             d.department_code?.trim().toLowerCase() ===
-              code.trim().toLowerCase() ||
+            code.trim().toLowerCase() ||
             d.name?.trim().toLowerCase() === code.trim().toLowerCase(),
         );
 
@@ -183,8 +180,8 @@ const StudentsPage = () => {
       filters.departments && filters.departments.length > 0
         ? filters.departments
         : Array.from(
-            new Set(students.map((s) => s.department).filter(Boolean)),
-          );
+          new Set(students.map((s) => s.department).filter(Boolean)),
+        );
 
     departmentsToExport.forEach((deptCode) => {
       const filtered = students.filter((s) => {
@@ -342,33 +339,6 @@ const StudentsPage = () => {
     }
   };
 
-  const handleUndoPromotion = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to UNDO the last promotion batch? This will revert semester changes.",
-      )
-    )
-      return;
-    setUndoLoading(true);
-    try {
-      const res = await fetch(`${baseURL}/api/promotion/undo`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert("Promotion undone successfully.");
-        fetchStudents();
-      } else {
-        alert(data.error || "Failed to undo.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error connecting to server.");
-    } finally {
-      setUndoLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -390,37 +360,24 @@ const StudentsPage = () => {
           <div className="flex bg-gray-100 p-1 rounded-md h-fit">
             <button
               onClick={() => setViewStatus("approved")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                viewStatus === "approved"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewStatus === "approved"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
             >
               Active
             </button>
             <button
               onClick={() => setViewStatus("graduated")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                viewStatus === "graduated"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewStatus === "graduated"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
             >
               Graduated
             </button>
           </div>
 
-          <button
-            onClick={handleUndoPromotion}
-            disabled={undoLoading}
-            className="flex items-center gap-2 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 h-fit p-2 rounded-[.3rem] cursor-pointer px-3"
-            title="Undo Last Promotion"
-          >
-            <RotateCcw
-              className={`w-4 h-4 ${undoLoading ? "animate-spin" : ""}`}
-            />
-            Undo
-          </button>
           <button
             className="bg-indigo-600 hover:bg-indigo-700 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3"
             onClick={() => setIsPromotionModalOpen(true)}
@@ -451,11 +408,10 @@ const StudentsPage = () => {
               setSelectedProgram(prog);
               setSelectedDepartment("All"); // Reset department filter on program change
             }}
-            className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ease-in-out ${
-              selectedProgram === prog
-                ? "bg-white text-indigo-600 shadow-sm transform scale-100"
-                : "text-gray-500 hover:text-gray-800 scale-95 hover:scale-100"
-            }`}
+            className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ease-in-out ${selectedProgram === prog
+              ? "bg-white text-indigo-600 shadow-sm transform scale-100"
+              : "text-gray-500 hover:text-gray-800 scale-95 hover:scale-100"
+              }`}
           >
             {prog}
           </button>
@@ -488,11 +444,10 @@ const StudentsPage = () => {
           {/* "All" IS EXPLICITLY RENDERED FIRST */}
           <button
             onClick={() => setSelectedDepartment("All")}
-            className={`px-4 py-2 text-sm font-medium ${
-              selectedDepartment === "All"
-                ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
-                : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
-            }`}
+            className={`px-4 py-2 text-sm font-medium ${selectedDepartment === "All"
+              ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
+              : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
+              }`}
           >
             All
           </button>
@@ -502,11 +457,10 @@ const StudentsPage = () => {
             <button
               key={code}
               onClick={() => setSelectedDepartment(code)}
-              className={`px-4 py-2 text-sm font-medium ${
-                selectedDepartment === code
-                  ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
-                  : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
-              }`}
+              className={`px-4 py-2 text-sm font-medium ${selectedDepartment === code
+                ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
+                : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
+                }`}
             >
               {code}
             </button>
@@ -550,13 +504,13 @@ const StudentsPage = () => {
                   student.currentSemester <= 7
                 );
               }) && (
-                <button
-                  onClick={handleDemote}
-                  className="bg-orange-500 hover:bg-orange-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3 text-sm font-semibold"
-                >
-                  Year Back
-                </button>
-              )}
+                  <button
+                    onClick={handleDemote}
+                    className="bg-orange-500 hover:bg-orange-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3 text-sm font-semibold"
+                  >
+                    Year Back
+                  </button>
+                )}
               <DeleteBtn onClick={handleDeleteClick} />
             </div>
           )}

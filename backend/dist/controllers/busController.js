@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateBusRequestStatus = exports.getBusRequests = exports.archiveFeeBatch = exports.updatePaymentStatus = exports.getBatchDetails = exports.getFeeBatches = exports.assignBusFees = exports.getUniqueSemester = exports.fetchBusStudents = exports.deleteBusStop = exports.addBusStops = exports.getBusDetails = exports.addBus = exports.fetchBus = void 0;
+exports.getBusInvoices = exports.verifyBusPayment = exports.updateBusRequestStatus = exports.getBusRequests = exports.archiveFeeBatch = exports.updatePaymentStatus = exports.getBatchDetails = exports.getFeeBatches = exports.getSemesterBillingStatus = exports.assignBulkBusFees = exports.previewBulkBusFees = exports.getActiveBusSemesters = exports.fetchBusStudents = exports.deleteBusStop = exports.addBusStops = exports.getBusDetails = exports.addBus = exports.fetchBus = void 0;
 const prisma_1 = require("../lib/prisma");
 // import { RequestStatus } from "@prisma/client";
 const BUS_FEE_KEY = "BUS_FEE_ENABLED";
@@ -265,75 +265,350 @@ const fetchBusStudents = (req, res) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 exports.fetchBusStudents = fetchBusStudents;
-const getUniqueSemester = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+// ─── Helper: Identify unique batches from bus-service students for a given semester ───
+function identifyBatchesForSemester(semester, tx) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
+        const db = tx || prisma_1.prisma;
+        const students = yield db.student.findMany({
+            where: {
+                bus_service: true,
+                currentSemester: semester,
+                classId: { not: null },
+                busStopId: { not: null },
+            },
+            select: {
+                id: true,
+                class: {
+                    select: {
+                        batchDepartment: {
+                            select: {
+                                batch: { select: { id: true, name: true } },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        // Extract unique batch IDs and names
+        const batchMap = new Map();
+        for (const s of students) {
+            const batch = (_b = (_a = s.class) === null || _a === void 0 ? void 0 : _a.batchDepartment) === null || _b === void 0 ? void 0 : _b.batch;
+            if (batch && !batchMap.has(batch.id)) {
+                batchMap.set(batch.id, batch.name);
+            }
+        }
+        return Array.from(batchMap.entries()).map(([id, name]) => ({ id, name }));
+    });
+}
+// ─── 1. GET /active-semesters ───
+const getActiveBusSemesters = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const semesters = yield prisma_1.prisma.student.groupBy({
             by: ["currentSemester"],
+            where: { bus_service: true },
             orderBy: { currentSemester: "asc" },
         });
         res.json(semesters.map((s) => s.currentSemester));
     }
     catch (error) {
-        res.status(500).json({ error: "Failed to fetch semesters" });
+        res.status(500).json({ error: "Failed to fetch active semesters" });
     }
 });
-exports.getUniqueSemester = getUniqueSemester;
-const assignBusFees = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { semester, dueDate, feeName } = req.body;
+exports.getActiveBusSemesters = getActiveBusSemesters;
+// ─── 2. GET /preview-bulk-fees?semester=X ───
+// Returns student-level counts: eligible, alreadyBilled, netNew + batch breakdown
+const previewBulkBusFees = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const semester = parseInt(req.query.semester);
+    if (isNaN(semester)) {
+        return res.status(400).json({ error: "Valid semester is required" });
+    }
     try {
-        // 1. Validation: Check if there is already an active (unarchived) batch for this semester
-        const activeBatchExists = yield prisma_1.prisma.feeDetails.findFirst({
+        // 1. All eligible bus-service students for this semester
+        const allEligible = yield prisma_1.prisma.student.findMany({
             where: {
-                semester: parseInt(semester),
-                archived: false,
-                feeType: { contains: "Bus Fee" },
+                bus_service: true,
+                currentSemester: semester,
+                busStopId: { not: null },
+                classId: { not: null },
             },
+            select: { id: true },
         });
-        if (activeBatchExists && semester !== "all") {
-            return res.status(400).json({
-                message: `Cannot assign new fees. Please archive the existing active batch for Semester ${semester} first.`,
+        const eligibleIds = allEligible.map((s) => s.id);
+        // 2. Student-level check: who already has a "Bus Fee" record for this semester?
+        const alreadyBilledRecords = yield prisma_1.prisma.feeDetails.findMany({
+            where: {
+                studentId: { in: eligibleIds },
+                semester,
+                feeType: { contains: "Bus Fee" },
+                archived: false,
+            },
+            select: { studentId: true },
+            distinct: ["studentId"],
+        });
+        const alreadyBilledIds = new Set(alreadyBilledRecords.map((r) => r.studentId));
+        const eligible = eligibleIds.length;
+        const alreadyBilled = alreadyBilledIds.size;
+        const netNew = eligible - alreadyBilled;
+        // 3. Batch breakdown for display
+        const batches = yield identifyBatchesForSemester(semester);
+        const batchDetails = [];
+        for (const batch of batches) {
+            const batchStudents = yield prisma_1.prisma.student.findMany({
+                where: {
+                    bus_service: true,
+                    currentSemester: semester,
+                    busStopId: { not: null },
+                    class: { batchDepartment: { batchId: batch.id } },
+                },
+                select: { id: true },
+            });
+            const totalInBatch = batchStudents.length;
+            const billedInBatch = batchStudents.filter((s) => alreadyBilledIds.has(s.id)).length;
+            batchDetails.push({
+                batchId: batch.id,
+                batchName: batch.name,
+                total: totalInBatch,
+                alreadyBilled: billedInBatch,
+                netNew: totalInBatch - billedInBatch,
             });
         }
-        // 2. Fetch students
-        const students = yield prisma_1.prisma.student.findMany({
-            where: Object.assign({ bus_service: true, busStopId: { not: null } }, (semester !== "all" ? { currentSemester: parseInt(semester) } : {})),
-            include: { busStop: true },
-        });
-        if (!students.length)
-            return res.status(404).json({ message: "No students found." });
-        // 3. Create records in transaction
-        yield prisma_1.prisma.$transaction(students.map((student) => {
+        res.json({ eligible, alreadyBilled, netNew, batches: batchDetails });
+    }
+    catch (error) {
+        console.error("Preview error:", error);
+        res.status(500).json({ error: "Failed to generate preview" });
+    }
+});
+exports.previewBulkBusFees = previewBulkBusFees;
+// ─── 3. POST /assign-bulk-fees ───
+// Student-level dedup: skips individual students who already have a Bus Fee for this semester
+const assignBulkBusFees = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { semester, dueDate } = req.body;
+    const targetSemester = parseInt(semester);
+    if (isNaN(targetSemester) || !dueDate) {
+        return res.status(400).json({ error: "semester and dueDate are required" });
+    }
+    try {
+        const result = yield prisma_1.prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
             var _a;
-            const amount = ((_a = student.busStop) === null || _a === void 0 ? void 0 : _a.feeAmount) || 0;
-            return prisma_1.prisma.feeDetails.create({
-                data: {
-                    studentId: student.id,
-                    feeType: feeName,
-                    amount,
-                    dueDate: new Date(dueDate),
-                    semester: student.currentSemester,
-                    archived: false, // Default state
-                    invoices: {
-                        create: {
+            // 1. Identify batches
+            const batches = yield identifyBatchesForSemester(targetSemester, tx);
+            if (batches.length === 0) {
+                throw new Error("No batches found with bus-service students for this semester.");
+            }
+            // 2. Get ALL eligible students across all batches
+            const allStudents = yield tx.student.findMany({
+                where: {
+                    bus_service: true,
+                    currentSemester: targetSemester,
+                    busStopId: { not: null },
+                    classId: { not: null },
+                },
+                select: { id: true },
+            });
+            // 3. Student-level double-bill check
+            const existingFees = yield tx.feeDetails.findMany({
+                where: {
+                    studentId: { in: allStudents.map((s) => s.id) },
+                    semester: targetSemester,
+                    feeType: { contains: "Bus Fee" },
+                    archived: false,
+                },
+                select: { studentId: true },
+                distinct: ["studentId"],
+            });
+            const alreadyBilledIds = new Set(existingFees.map((f) => f.studentId));
+            let totalStudentsBilled = 0;
+            let totalSkipped = 0;
+            const processedBatchNames = [];
+            const feeName = `Bus Fee - Sem ${targetSemester}`;
+            const dueDateObj = new Date(dueDate);
+            // 4. Process each batch
+            for (const batch of batches) {
+                // 4a. Upsert BusFeeAssignment (idempotent master record)
+                const assignment = yield tx.busFeeAssignment.upsert({
+                    where: {
+                        batchId_semester: {
+                            batchId: batch.id,
+                            semester: targetSemester,
+                        },
+                    },
+                    update: {}, // No-op if already exists
+                    create: {
+                        batchId: batch.id,
+                        semester: targetSemester,
+                        dueDate: dueDateObj,
+                    },
+                });
+                // 4b. Fetch students for this batch + semester
+                const students = yield tx.student.findMany({
+                    where: {
+                        bus_service: true,
+                        currentSemester: targetSemester,
+                        busStopId: { not: null },
+                        class: { batchDepartment: { batchId: batch.id } },
+                    },
+                    include: { busStop: true },
+                });
+                // 4c. Create FeeDetails + Invoice only for non-billed students
+                let batchBilled = 0;
+                for (const student of students) {
+                    if (alreadyBilledIds.has(student.id)) {
+                        totalSkipped++;
+                        continue; // Student-level skip
+                    }
+                    const amount = ((_a = student.busStop) === null || _a === void 0 ? void 0 : _a.feeAmount) || 0;
+                    yield tx.feeDetails.create({
+                        data: {
                             studentId: student.id,
+                            feeType: feeName,
                             amount,
-                            dueDate: new Date(dueDate),
-                            status: "unpaid",
-                            feeStructureId: 2,
+                            dueDate: dueDateObj,
+                            semester: targetSemester,
+                            archived: false,
+                            busFeeAssignmentId: assignment.id,
+                            invoices: {
+                                create: {
+                                    studentId: student.id,
+                                    amount,
+                                    dueDate: dueDateObj,
+                                    status: "unpaid",
+                                    semester: targetSemester,
+                                },
+                            },
+                        },
+                    });
+                    batchBilled++;
+                }
+                totalStudentsBilled += batchBilled;
+                if (batchBilled > 0)
+                    processedBatchNames.push(batch.name);
+            }
+            if (totalStudentsBilled === 0) {
+                throw new Error("All students for this semester are already up to date.");
+            }
+            return {
+                totalStudentsBilled,
+                totalSkipped,
+                processedBatches: processedBatchNames,
+            };
+        }));
+        res.status(201).json(Object.assign({ message: `Assigned fees to ${result.totalStudentsBilled} students across ${result.processedBatches.length} batch(es). ${result.totalSkipped} student(s) skipped (already billed).` }, result));
+    }
+    catch (error) {
+        console.error("Bulk fee assignment error:", error);
+        res.status(500).json({ error: error.message || "Transaction failed." });
+    }
+});
+exports.assignBulkBusFees = assignBulkBusFees;
+// ─── 4. GET /semester-status?semester=X ───
+// Unified view: merges student data with bus-fee invoice status for a semester
+const getSemesterBillingStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const semester = parseInt(req.query.semester);
+    if (isNaN(semester)) {
+        return res.status(400).json({ error: "Valid semester is required" });
+    }
+    try {
+        // 1. Fetch all bus-service students for this semester with joins
+        const students = yield prisma_1.prisma.student.findMany({
+            where: {
+                bus_service: true,
+                currentSemester: semester,
+            },
+            select: {
+                id: true,
+                name: true,
+                admission_number: true,
+                busStop: {
+                    select: { stopName: true, feeAmount: true },
+                },
+                class: {
+                    select: {
+                        batchDepartment: {
+                            select: {
+                                batch: { select: { name: true } },
+                            },
                         },
                     },
                 },
-            });
-        }));
-        res
-            .status(201)
-            .json({ message: `Assigned fees to ${students.length} students.` });
+            },
+            orderBy: { name: "asc" },
+        });
+        // 2. Get all bus-fee invoices for these students in this semester
+        const studentIds = students.map((s) => s.id);
+        const invoices = yield prisma_1.prisma.invoice.findMany({
+            where: {
+                studentId: { in: studentIds },
+                fee: {
+                    feeType: { contains: "Bus Fee" },
+                    semester,
+                    archived: false,
+                },
+            },
+            select: {
+                id: true,
+                studentId: true,
+                amount: true,
+                status: true,
+                dueDate: true,
+                createdAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+        });
+        // 3. Map: studentId → latest invoice
+        const invoiceMap = new Map();
+        for (const inv of invoices) {
+            if (!invoiceMap.has(inv.studentId)) {
+                invoiceMap.set(inv.studentId, inv); // latest first (ordered by createdAt desc)
+            }
+        }
+        // 4. Build unified response
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const result = students.map((student) => {
+            var _a, _b, _c, _d, _e;
+            const invoice = invoiceMap.get(student.id);
+            let status = "not_billed";
+            if (invoice) {
+                if (invoice.status === "paid") {
+                    status = "paid";
+                }
+                else if (invoice.status === "unpaid") {
+                    status = today > new Date(invoice.dueDate) ? "overdue" : "unpaid";
+                }
+                else {
+                    status = invoice.status;
+                }
+            }
+            return {
+                studentId: student.id,
+                name: student.name,
+                admissionNumber: student.admission_number || "N/A",
+                batchName: ((_c = (_b = (_a = student.class) === null || _a === void 0 ? void 0 : _a.batchDepartment) === null || _b === void 0 ? void 0 : _b.batch) === null || _c === void 0 ? void 0 : _c.name) || "Unassigned",
+                stopName: ((_d = student.busStop) === null || _d === void 0 ? void 0 : _d.stopName) || "N/A",
+                feeAmount: ((_e = student.busStop) === null || _e === void 0 ? void 0 : _e.feeAmount) || 0,
+                status,
+                invoiceId: (invoice === null || invoice === void 0 ? void 0 : invoice.id) || null,
+                invoiceAmount: (invoice === null || invoice === void 0 ? void 0 : invoice.amount) || null,
+                dueDate: (invoice === null || invoice === void 0 ? void 0 : invoice.dueDate) || null,
+            };
+        });
+        // 5. Counts
+        const counts = {
+            total: result.length,
+            notBilled: result.filter((r) => r.status === "not_billed").length,
+            unpaid: result.filter((r) => r.status === "unpaid" || r.status === "overdue").length,
+            paid: result.filter((r) => r.status === "paid").length,
+        };
+        res.json({ students: result, counts });
     }
     catch (error) {
-        res.status(500).json({ error: "Transaction failed." });
+        console.error("Semester status error:", error);
+        res.status(500).json({ error: "Failed to fetch semester billing status" });
     }
 });
-exports.assignBusFees = assignBusFees;
+exports.getSemesterBillingStatus = getSemesterBillingStatus;
 const getFeeBatches = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const batches = yield prisma_1.prisma.feeDetails.groupBy({
@@ -484,49 +759,143 @@ exports.getBusRequests = getBusRequests;
 const updateBusRequestStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { requestId } = req.params;
     const { status } = req.body; // 'approved' or 'rejected'
-    if (!requestId || !status) {
-        return res
-            .status(400)
-            .json({ message: "Request ID and status are required" });
-    }
     try {
         const result = yield prisma_1.prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-            // 1. Get the request
+            var _a, _b, _c, _d;
+            // 1. Fetch the request AND the student's current semester
             const request = yield tx.busRequest.findUnique({
                 where: { id: Number(requestId) },
-                include: { busStop: true }, // Need fee if we were doing more, but mainly need ids
+                include: {
+                    busStop: true,
+                    student: {
+                        select: {
+                            currentSemester: true, // Dynamically get the semester
+                        }
+                    }
+                },
             });
-            if (!request) {
-                throw new Error("Request not found");
-            }
-            if (request.status !== "pending") {
-                throw new Error("Request is not pending");
+            if (!request || request.status !== "pending") {
+                throw new Error("Invalid or non-pending request");
             }
             // 2. Update request status
             const updatedRequest = yield tx.busRequest.update({
                 where: { id: Number(requestId) },
                 data: { status: status },
             });
-            // 3. If approved, update Student record
+            // 3. If approved, Create an UNPAID Invoice with dynamic semester
             if (status === "approved") {
-                yield tx.student.update({
-                    where: { id: request.studentId },
+                yield tx.feeDetails.create({
                     data: {
-                        bus_service: true,
-                        busId: request.busId,
-                        busStopId: request.busStopId,
+                        studentId: request.studentId,
+                        feeType: "Bus Fee - Enrollment",
+                        amount: request.busStop.feeAmount,
+                        dueDate: new Date(),
+                        semester: (_b = (_a = request.student) === null || _a === void 0 ? void 0 : _a.currentSemester) !== null && _b !== void 0 ? _b : 1,
+                        invoices: {
+                            create: {
+                                studentId: request.studentId,
+                                amount: request.busStop.feeAmount,
+                                dueDate: new Date(),
+                                status: "unpaid",
+                                feeStructureId: 3,
+                                semester: (_d = (_c = request.student) === null || _c === void 0 ? void 0 : _c.currentSemester) !== null && _d !== void 0 ? _d : 1,
+                            },
+                        },
                     },
                 });
             }
             return updatedRequest;
         }));
-        res.json({ message: `Request ${status} successfully`, result });
+        res.json({ message: `Request ${status}. Fee assigned for Semester ${result.status === 'approved' ? 'current' : 'N/A'}.`, result });
     }
     catch (error) {
-        console.error("Error updating bus request:", error);
-        res
-            .status(500)
-            .json({ message: error.message || "Failed to update status" });
+        res.status(500).json({ message: error.message });
     }
 });
 exports.updateBusRequestStatus = updateBusRequestStatus;
+const verifyBusPayment = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { invoiceId } = req.params;
+    try {
+        const result = yield prisma_1.prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            // 1. Update Invoice to 'paid'
+            const invoice = yield tx.invoice.update({
+                where: { id: Number(invoiceId) },
+                data: { status: "paid" },
+                include: {
+                    student: true,
+                    // We need to find the original BusRequest to get the BusID and StopID
+                    // Since it's not directly linked, we search for an approved request for this student
+                }
+            });
+            const busRequest = yield tx.busRequest.findFirst({
+                where: {
+                    studentId: invoice.studentId,
+                    status: "approved"
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+            if (!busRequest)
+                throw new Error("No approved bus request found for this student.");
+            // 2. NOW set bus_service to true and assign IDs
+            const updatedStudent = yield tx.student.update({
+                where: { id: invoice.studentId },
+                data: {
+                    bus_service: true,
+                    busId: busRequest.busId,
+                    busStopId: busRequest.busStopId,
+                },
+            });
+            return { invoice, updatedStudent };
+        }));
+        res.json({ message: "Payment verified. Bus service activated.", result });
+    }
+    catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+exports.verifyBusPayment = verifyBusPayment;
+const getBusInvoices = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { status } = req.query;
+    try {
+        const invoices = yield prisma_1.prisma.invoice.findMany({
+            where: Object.assign(Object.assign({}, (status ? { status: status } : {})), { 
+                // We specifically want bus-related fees
+                fee: {
+                    feeType: {
+                        contains: "Bus Fee",
+                        mode: 'insensitive' // Makes it search for "bus fee", "Bus Fee", etc.
+                    }
+                } }),
+            include: {
+                student: {
+                    select: {
+                        id: true,
+                        name: true,
+                        admission_number: true,
+                        department: {
+                            select: { name: true }
+                        },
+                        // We need the bus stop to show the admin where the student is traveling
+                        busStop: {
+                            select: { stopName: true, feeAmount: true }
+                        }
+                    }
+                },
+                fee: {
+                    select: {
+                        feeType: true,
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+        return res.status(200).json(invoices);
+    }
+    catch (error) {
+        console.error("Error fetching bus invoices:", error);
+        return res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+});
+exports.getBusInvoices = getBusInvoices;

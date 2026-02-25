@@ -48,8 +48,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BatchDepartmentScalarFieldEnum = exports.BatchScalarFieldEnum = exports.BusRequestScalarFieldEnum = exports.BusStopScalarFieldEnum = exports.BusScalarFieldEnum = exports.CertificateScalarFieldEnum = exports.SettingScalarFieldEnum = exports.AuditLogScalarFieldEnum = exports.NotificationScalarFieldEnum = exports.PaymentScalarFieldEnum = exports.InvoiceScalarFieldEnum = exports.FeeDetailsScalarFieldEnum = exports.FeeStructureScalarFieldEnum = exports.CourseSelectionScalarFieldEnum = exports.CourseScalarFieldEnum = exports.NoDueApprovalScalarFieldEnum = exports.NoDueScalarFieldEnum = exports.DueConfigurationScalarFieldEnum = exports.ServiceDepartmentScalarFieldEnum = exports.NoDueRequestScalarFieldEnum = exports.PrincipalDetailsScalarFieldEnum = exports.AdvisorDetailsScalarFieldEnum = exports.HodDetailsScalarFieldEnum = exports.AdmissionWindowScalarFieldEnum = exports.DepartmentScalarFieldEnum = exports.StudentScalarFieldEnum = exports.RolePermissionScalarFieldEnum = exports.UserRoleScalarFieldEnum = exports.PermissionScalarFieldEnum = exports.RoleScalarFieldEnum = exports.UserScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.prismaVersion = exports.getExtensionContext = exports.Decimal = exports.Sql = exports.raw = exports.join = exports.empty = exports.sql = exports.PrismaClientValidationError = exports.PrismaClientInitializationError = exports.PrismaClientRustPanicError = exports.PrismaClientUnknownRequestError = exports.PrismaClientKnownRequestError = void 0;
-exports.defineExtension = exports.JsonNullValueFilter = exports.NullsOrder = exports.QueryMode = exports.JsonNullValueInput = exports.NullableJsonNullValueInput = exports.SortOrder = exports.EmailQueueScalarFieldEnum = exports.PromotionHistoryScalarFieldEnum = exports.BusFeeAssignmentScalarFieldEnum = exports.HostelHistoryScalarFieldEnum = exports.HostelScalarFieldEnum = exports.ClassScalarFieldEnum = void 0;
+exports.BatchScalarFieldEnum = exports.BusRequestScalarFieldEnum = exports.BusStopScalarFieldEnum = exports.BusScalarFieldEnum = exports.CertificateApprovalScalarFieldEnum = exports.CertificateScalarFieldEnum = exports.SettingScalarFieldEnum = exports.AuditLogScalarFieldEnum = exports.NotificationScalarFieldEnum = exports.PaymentScalarFieldEnum = exports.InvoiceScalarFieldEnum = exports.FeeDetailsScalarFieldEnum = exports.FeeStructureScalarFieldEnum = exports.CourseSelectionScalarFieldEnum = exports.CourseScalarFieldEnum = exports.NoDueApprovalScalarFieldEnum = exports.NoDueScalarFieldEnum = exports.DueConfigurationScalarFieldEnum = exports.ServiceDepartmentScalarFieldEnum = exports.NoDueRequestScalarFieldEnum = exports.PrincipalDetailsScalarFieldEnum = exports.AdvisorDetailsScalarFieldEnum = exports.HodDetailsScalarFieldEnum = exports.AdmissionWindowScalarFieldEnum = exports.DepartmentScalarFieldEnum = exports.StudentScalarFieldEnum = exports.RolePermissionScalarFieldEnum = exports.UserRoleScalarFieldEnum = exports.PermissionScalarFieldEnum = exports.RoleScalarFieldEnum = exports.UserScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.prismaVersion = exports.getExtensionContext = exports.Decimal = exports.Sql = exports.raw = exports.join = exports.empty = exports.sql = exports.PrismaClientValidationError = exports.PrismaClientInitializationError = exports.PrismaClientRustPanicError = exports.PrismaClientUnknownRequestError = exports.PrismaClientKnownRequestError = void 0;
+exports.defineExtension = exports.JsonNullValueFilter = exports.NullsOrder = exports.QueryMode = exports.JsonNullValueInput = exports.NullableJsonNullValueInput = exports.SortOrder = exports.EmailQueueScalarFieldEnum = exports.PromotionHistoryScalarFieldEnum = exports.BusFeeAssignmentScalarFieldEnum = exports.HostelHistoryScalarFieldEnum = exports.HostelScalarFieldEnum = exports.ClassScalarFieldEnum = exports.BatchDepartmentScalarFieldEnum = void 0;
 const runtime = __importStar(require("@prisma/client/runtime/client"));
 /**
  * Prisma Errors
@@ -130,6 +130,7 @@ exports.ModelName = {
     AuditLog: 'AuditLog',
     Setting: 'Setting',
     Certificate: 'Certificate',
+    CertificateApproval: 'CertificateApproval',
     Bus: 'Bus',
     BusStop: 'BusStop',
     BusRequest: 'BusRequest',
@@ -305,12 +306,15 @@ exports.ServiceDepartmentScalarFieldEnum = {
     id: 'id',
     name: 'name',
     code: 'code',
+    program: 'program',
+    assignedUserId: 'assignedUserId',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
 exports.DueConfigurationScalarFieldEnum = {
     id: 'id',
     semester: 'semester',
+    program: 'program',
     serviceDepartmentId: 'serviceDepartmentId',
     name: 'name',
     dueDate: 'dueDate',
@@ -320,6 +324,7 @@ exports.NoDueScalarFieldEnum = {
     id: 'id',
     requestId: 'requestId',
     departmentId: 'departmentId',
+    courseId: 'courseId',
     status: 'status',
     comments: 'comments',
     updatedAt: 'updatedAt',
@@ -420,12 +425,34 @@ exports.CertificateScalarFieldEnum = {
     type: 'type',
     reason: 'reason',
     status: 'status',
+    workflowStatus: 'workflowStatus',
     requestedAt: 'requestedAt',
+    updatedAt: 'updatedAt',
+    advisorId: 'advisorId',
+    advisorActionAt: 'advisorActionAt',
+    advisorRemarks: 'advisorRemarks',
+    hodId: 'hodId',
+    hodActionAt: 'hodActionAt',
+    hodRemarks: 'hodRemarks',
+    officeId: 'officeId',
+    officeActionAt: 'officeActionAt',
+    officeRemarks: 'officeRemarks',
+    principalId: 'principalId',
+    principalActionAt: 'principalActionAt',
+    principalRemarks: 'principalRemarks',
     approvedAt: 'approvedAt',
     rejectedAt: 'rejectedAt',
-    approvedById: 'approvedById',
     rejectionReason: 'rejectionReason',
     certificateUrl: 'certificateUrl'
+};
+exports.CertificateApprovalScalarFieldEnum = {
+    id: 'id',
+    certificateId: 'certificateId',
+    approverId: 'approverId',
+    role: 'role',
+    action: 'action',
+    remarks: 'remarks',
+    createdAt: 'createdAt'
 };
 exports.BusScalarFieldEnum = {
     id: 'id',

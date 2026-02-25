@@ -64,7 +64,7 @@ const StudentDashboardPage: React.FC = () => {
           <AlertCircle className="text-blue-600 mt-0.5" size={20} />
           <div>
             <h3 className="font-semibold text-blue-900">
-              Semester Registration Open
+              No Due Status Open
             </h3>
             <p className="text-blue-700 text-sm mt-1">
               Registration for the upcoming semester is now open. Please
@@ -75,7 +75,7 @@ const StudentDashboardPage: React.FC = () => {
               href="/student/register"
               className="inline-block mt-2 text-sm font-medium text-blue-800 hover:underline"
             >
-              Go to Registration &rarr;
+              Check No Due Status &rarr;
             </a>
           </div>
         </div>
