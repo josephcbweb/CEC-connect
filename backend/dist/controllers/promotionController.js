@@ -31,8 +31,24 @@ const getPromotionStats = (req, res) => __awaiter(void 0, void 0, void 0, functi
         const oddCount = (counts[1] || 0) + (counts[3] || 0) + (counts[5] || 0) + (counts[7] || 0);
         const evenCount = (counts[2] || 0) + (counts[4] || 0) + (counts[6] || 0) + (counts[8] || 0);
         const currentType = oddCount >= evenCount ? "ODD" : "EVEN";
+        // Calculate pending dues counts per semester
+        const pendingDuesQuery = yield prisma_1.prisma.noDueRequest.groupBy({
+            by: ["targetSemester"],
+            where: {
+                status: "pending",
+                isArchived: false,
+            },
+            _count: {
+                id: true,
+            },
+        });
+        const pendingDues = {};
+        pendingDuesQuery.forEach((item) => {
+            pendingDues[item.targetSemester] = item._count.id;
+        });
         res.json({
             counts,
+            pendingDues,
             currentType,
             recommendedTransitions: currentType === "ODD"
                 ? [
@@ -57,7 +73,7 @@ const getPromotionStats = (req, res) => __awaiter(void 0, void 0, void 0, functi
 });
 exports.getPromotionStats = getPromotionStats;
 const promoteStudents = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { transitions, semesterType, yearBackIds = [] } = req.body;
+    const { transitions, semesterType, yearBackIds = [], dueAction = "NONE" } = req.body;
     if (!transitions || !Array.isArray(transitions) || transitions.length === 0) {
         return res.status(400).json({ error: "No transitions provided." });
     }
@@ -118,6 +134,36 @@ const promoteStudents = (req, res) => __awaiter(void 0, void 0, void 0, function
                             data: { currentSemester: yearBackTarget },
                         });
                         totalYearBack += ybIds.length;
+                    }
+                }
+                // C. Due Action Handling
+                if (dueAction !== "NONE" && ids.length > 0) {
+                    const activeRequests = yield tx.noDueRequest.findMany({
+                        where: {
+                            studentId: { in: ids },
+                            status: "pending",
+                            isArchived: false,
+                        },
+                        select: { id: true },
+                    });
+                    const requestIds = activeRequests.map((r) => r.id);
+                    if (requestIds.length > 0) {
+                        if (dueAction === "CLEAR") {
+                            yield tx.noDueRequest.updateMany({
+                                where: { id: { in: requestIds } },
+                                data: { status: "approved" },
+                            });
+                            yield tx.noDue.updateMany({
+                                where: { requestId: { in: requestIds } },
+                                data: { status: "cleared" },
+                            });
+                        }
+                        else if (dueAction === "KEEP") {
+                            yield tx.noDueRequest.updateMany({
+                                where: { id: { in: requestIds } },
+                                data: { isArchived: true },
+                            });
+                        }
                     }
                 }
                 historyDetails.push({

@@ -15,18 +15,52 @@ exports.promoteStudents = promoteStudents;
 const prisma_1 = require("../lib/prisma");
 const toggleSettings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { name, value } = req.body;
+        const { name, value, action } = req.body;
         const setting = yield prisma_1.prisma.setting.upsert({
             where: { key: name },
             update: { enabled: value },
             create: { key: name, enabled: value },
         });
-        // If disabling noDueRequest, archive all pending requests
-        if (name === "noDueRequestEnabled" && value === false) {
-            yield prisma_1.prisma.noDueRequest.updateMany({
-                where: { status: "pending", isArchived: false },
-                data: { isArchived: true },
+        // If activating noDueRequest, send notification to all students
+        if (name === "noDueRequestEnabled" && value === true) {
+            const adminUser = yield prisma_1.prisma.user.findFirst();
+            yield prisma_1.prisma.notification.create({
+                data: {
+                    title: "Semester Registration Open",
+                    description: "No Due requests for the upcoming semester registration are now being accepted. Please visit the Semester Registration page to view your status.",
+                    targetType: "ALL",
+                    status: "published",
+                    priority: "NORMAL",
+                    senderId: (adminUser === null || adminUser === void 0 ? void 0 : adminUser.id) || 1
+                }
             });
+        }
+        // If disabling noDueRequest, handle pending requests based on `action`
+        if (name === "noDueRequestEnabled" && value === false) {
+            if (action === "CLEAR") {
+                const pendingReqs = yield prisma_1.prisma.noDueRequest.findMany({
+                    where: { status: "pending", isArchived: false },
+                    select: { id: true },
+                });
+                const reqIds = pendingReqs.map((r) => r.id);
+                if (reqIds.length > 0) {
+                    yield prisma_1.prisma.noDueRequest.updateMany({
+                        where: { id: { in: reqIds } },
+                        data: { status: "approved" },
+                    });
+                    yield prisma_1.prisma.noDue.updateMany({
+                        where: { requestId: { in: reqIds }, status: "pending" },
+                        data: { status: "cleared" },
+                    });
+                }
+            }
+            else {
+                // Default KEEP behavior
+                yield prisma_1.prisma.noDueRequest.updateMany({
+                    where: { status: "pending", isArchived: false },
+                    data: { isArchived: true },
+                });
+            }
         }
         res.status(200).json(setting);
     }
@@ -48,10 +82,12 @@ const getSettings = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
 exports.getSettings = getSettings;
 const getActiveRequestCount = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const count = yield prisma_1.prisma.noDueRequest.count({
+        const count = yield prisma_1.prisma.noDue.count({
             where: {
                 status: "pending",
-                isArchived: false,
+                request: {
+                    isArchived: false,
+                },
             },
         });
         res.json({ count });

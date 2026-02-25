@@ -4,19 +4,94 @@ import { format } from "path";
 
 export const toggleSettings = async (req: Request, res: Response) => {
   try {
-    const { name, value } = req.body;
+    const { name, value, action } = req.body;
     const setting = await prisma.setting.upsert({
       where: { key: name },
       update: { enabled: value },
       create: { key: name, enabled: value },
     });
 
-    // If disabling noDueRequest, archive all pending requests
-    if (name === "noDueRequestEnabled" && value === false) {
-      await prisma.noDueRequest.updateMany({
-        where: { status: "pending", isArchived: false },
-        data: { isArchived: true },
+    // If activating noDueRequest, send notification to all students
+    if (name === "noDueRequestEnabled" && value === true) {
+      const adminUser = await prisma.user.findFirst();
+      await prisma.notification.create({
+        data: {
+          title: "Semester Registration Open",
+          description: "No Due requests for the upcoming semester registration are now being accepted. Please visit the Semester Registration page to view your status.",
+          targetType: "ALL",
+          status: "published",
+          priority: "NORMAL",
+          senderId: adminUser?.id || 1
+        }
       });
+
+      // Handle Reactivation of archived requests if selected
+      if (action === "REACTIVATE") {
+        const archivedRequests = await prisma.noDueRequest.findMany({
+          where: {
+            isArchived: true,
+            status: "pending"
+          },
+          include: {
+            student: true
+          }
+        });
+
+        const relevantReqIds = archivedRequests
+          .filter(req => req.student && req.targetSemester === req.student.currentSemester)
+          .map(req => req.id);
+
+        if (relevantReqIds.length > 0) {
+          await prisma.noDueRequest.updateMany({
+            where: {
+              id: { in: relevantReqIds }
+            },
+            data: {
+              isArchived: false
+            }
+          });
+        }
+      }
+    }
+
+    // If disabling noDueRequest, handle pending requests based on `action`
+    if (name === "noDueRequestEnabled" && value === false) {
+      const adminUser = await prisma.user.findFirst();
+      await prisma.notification.create({
+        data: {
+          title: "No Due Status Hidden",
+          description: "The No Due clearance period has concluded. Your No Due status is currently hidden.",
+          targetType: "ALL",
+          status: "published",
+          priority: "NORMAL",
+          senderId: adminUser?.id || 1,
+        },
+      });
+
+      if (action === "CLEAR") {
+        const pendingReqs = await prisma.noDueRequest.findMany({
+          where: { status: "pending", isArchived: false },
+          select: { id: true },
+        });
+        const reqIds = pendingReqs.map((r) => r.id);
+
+        if (reqIds.length > 0) {
+          await prisma.noDueRequest.updateMany({
+            where: { id: { in: reqIds } },
+            data: { status: "approved" },
+          });
+          await prisma.noDue.updateMany({
+            where: { requestId: { in: reqIds }, status: "pending" },
+            data: { status: "cleared" },
+          });
+        }
+      } else {
+        // Default KEEP behavior
+        await prisma.noDueRequest.updateMany({
+          where: { status: "pending", isArchived: false },
+          data: { isArchived: true },
+        });
+      }
     }
 
     res.status(200).json(setting);
@@ -37,13 +112,41 @@ export const getSettings = async (req: Request, res: Response) => {
 
 export const getActiveRequestCount = async (req: Request, res: Response) => {
   try {
-    const count = await prisma.noDueRequest.count({
+    const activeCount = await prisma.noDue.count({
       where: {
         status: "pending",
-        isArchived: false,
+        request: {
+          isArchived: false,
+        },
       },
     });
-    res.json({ count });
+
+    // Count of archived due entries where targetSemester matches student.currentSemester
+    const archivedDues = await prisma.noDue.findMany({
+      where: {
+        status: "pending",
+        request: {
+          isArchived: true,
+          status: "pending"
+        }
+      },
+      include: {
+        request: {
+          include: {
+            student: true
+          }
+        }
+      }
+    });
+
+    const relevantArchivedCount = archivedDues.filter(due =>
+      due.request?.student && due.request.targetSemester === due.request.student.currentSemester
+    ).length;
+
+    res.json({
+      count: activeCount,
+      relevantArchivedCount
+    });
   } catch (error) {
     console.error("Error fetching active request count:", error);
     res.status(500).json({ message: "Failed to fetch active request count" });

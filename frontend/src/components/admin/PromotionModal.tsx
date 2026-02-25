@@ -15,6 +15,7 @@ interface Transition {
 
 interface PromotionStats {
   counts: Record<string, number>;
+  pendingDues: Record<string, number>;
   currentType: "ODD" | "EVEN";
   recommendedTransitions: Transition[];
 }
@@ -43,6 +44,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dueAction, setDueAction] = useState<"CLEAR" | "KEEP" | "">("");
 
   const [yearBackCandidates, setYearBackCandidates] = useState<any[]>([]);
   const [selectedYearBackIds, setSelectedYearBackIds] = useState<number[]>([]);
@@ -53,6 +55,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
       setStep(1);
       setError(null);
       setSelectedYearBackIds([]);
+      setDueAction("");
     }
   }, [isOpen]);
 
@@ -99,8 +102,20 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
   };
 
   const handleNext = () => {
-    // Skip Step 2 (Identify Year Back) and go straight to Confirmation
-    setStep(3);
+    if (step === 1) {
+      // Check if any selected transition has pending dues
+      const hasPendingDues = stats?.recommendedTransitions.some(
+        (t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingDues[t.from] || 0) > 0
+      );
+
+      if (hasPendingDues) {
+        setStep(2); // Show pending dues warning
+      } else {
+        setStep(3); // Skip to confirmation
+      }
+    } else if (step === 2) {
+      setStep(3);
+    }
   };
 
   const handlePromote = async () => {
@@ -119,6 +134,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
           transitions: activeTransitions,
           // No yearBackIds sent as per new requirement
           yearBackIds: [],
+          dueAction: dueAction || "NONE",
         }),
       });
 
@@ -145,6 +161,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900">
             {step === 1 && "Semester Promotion"}
+            {step === 2 && "Pending Dues Warning"}
             {step === 3 && "Confirm Promotion"}
           </h3>
           <button
@@ -200,6 +217,65 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                 </div>
               )}
 
+              {step === 2 && (
+                <div className="space-y-4">
+                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg flex gap-3">
+                    <AlertTriangle className="w-6 h-6 shrink-0 text-yellow-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-yellow-900">There are students with pending dues</h4>
+                      <div className="mt-2 space-y-1 text-sm">
+                        {stats.recommendedTransitions
+                          .filter((t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingDues[t.from] || 0) > 0)
+                          .map((t) => (
+                            <div key={t.from}>
+                              Semester {t.from}: <strong>{stats.pendingDues[t.from]}</strong> student(s)
+                            </div>
+                          ))}
+                      </div>
+                      <p className="mt-3 text-sm">
+                        The dues will be deactivated automatically when doing the student promotion. Please select how you want to handle these pending dues.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mt-4">
+                    <label className={`flex p-4 border rounded-lg cursor-pointer transition-colors ${dueAction === "CLEAR" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
+                      <input
+                        type="radio"
+                        name="dueAction"
+                        className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                        checked={dueAction === "CLEAR"}
+                        onChange={() => setDueAction("CLEAR")}
+                      />
+                      <div className="ml-3">
+                        <h5 className="font-medium text-gray-900">Clear the Dues</h5>
+                        <p className="text-sm text-gray-500">All students' dues will be marked as cleared and approved.</p>
+                      </div>
+                    </label>
+
+                    <label className={`flex p-4 border rounded-lg cursor-pointer transition-colors ${dueAction === "KEEP" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
+                      <input
+                        type="radio"
+                        name="dueAction"
+                        className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                        checked={dueAction === "KEEP"}
+                        onChange={() => setDueAction("KEEP")}
+                      />
+                      <div className="ml-3">
+                        <h5 className="font-medium text-gray-900">Keep the Dues</h5>
+                        <p className="text-sm text-gray-500">Archive the dues without clearing them.</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {dueAction === "KEEP" && (
+                    <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-sm animate-in fade-in zoom-in duration-200">
+                      <strong>Note:</strong> These dues will only be visible to the admins for historic record purposes.
+                    </div>
+                  )}
+                </div>
+              )}
+
               {step === 3 && (
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Summary</h4>
@@ -226,7 +302,16 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
               <div className="flex justify-end gap-3 mt-6 border-t pt-4">
                 {step > 1 && (
                   <button
-                    onClick={() => setStep(1)}
+                    onClick={() => {
+                      if (step === 3) {
+                        const hasPendingDues = stats?.recommendedTransitions.some(
+                          (t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingDues[t.from] || 0) > 0
+                        );
+                        setStep(hasPendingDues ? 2 : 1);
+                      } else {
+                        setStep(1);
+                      }
+                    }}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                     disabled={processing}
                   >
@@ -237,9 +322,10 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                 {step < 3 ? (
                   <button
                     onClick={handleNext}
-                    disabled={Object.values(selectedTransitions).every(
-                      (v) => !v,
-                    )}
+                    disabled={
+                      (step === 1 && Object.values(selectedTransitions).every((v) => !v)) ||
+                      (step === 2 && !dueAction)
+                    }
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 flex items-center gap-2"
                   >
                     Next <ChevronRight className="w-4 h-4" />

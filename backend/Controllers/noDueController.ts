@@ -33,6 +33,11 @@ export const registerSemester = async (
       return;
     }
 
+    if (student.status === "graduated") {
+      res.status(400).json({ message: "Cannot generate dues for graduated students" });
+      return;
+    }
+
     // Use student's current semester if not provided
     if (!targetSemester) {
       targetSemester = student.currentSemester;
@@ -263,7 +268,7 @@ export const getPendingApprovals = async (
 
     const whereClause: any = {
       request: {
-        isArchived: false,
+        isArchived: status === "archived",
         student: {
           status: {
             notIn: [StudentStatus.graduated, StudentStatus.deleted],
@@ -319,6 +324,9 @@ export const getPendingApprovals = async (
       whereClause.status = "pending";
     } else if (status === "cleared") {
       whereClause.status = "cleared";
+    } else if (status === "archived") {
+      // For archived requests, we also only want to show their pending dues (usually)
+      whereClause.status = "pending";
     }
 
     // Filter by Due Type (Academic vs Service)
@@ -425,7 +433,35 @@ export const clearDue = async (req: Request, res: Response): Promise<void> => {
           },
         },
       },
+      include: {
+        request: {
+          include: { student: true }
+        },
+        course: true,
+        department: true,
+        serviceDepartment: true
+      }
     });
+
+    // Send notification to student
+    if (updatedNoDue.request?.student) {
+      let entityName = "Academic Due";
+      if (updatedNoDue.course) entityName = updatedNoDue.course.name;
+      else if (updatedNoDue.serviceDepartment) entityName = updatedNoDue.serviceDepartment.name;
+      else if (updatedNoDue.department) entityName = `${updatedNoDue.department.name} Clearance`;
+
+      await prisma.notification.create({
+        data: {
+          title: "Due Cleared",
+          description: `Your clearance for "${entityName}" has been approved.`,
+          targetType: "STUDENT",
+          targetValue: updatedNoDue.request.student.id.toString(),
+          status: "published",
+          priority: "NORMAL",
+          senderId: Number(userId)
+        }
+      });
+    }
 
     // Check if all dues for the request are cleared
     const pendingDues = await prisma.noDue.count({
@@ -491,7 +527,11 @@ export const getStudentStatus = async (
           include: {
             department: true,
             serviceDepartment: true,
-            course: true,
+            course: {
+              include: {
+                staff: true,
+              },
+            },
           },
         },
         courseSelections: {
@@ -708,6 +748,22 @@ export const bulkClearDues = async (
       return;
     }
 
+    // Fetch details of all dues being cleared to notify students
+    const duesToClear = await prisma.noDue.findMany({
+      where: {
+        id: { in: dueIds },
+        status: { not: NoDueStatus.cleared },
+      },
+      include: {
+        request: {
+          include: { student: true }
+        },
+        course: true,
+        department: true,
+        serviceDepartment: true
+      }
+    });
+
     // Update all provided dues to cleared
     await prisma.noDue.updateMany({
       where: {
@@ -718,6 +774,39 @@ export const bulkClearDues = async (
         status: NoDueStatus.cleared,
       },
     });
+
+    // Send notifications to students
+    const studentNotificationsMap = new Map<number, string[]>();
+    duesToClear.forEach(due => {
+      if (due.request?.student) {
+        const studentId = due.request.student.id;
+        let entityName = "Academic Due";
+        if (due.course) entityName = due.course.name;
+        else if (due.serviceDepartment) entityName = due.serviceDepartment.name;
+        else if (due.department) entityName = `${due.department.name} Clearance`;
+
+        if (!studentNotificationsMap.has(studentId)) {
+          studentNotificationsMap.set(studentId, []);
+        }
+        studentNotificationsMap.get(studentId)?.push(entityName);
+      }
+    });
+
+    // Create notifications for each student
+    for (const [studentId, clearedEntities] of studentNotificationsMap.entries()) {
+      const entitiesList = clearedEntities.join(", ");
+      await prisma.notification.create({
+        data: {
+          title: "Dues Cleared",
+          description: `Your clearance(s) for "${entitiesList}" have been approved.`,
+          targetType: "STUDENT",
+          targetValue: studentId.toString(),
+          status: "published",
+          priority: "NORMAL",
+          senderId: Number(userId)
+        }
+      });
+    }
 
     // Create approval records for audit
     // Note: createMany is supported for top-level models
