@@ -380,6 +380,7 @@ export const getPendingApprovals = async (
       return {
         id: due.id,
         requestId: due.requestId,
+        studentId: due.request.student.id,
         studentName: due.request.student.name,
         registerNo: due.request.student.admission_number,
         semester: due.request.targetSemester,

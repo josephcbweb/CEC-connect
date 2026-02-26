@@ -5,6 +5,7 @@ export interface FeeDetails {
   dueDate: string;
   studentId: number;
   student?: Student;
+  archived?: boolean;
 }
 
 export interface Student {

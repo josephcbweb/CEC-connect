@@ -56,11 +56,14 @@ const StatCard: React.FC<{ title: string; value: string; color?: string }> = ({
 const StudentFeePage: React.FC = () => {
   const { studentData } = useOutletContext<OutletContextType>();
 
-  const totalDue = studentData.invoices.reduce(
+  const activeInvoices = studentData.invoices.filter((inv) => !inv.fee?.archived);
+  const archivedInvoices = studentData.invoices.filter((inv) => inv.fee?.archived);
+
+  const totalDue = activeInvoices.reduce(
     (sum, inv) => sum + parseFloat(inv.amount as any),
     0,
   );
-  const totalPaid = studentData.invoices
+  const totalPaid = activeInvoices
     .filter((inv) => inv.status === "paid")
     .reduce((sum, inv) => sum + parseFloat(inv.amount as any), 0);
   const outstandingBalance = totalDue - totalPaid;
@@ -74,7 +77,7 @@ const StudentFeePage: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
         <StatCard
-          title="Total Paid"
+          title="Total Paid (Active)"
           value={formatCurrency(totalPaid)}
           color="text-green-600"
         />
@@ -88,7 +91,7 @@ const StudentFeePage: React.FC = () => {
       <div className="mt-10 bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b">
           <h2 className="text-xl font-semibold text-gray-800">
-            Invoice History
+            Active Invoices
           </h2>
         </div>
         <div className="overflow-x-auto">
@@ -119,8 +122,8 @@ const StudentFeePage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {studentData.invoices.length > 0 ? (
-                studentData.invoices.map((invoice) => (
+              {activeInvoices.length > 0 ? (
+                activeInvoices.map((invoice) => (
                   <tr key={invoice.id}>
                     <td className="px-6 py-4 text-sm text-gray-800">
                       #{invoice.id}
@@ -157,7 +160,7 @@ const StudentFeePage: React.FC = () => {
               ) : (
                 <tr>
                   <td colSpan={7} className="text-center py-10 text-gray-500">
-                    You have no invoices yet.
+                    You have no active invoices yet.
                   </td>
                 </tr>
               )}
@@ -165,6 +168,65 @@ const StudentFeePage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {archivedInvoices.length > 0 && (
+        <div className="mt-12 bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b bg-gray-100 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-700">
+              Archived Invoices
+            </h2>
+            <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs font-medium">
+              Historic Records
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-100/50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Invoice ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Fee Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Semester
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase text-right">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {archivedInvoices.map((invoice) => (
+                  <tr key={invoice.id} className="opacity-75">
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      #{invoice.id}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {invoice.FeeStructure?.name || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {invoice.semester ? `S${invoice.semester}` : "-"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {formatCurrency(invoice.amount)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right">
+                      <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-500 text-xs font-medium">
+                        ARCHIVED
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

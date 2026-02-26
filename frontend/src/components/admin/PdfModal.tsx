@@ -6,7 +6,6 @@ interface Props {
   onGenerate: (filters: {
     program: string;
     departments?: string[];
-    years?: number[];
   }) => void;
   programs: string[];
   departments: string[];
@@ -21,15 +20,11 @@ const PdfModal = ({
 }: Props) => {
   const [program, setProgram] = useState("BTECH");
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
-  const [selectedYears, setSelectedYears] = useState<number[]>([]);
-
-  const yearOptions = program === "BTECH" ? [1, 2, 3, 4] : program === "MCA" || program === "MTECH" ? [1, 2] : [];
 
   useEffect(() => {
     if (isOpen) {
       setProgram("BTECH");
       setSelectedDepartments([]);
-      setSelectedYears([]);
     }
   }, [isOpen]);
 
@@ -38,7 +33,6 @@ const PdfModal = ({
       program,
       departments:
         selectedDepartments.length > 0 ? selectedDepartments : undefined,
-      years: selectedYears.length > 0 ? selectedYears : undefined,
     });
     onClose();
   };
@@ -56,7 +50,6 @@ const PdfModal = ({
           onChange={(e) => {
             setProgram(e.target.value);
             setSelectedDepartments([]);
-            setSelectedYears([]);
           }}
           className="w-full mb-4 p-2 border rounded"
         >
@@ -82,8 +75,8 @@ const PdfModal = ({
                     )
                   }
                   className={`px-4 py-2 rounded-md border text-sm font-medium ${selectedDepartments.includes(dept)
-                      ? "bg-indigo-100 text-indigo-800 border-indigo-300"
-                      : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
+                    ? "bg-indigo-100 text-indigo-800 border-indigo-300"
+                    : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
                     }`}
                 >
                   {dept}
@@ -92,28 +85,6 @@ const PdfModal = ({
             </div>
           </>
         )}
-
-        <label className="block mb-2 font-semibold">Years</label>
-        <div className="flex gap-2 flex-wrap mb-4">
-          {yearOptions.map((y) => (
-            <button
-              key={y}
-              onClick={() =>
-                setSelectedYears((prev) =>
-                  prev.includes(y)
-                    ? prev.filter((yr) => yr !== y)
-                    : [...prev, y]
-                )
-              }
-              className={`px-4 py-2 rounded-md border text-sm font-medium ${selectedYears.includes(y)
-                  ? "bg-teal-100 text-teal-800 border-teal-300"
-                  : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
-                }`}
-            >
-              Year {y}
-            </button>
-          ))}
-        </div>
 
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded cursor-pointer">
