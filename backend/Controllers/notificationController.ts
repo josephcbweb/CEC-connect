@@ -8,7 +8,7 @@ import path from 'path';
 export const createNotification = async (req: Request, res: Response) => {
   try {
     const { title, description, targetType, targetValue, priority, expiryDate, status } = req.body;
-    
+
     // In a real scenario, get admin ID from token. For now, try to find a default admin or use ID 1.
     // Ensure we have at least one user to assign as sender.
     let senderId = 1;
@@ -56,7 +56,7 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
   try {
     // Student ID comes from token payload (set in middleware)
     const studentId = typeof req.user === 'object' && req.user ? (req.user as any).userId : null;
-    
+
     if (!studentId) {
       return res.status(401).json({ error: "Unauthorized: No studentId in token" });
     }
@@ -80,22 +80,26 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
         status: NotificationStatus.published,
         OR: [
           { targetType: NotificationTargetType.ALL },
-          { 
+          {
             targetType: NotificationTargetType.SEMESTER,
             targetValue: currentSemester
           },
           {
             targetType: NotificationTargetType.DEPARTMENT,
             targetValue: deptCode
+          },
+          {
+            targetType: NotificationTargetType.STUDENT,
+            targetValue: studentId.toString()
           }
         ],
         AND: [
-            {
-                OR: [
-                    { expiryDate: null },
-                    { expiryDate: { gte: new Date() } }
-                ]
-            }
+          {
+            OR: [
+              { expiryDate: null },
+              { expiryDate: { gte: new Date() } }
+            ]
+          }
         ]
       },
       orderBy: { createdAt: "desc" }
@@ -103,13 +107,13 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
 
     // Custom sort: URGENT > IMPORTANT > NORMAL, then by createdAt desc
     const priorityOrder = { "URGENT": 0, "IMPORTANT": 1, "NORMAL": 2 };
-    
+
     const sortedNotifications = notifications.sort((a, b) => {
-        const pA = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2;
-        const pB = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 2;
-        
-        if (pA !== pB) return pA - pB;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      const pA = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2;
+      const pB = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 2;
+
+      if (pA !== pB) return pA - pB;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     res.json(sortedNotifications);

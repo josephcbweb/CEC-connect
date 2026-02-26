@@ -26,6 +26,21 @@ const BusStudentList = () => {
     new Set(students.map((student) => student.busName))
   ).sort();
 
+  const handleRemoveStudent = async (studentId: number) => {
+    try {
+      const res = await fetch(`http://localhost:3000/bus/removeStudent/${studentId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setStudents((prev) => prev.filter((s) => s.id !== studentId));
+      } else {
+        console.error("Failed to remove student");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const filteredStudents = students.filter((student) => {
     const matchesSearch = student.name
       .toLowerCase()
@@ -117,6 +132,7 @@ const BusStudentList = () => {
             <BusStudentRow
               key={student.id}
               student={student}
+              onRemove={handleRemoveStudent}
             />
           ))}
         </div>
