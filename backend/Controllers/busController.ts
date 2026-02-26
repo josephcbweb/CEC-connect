@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import { NotificationTargetType, NotificationPriority, NotificationStatus } from "../generated/prisma/enums";
 // import { RequestStatus } from "@prisma/client";
 
 const BUS_FEE_KEY = "BUS_FEE_ENABLED";
@@ -283,6 +284,35 @@ export const fetchBusStudents = async (req: Request, res: Response) => {
   }
 };
 
+// ─── Remove a student from bus service ───
+export const removeStudentFromBus = async (req: Request, res: Response) => {
+  try {
+    const studentId = Number(req.params.studentId);
+    if (isNaN(studentId)) {
+      return res.status(400).json({ error: "Invalid student ID" });
+    }
+
+    await prisma.$transaction([
+      prisma.busRequest.deleteMany({
+        where: { studentId },
+      }),
+      prisma.student.update({
+        where: { id: studentId },
+        data: {
+          bus_service: false,
+          busId: null,
+          busStopId: null,
+        },
+      }),
+    ]);
+
+    return res.status(200).json({ message: "Student removed from bus successfully" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to remove student from bus" });
+  }
+};
+
 // ─── Helper: Identify unique batches from bus-service students for a given semester ───
 async function identifyBatchesForSemester(semester: number, tx?: any) {
   const db = tx || prisma;
@@ -455,6 +485,13 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
       const feeName = `Bus Fee - Sem ${targetSemester}`;
       const dueDateObj = new Date(dueDate);
 
+      // Get an admin user for the notification sender
+      let senderId = 1;
+      const adminUser = await tx.user.findFirst();
+      if (adminUser) senderId = adminUser.id;
+
+      const notificationsData: any[] = [];
+
       // 4. Process each batch
       for (const batch of batches) {
         // 4a. Upsert BusFeeAssignment (idempotent master record)
@@ -510,10 +547,23 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
                   dueDate: dueDateObj,
                   status: "unpaid",
                   semester: targetSemester,
+                  feeStructureId: 3,
                 },
               },
             },
           });
+
+          notificationsData.push({
+            title: "Bus Fee Assigned",
+            description: `A bus fee of ₹${amount} for Semester ${targetSemester} has been assigned to you. Due date is ${dueDateObj.toLocaleDateString()}. Please pay before the due date to avoid pass suspension.`,
+            targetType: NotificationTargetType.STUDENT,
+            targetValue: student.id.toString(),
+            priority: NotificationPriority.IMPORTANT,
+            status: NotificationStatus.published,
+            expiryDate: new Date(new Date(dueDateObj).setUTCHours(23, 59, 59, 999)),
+            senderId: senderId,
+          });
+
           batchBilled++;
         }
 
@@ -523,6 +573,10 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
 
       if (totalStudentsBilled === 0) {
         throw new Error("All students for this semester are already up to date.");
+      }
+
+      if (notificationsData.length > 0) {
+        await tx.notification.createMany({ data: notificationsData });
       }
 
       return {
@@ -861,6 +915,27 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
           },
         });
       }
+
+      // 4. Create Notification
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 2); // 2 days from now
+      expiryDate.setUTCHours(23, 59, 59, 999);
+
+      await tx.notification.create({
+        data: {
+          title: `Bus Request ${status === "approved" ? "Approved" : "Rejected"}`,
+          description: `Your request for bus service has been ${status}.`,
+          targetType: "STUDENT",
+          targetValue: request.studentId.toString(),
+          priority: "NORMAL",
+          status: "published",
+          expiryDate: expiryDate,
+          senderId: senderId,
+        }
+      });
 
       return updatedRequest;
     });

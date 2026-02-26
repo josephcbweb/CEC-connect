@@ -100,7 +100,7 @@ const fetchAllStudents = (req, res) => __awaiter(void 0, void 0, void 0, functio
             select: { name: true },
             orderBy: { name: "asc" }
         });
-        const uniqueDepartments = allDepartments.map(dept => dept.name);
+        const uniqueDepartments = allDepartments.map((dept) => dept.name);
         res.json({
             students: enriched,
             programs: uniquePrograms,

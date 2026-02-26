@@ -7,6 +7,7 @@ import {
     addBusStops,
     deleteBusStop,
     fetchBusStudents,
+    removeStudentFromBus,
     getActiveBusSemesters,
     previewBulkBusFees,
     assignBulkBusFees,
@@ -29,6 +30,7 @@ router.get("/busDetails/:busId", getBusDetails);
 router.post("/addStop", addBusStops);
 router.delete("/deleteStop/:id", deleteBusStop);
 router.get("/fetchBusStudents", fetchBusStudents);//fetch all students who are availing bus.
+router.delete("/removeStudent/:studentId", removeStudentFromBus);//remove student from bus service
 router.get("/active-semesters", getActiveBusSemesters);//semesters with bus-service students
 router.get("/preview-bulk-fees", previewBulkBusFees);//preview which batches will be billed
 router.post("/assign-bulk-fees", assignBulkBusFees);//batch-aware fee assignment
