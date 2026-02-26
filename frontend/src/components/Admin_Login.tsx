@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-// Removed: import { Link } from "react-router-dom"; and import Logo from "../assets/logo.png";
+import { Eye, EyeOff, Mail } from "lucide-react";
+import Logo from "../assets/logo.png";
+// Removed: import { Link } from "react-router-dom";
 
 // Custom Alert/Message Box Component (replaces alert())
 type MessageAlertProps = {
@@ -40,6 +42,7 @@ const Login = () => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   // State for displaying success/error messages to the user
   const [message, setMessage] = useState({ text: "", type: "" });
 
@@ -128,11 +131,15 @@ const Login = () => {
                 role="link"
                 className="flex items-center space-x-3 group justify-center cursor-pointer"
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#031D44]">
-                  {/* Replaced image import with a strong text placeholder */}
-                  <span className="text-white font-bold text-lg">A</span>
+                <div className="relative">
+                  <img
+                    src={Logo}
+                    alt="Acads Logo"
+                    className="h-10 w-10 transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-blue-500/10 rounded-full group-hover:bg-blue-500/20 transition-colors duration-300"></div>
                 </div>
-                <span className="text-2xl font-light text-[#031D44] group-hover:text-[#3AA9AB] transition-colors duration-300 text-center">
+                <span className="text-2xl font-light text-gray-900 group-hover:text-blue-600 transition-colors duration-300 text-center">
                   Acads
                 </span>
               </div>
@@ -168,28 +175,20 @@ const Login = () => {
                       value={inputValue.email}
                       onChange={handleChange}
                     />
-                    <div className="absolute inset-y-0 right-3 flex items-center">
-                      <span className="text-gray-400">📧</span>
+                    <div className="absolute inset-y-0 right-3 flex items-center group cursor-default">
+                      <Mail className="w-5 h-5 text-gray-400 transition-all duration-300 transform group-hover:scale-110 group-hover:text-[#3AA9AB] group-hover:rotate-12" />
                     </div>
                   </div>
                 </div>
 
                 {/* Password Field */}
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-[#031D44] block">
-                      Password
-                    </label>
-                    <a
-                      href="#"
-                      className="text-sm text-[#3AA9AB] hover:text-[#031D44] transition-colors duration-300"
-                    >
-                      Forgot password?
-                    </a>
-                  </div>
+                  <label className="text-sm font-medium text-[#031D44] block">
+                    Password
+                  </label>
                   <div className="relative">
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       name="password"
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3AA9AB] focus:border-transparent transition-all duration-300 bg-white"
@@ -197,22 +196,38 @@ const Login = () => {
                       value={inputValue.password}
                       onChange={handleChange}
                     />
-                    <div className="absolute inset-y-0 right-3 flex items-center">
-                      <span className="text-gray-400">🔒</span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-[#3AA9AB] transition-colors bg-transparent border-none cursor-pointer"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
-                {/* Remember Me */}
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    className="w-4 h-4 text-[#3AA9AB] border-gray-300 rounded focus:ring-[#3AA9AB]"
-                  />
-                  <label htmlFor="remember" className="text-sm text-gray-600">
-                    Remember me
-                  </label>
+                {/* Remember Me & Forgot Password */}
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="remember"
+                      className="w-4 h-4 text-[#3AA9AB] border-gray-300 rounded focus:ring-[#3AA9AB]"
+                    />
+                    <label htmlFor="remember" className="text-sm text-gray-600">
+                      Remember me
+                    </label>
+                  </div>
+                  <a
+                    href="#"
+                    className="text-sm font-medium text-[#3AA9AB] hover:text-[#031D44] transition-colors duration-300"
+                  >
+                    Forgot password?
+                  </a>
                 </div>
 
                 {/* Submit Button */}
@@ -272,20 +287,19 @@ const Login = () => {
                 ))}
               </div>
 
-              {/* Testimonial */}
-              <div className="mt-12 p-6 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
-                <p className="text-gray-300 italic mb-4 font-light">
-                  "Acads transformed how our institution manages academic
-                  operations. The platform is intuitive and powerful."
-                </p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-[#3AA9AB] rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold">JCB</span>
+              {/* Admin Insight Section */}
+              <div className="mt-12 p-6 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 hover:bg-white/15 transition-all duration-300">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-[#3AA9AB]/20 rounded-full flex items-center justify-center">
+                    <span className="text-2xl">⚡</span>
                   </div>
                   <div>
-                    <p className="text-white font-medium">Dr. Joseph C B</p>
-                    <p className="text-gray-400 text-sm">
-                      Head of Computer Science
+                    <h3 className="text-white font-medium text-lg">
+                      Admin Insight
+                    </h3>
+                    <p className="text-gray-300 text-sm font-light italic">
+                      "Efficient administration is the backbone of academic
+                      excellence. Manage with precision."
                     </p>
                   </div>
                 </div>

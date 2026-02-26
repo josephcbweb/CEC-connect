@@ -155,7 +155,7 @@ const EditStudentModal: React.FC<Props> = ({
           </button>
           <button
             onClick={handleSave}
-            className="px-6 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            className="px-6 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer"
           >
             Save Changes
           </button>

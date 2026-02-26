@@ -51,46 +51,46 @@ export default function NotificationManager() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="h-full w-full flex flex-col gap-6 p-4 md:p-6 overflow-hidden animate-in fade-in duration-300">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             Manage Notifications
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">
             Create and manage broadcast notifications for students
           </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 hover:scale-[1.02]"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 hover:scale-[1.02] shrink-0"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           Create Notification
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50/50 border-b border-gray-100">
+      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-0 flex flex-col">
+        <div className="overflow-auto flex-1 w-full custom-scrollbar">
+          <table className="w-full min-w-[800px] border-collapse text-left">
+            <thead className="bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Title
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
+                  Title & Description
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Target
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
+                  Target Audience
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Priority
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
+                  Priority Label
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Status
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
+                  Current Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Created Date
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
+                  Date Created
                 </th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
                   Actions
                 </th>
               </tr>
@@ -98,8 +98,8 @@ export default function NotificationManager() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="flex justify-center">
+                  <td colSpan={6} className="px-6 py-12 text-center h-40">
+                    <div className="flex justify-center items-center h-full">
                       <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                     </div>
                   </td>
@@ -108,9 +108,14 @@ export default function NotificationManager() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-12 text-center text-gray-500"
+                    className="px-6 py-12 text-center text-gray-500 h-40"
                   >
-                    No notifications found. Create one to get started.
+                    <div className="flex flex-col items-center justify-center h-full gap-2">
+                      <div className="w-12 h-12 bg-gray-100/50 rounded-full flex items-center justify-center">
+                        <span className="text-2xl">📭</span>
+                      </div>
+                      <p>No notifications found. Create one to get started.</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -119,21 +124,29 @@ export default function NotificationManager() {
                     key={n.id}
                     className="hover:bg-gray-50/50 transition-colors group"
                   >
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{n.title}</div>
-                      <div className="text-sm text-gray-500 truncate max-w-xs">
+                    <td className="px-6 py-4 max-w-xs">
+                      <div
+                        className="font-medium text-gray-900 truncate"
+                        title={n.title}
+                      >
+                        {n.title}
+                      </div>
+                      <div
+                        className="text-sm text-gray-500 truncate"
+                        title={n.description}
+                      >
                         {n.description}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                         {n.targetType === "ALL" ? "All Students" : n.targetType}
-                        {n.targetValue ? ` (${n.targetValue})` : ""}
+                        {n.targetValue ? ` • ${n.targetValue}` : ""}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
                           n.priority === "URGENT"
                             ? "bg-red-50 text-red-700 border-red-100"
                             : n.priority === "IMPORTANT"
@@ -144,7 +157,7 @@ export default function NotificationManager() {
                         {n.priority}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
                           n.status === "published"
@@ -166,21 +179,21 @@ export default function NotificationManager() {
                         {n.status.charAt(0).toUpperCase() + n.status.slice(1)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(n.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleEdit(n)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(n.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
