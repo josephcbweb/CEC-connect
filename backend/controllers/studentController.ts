@@ -124,6 +124,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
 
     console.log(student);
     const formattedStudent = {
+      id: student.id,
       name: student.name,
       email: student.email,
       dateOfBirth: student.dateOfBirth,
