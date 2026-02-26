@@ -76,7 +76,7 @@ export const deleteFeeStructure = async (req: Request, res: Response) => {
 
 export const assignFeeToStudents = async (req: Request, res: Response) => {
   try {
-    const { feeStructureId, studentIds, dueDate } = req.body;
+    const { feeStructureId, studentIds, dueDate, userId } = req.body;
 
     if (
       !feeStructureId ||
@@ -106,8 +106,6 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
 
     const studentMap = new Map(students.map((s) => [s.id, s]));
 
-    // FIX: Increased transaction timeout to handle large batches of students.
-    // The default is 5 seconds, which can be too short for many database writes.
     await prisma.$transaction(
       async (tx) => {
         for (const studentId of studentIds) {
@@ -115,7 +113,6 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
           const semester = student?.currentSemester;
 
           // Step 1: Create a FeeDetails entry for this specific assignment.
-          // This represents the instance of the fee being applied to the student.
           const feeDetail = await tx.feeDetails.create({
             data: {
               studentId: studentId,
@@ -139,6 +136,19 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
               semester: semester,
             },
           });
+
+          // Step 3: Send notification to the student
+          await tx.notification.create({
+            data: {
+              title: "New Fee Assigned",
+              description: `A new fee "${feeStructure.name}" of ₹${feeStructure.amount} has been assigned to you. Due date: ${new Date(dueDate).toLocaleDateString()}.`,
+              targetType: "STUDENT",
+              targetValue: studentId.toString(),
+              status: "published",
+              priority: "NORMAL",
+              senderId: userId ? Number(userId) : 1,
+            }
+          });
         }
       },
       {
@@ -159,40 +169,57 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
 
 export const markInvoiceAsPaid = async (req: Request, res: Response) => {
   try {
-    const { invoiceId } = req.body;
-    const { paymentMethod } = req.body;
+    const { invoiceId, paymentMethod, userId } = req.body;
     if (!paymentMethod) {
       return res.status(400).json({ error: "Payment method is required." });
     }
 
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id: parseInt(invoiceId) },
-      data: { status: InvoiceStatus.paid },
-      include: {
-        student: true,
-      },
-    });
+    const updatedInvoice = await prisma.$transaction(async (tx) => {
+      const inv = await tx.invoice.update({
+        where: { id: parseInt(invoiceId) },
+        data: { status: InvoiceStatus.paid },
+        include: {
+          student: true,
+          FeeStructure: { select: { name: true } },
+        },
+      });
 
-    // Update the invoice with the current semester of the student
-    await prisma.invoice.update({
-      where: { id: parseInt(invoiceId) },
-      data: { semester: updatedInvoice.student.currentSemester },
-    });
+      // Update the invoice with the current semester of the student
+      await tx.invoice.update({
+        where: { id: parseInt(invoiceId) },
+        data: { semester: inv.student.currentSemester },
+      });
 
-    await prisma.payment.create({
-      data: {
-        invoiceId: updatedInvoice.id,
-        amount: updatedInvoice.amount,
-        paymentMethod: paymentMethod,
-        transactionId: `MANUAL_${updatedInvoice.id}_${Date.now()}`,
-        status: "successful",
-      },
+      await tx.payment.create({
+        data: {
+          invoiceId: inv.id,
+          amount: inv.amount,
+          paymentMethod: paymentMethod,
+          transactionId: `MANUAL_${inv.id}_${Date.now()}`,
+          status: "successful",
+        },
+      });
+
+      // Send notification to the student
+      await tx.notification.create({
+        data: {
+          title: "Payment Successful",
+          description: `Your payment for "${inv.FeeStructure?.name || "Fee"}" has been successfully recorded.`,
+          targetType: "STUDENT",
+          targetValue: inv.studentId.toString(),
+          status: "published",
+          priority: "NORMAL",
+          senderId: userId ? Number(userId) : 1,
+        }
+      });
+
+      return inv;
     });
 
     res.status(200).json(updatedInvoice);
   } catch (error) {
     console.error(
-      `Error marking invoice ${req.params.invoiceId} as paid:`,
+      `Error marking invoice ${req.body.invoiceId} as paid:`,
       error,
     );
     res.status(500).json({ error: "Failed to mark invoice as paid." });

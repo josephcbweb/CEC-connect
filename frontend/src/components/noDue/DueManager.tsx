@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Search,
   Clock,
@@ -19,12 +20,14 @@ import { Settings as SettingsIcon, LayoutList, BookCopy } from "lucide-react";
 interface DueItem {
   id: number;
   requestId: number;
+  studentId?: number;
   studentName?: string;
   registerNo?: string;
   semester?: number;
   program?: string;
   department?: string | { name: string };
   student?: {
+    id: number;
     name: string;
     registerNo: string;
     semester: number;
@@ -92,6 +95,23 @@ const DueManager = () => {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+
+  // RBAC State
+  const [canManageDues, setCanManageDues] = useState(false);
+
+  useEffect(() => {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+      const user = JSON.parse(userString);
+      const roles = Array.isArray(user.role) ? user.role.map((r: string) => r.toLowerCase()) : [user.role?.toLowerCase()];
+      const permissions = Array.isArray(user.permission) ? user.permission : [];
+
+      const isAdmin = roles.includes("admin") || roles.includes("super admin");
+      const hasManagePermission = permissions.includes("manage:due");
+
+      setCanManageDues(isAdmin || hasManagePermission);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -421,26 +441,28 @@ const DueManager = () => {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex gap-3">
-              {noDueRequestEnabled ? (
-                <button
-                  onClick={() =>
-                    setShowActivationModal({ show: true, activating: false })
-                  }
-                  className="bg-amber-100 text-amber-700 px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-amber-200 transition-colors font-medium border border-amber-200"
-                >
-                  <AlertCircle size={18} />
-                  Deactivate Requests
-                </button>
-              ) : (
-                <button
-                  onClick={() =>
-                    setShowActivationModal({ show: true, activating: true })
-                  }
-                  className="bg-teal-600 text-white px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-teal-700 transition-colors font-medium"
-                >
-                  <CheckCircle size={18} />
-                  Activate Requests
-                </button>
+              {canManageDues && (
+                noDueRequestEnabled ? (
+                  <button
+                    onClick={() =>
+                      setShowActivationModal({ show: true, activating: false })
+                    }
+                    className="bg-amber-100 text-amber-700 px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-amber-200 transition-colors font-medium border border-amber-200"
+                  >
+                    <AlertCircle size={18} />
+                    Deactivate Requests
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      setShowActivationModal({ show: true, activating: true })
+                    }
+                    className="bg-teal-600 text-white px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-teal-700 transition-colors font-medium"
+                  >
+                    <CheckCircle size={18} />
+                    Activate Requests
+                  </button>
+                )
               )}
             </div>
             {activeTab === "approvals" && (
@@ -459,7 +481,7 @@ const DueManager = () => {
                     Clear Selected ({selectedDueIds.length})
                   </button>
                 )}
-                {statusFilter !== "cleared" && (
+                {statusFilter !== "cleared" && canManageDues && (
                   <>
                     <button
                       onClick={() => setShowBulkModal(true)}
@@ -493,26 +515,30 @@ const DueManager = () => {
             <LayoutList size={18} />
             Approvals
           </button>
-          <button
-            onClick={() => setActiveTab("courses")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "courses"
-              ? "text-teal-600 border-b-2 border-teal-600"
-              : "text-slate-500 hover:text-slate-700"
-              }`}
-          >
-            <BookCopy size={18} />
-            Courses
-          </button>
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "settings"
-              ? "text-teal-600 border-b-2 border-teal-600"
-              : "text-slate-500 hover:text-slate-700"
-              }`}
-          >
-            <SettingsIcon size={18} />
-            Settings
-          </button>
+          {canManageDues && (
+            <>
+              <button
+                onClick={() => setActiveTab("courses")}
+                className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "courses"
+                  ? "text-teal-600 border-b-2 border-teal-600"
+                  : "text-slate-500 hover:text-slate-700"
+                  }`}
+              >
+                <BookCopy size={18} />
+                Courses
+              </button>
+              <button
+                onClick={() => setActiveTab("settings")}
+                className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "settings"
+                  ? "text-teal-600 border-b-2 border-teal-600"
+                  : "text-slate-500 hover:text-slate-700"
+                  }`}
+              >
+                <SettingsIcon size={18} />
+                Settings
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -688,8 +714,13 @@ const DueManager = () => {
                       <td className="px-6 py-4 font-mono text-slate-600">
                         {due.registerNo || due.student?.registerNo || "N/A"}
                       </td>
-                      <td className="px-6 py-4 font-medium text-slate-900">
-                        {due.studentName || due.student?.name || "N/A"}
+                      <td className="px-6 py-4 font-medium text-slate-900 hover:text-teal-600 transition-colors">
+                        <Link
+                          to={`/admin/studentDetails/${due.studentId || due.student?.id}`}
+                          className="hover:underline underline-offset-2"
+                        >
+                          {due.studentName || due.student?.name || "N/A"}
+                        </Link>
                       </td>
                       <td className="px-6 py-4 text-slate-600">
                         S{due.semester || due.student?.semester || "?"}

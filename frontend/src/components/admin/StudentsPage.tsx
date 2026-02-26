@@ -16,7 +16,6 @@ interface Student {
   name: string;
   program: string;
   department: string; // The short code (e.g., CSE)
-  year: number | null;
   currentSemester: number;
 }
 
@@ -152,7 +151,6 @@ const StudentsPage = () => {
   const handleGeneratePDF = (filters: {
     program: string;
     departments?: string[];
-    year?: number[];
   }) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -187,8 +185,7 @@ const StudentsPage = () => {
       const filtered = students.filter((s) => {
         return (
           s.program === filters.program &&
-          s.department === deptCode &&
-          (!filters.year || filters.year.includes(s.year ?? 0))
+          s.department === deptCode
         );
       });
 
@@ -207,13 +204,12 @@ const StudentsPage = () => {
 
       autoTable(doc, {
         startY: currentY,
-        head: [["S.No", "Name", "Program", "Department", "Year"]],
+        head: [["S.No", "Name", "Program", "Department"]],
         body: filtered.map((s, index) => [
           (index + 1).toString(),
           s.name,
           s.program,
           s.department,
-          s.year?.toString() ?? "",
         ]),
         styles: {
           fontSize: 10,
@@ -232,7 +228,7 @@ const StudentsPage = () => {
           lineWidth: 0.5,
         },
         alternateRowStyles: { fillColor: [245, 245, 245] },
-        columnStyles: { 0: { halign: "center" }, 4: { halign: "center" } },
+        columnStyles: { 0: { halign: "center" } },
         theme: "grid",
         didDrawPage: (data) => {
           if (data.cursor) currentY = data.cursor.y + 10;
@@ -546,11 +542,6 @@ const StudentsPage = () => {
               Department
             </span>
           </div>
-          <div className="w-2/12 pr-4">
-            <span className="text-xs font-semibold text-gray-600 uppercase">
-              Year
-            </span>
-          </div>
           <div className="w-2/12 pr-4 text-right">
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Actions
@@ -568,11 +559,6 @@ const StudentsPage = () => {
                 name={student.name}
                 program={student.program}
                 department={student.department}
-                year={
-                  student.currentSemester
-                    ? Math.ceil(student.currentSemester / 2)
-                    : student.year || null
-                }
                 currentSemester={student.currentSemester}
                 isSelected={selectedStudentIds.includes(student.id)}
                 onSelect={handleStudentSelect}

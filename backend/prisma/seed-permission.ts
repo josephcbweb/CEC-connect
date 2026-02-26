@@ -83,6 +83,12 @@ async function main(): Promise<void> {
         { name: "hosteldue:approve", moduleName: "hosteldue", action: "approve" },
         { name: "labdue:view", moduleName: "labdue", action: "view" },
         { name: "labdue:approve", moduleName: "labdue", action: "approve" },
+
+        // Sidebar Section Permissions
+        { name: "view:due", moduleName: "sidebar", action: "view" },
+        { name: "view:admissions", moduleName: "sidebar", action: "view" },
+        { name: "view:fee", moduleName: "sidebar", action: "view" },
+        { name: "manage:due", moduleName: "dues", action: "manage" },
     ];
 
     const permMap: Record<string, number> = {};

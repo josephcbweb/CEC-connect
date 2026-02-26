@@ -13,6 +13,7 @@ interface PromotionRequest {
   semesterType: "ODD" | "EVEN";
   yearBackIds?: number[]; // IDs of students who are detained/year back
   dueAction?: "CLEAR" | "KEEP" | "NONE";
+  feeAction?: "CLEAR" | "ARCHIVE" | "KEEP" | "NONE";
 }
 
 export const getPromotionStats = async (req: Request, res: Response) => {
@@ -56,9 +57,29 @@ export const getPromotionStats = async (req: Request, res: Response) => {
       pendingDues[item.targetSemester] = item._count.id;
     });
 
+    // Calculate pending fees counts per semester
+    const pendingFeesQuery = await prisma.invoice.groupBy({
+      by: ["semester"],
+      where: {
+        status: "unpaid",
+        fee: { archived: false },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const pendingFees: Record<number, number> = {};
+    pendingFeesQuery.forEach((item) => {
+      if (item.semester) {
+        pendingFees[item.semester] = item._count.id;
+      }
+    });
+
     res.json({
       counts,
       pendingDues,
+      pendingFees,
       currentType,
       recommendedTransitions:
         currentType === "ODD"
@@ -83,7 +104,7 @@ export const getPromotionStats = async (req: Request, res: Response) => {
 };
 
 export const promoteStudents = async (req: Request, res: Response) => {
-  const { transitions, semesterType, yearBackIds = [], dueAction = "NONE" } = req.body as PromotionRequest;
+  const { transitions, semesterType, yearBackIds = [], dueAction = "NONE", feeAction = "NONE" } = req.body as PromotionRequest;
 
   if (!transitions || !Array.isArray(transitions) || transitions.length === 0) {
     return res.status(400).json({ error: "No transitions provided." });
@@ -184,6 +205,38 @@ export const promoteStudents = async (req: Request, res: Response) => {
               await tx.noDueRequest.updateMany({
                 where: { id: { in: requestIds } },
                 data: { isArchived: true },
+              });
+            }
+          }
+        }
+
+        // D. Fee Action Handling
+        if (feeAction !== "NONE" && feeAction !== "KEEP" && ids.length > 0) {
+          if (feeAction === "CLEAR") {
+            // Mark all unpaid invoices for these students as paid
+            await tx.invoice.updateMany({
+              where: {
+                studentId: { in: ids },
+                status: "unpaid",
+                semester: transition.from
+              },
+              data: { status: "paid" },
+            });
+          } else if (feeAction === "ARCHIVE") {
+            // Archive the underlying FeeDetails for unpaid invoices in this semester
+            const unpaidInvoices = await tx.invoice.findMany({
+              where: {
+                studentId: { in: ids },
+                status: "unpaid",
+                semester: transition.from
+              },
+              select: { feeId: true },
+            });
+            const feeIds = unpaidInvoices.map((inv) => inv.feeId);
+            if (feeIds.length > 0) {
+              await tx.feeDetails.updateMany({
+                where: { id: { in: feeIds } },
+                data: { archived: true },
               });
             }
           }
