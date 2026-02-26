@@ -101,15 +101,26 @@ export const getStudentProfile = async (req: Request, res: Response) => {
       },
     });
 
-    // Compute hasUnpaidBusFee: true if any unpaid invoice with "Bus Fee" in its feeType exists
-    const unpaidBusFeeInvoice = await prisma.invoice.findFirst({
+    // Compute hasOverdueBusFee: true if any unpaid invoice with "Bus Fee" in its feeType exists AND the dueDate has passed
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const overdueBusFeeInvoice = await prisma.invoice.findFirst({
       where: {
         studentId: student.id,
         fee: { feeType: { contains: "Bus Fee" } },
-        status: "unpaid",
+        OR: [
+          { status: "overdue" },
+          {
+            status: "unpaid",
+            dueDate: {
+              lt: today,
+            },
+          },
+        ],
       },
     });
-    const hasUnpaidBusFee = !!unpaidBusFeeInvoice;
+    const hasOverdueBusFee = !!overdueBusFeeInvoice;
 
     console.log(student);
     const formattedStudent = {
@@ -169,7 +180,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
           status: pendingBusRequest.status,
         }
         : null,
-      hasUnpaidBusFee,
+      hasOverdueBusFee,
     };
     console.log(formattedStudent);
     return res.status(200).json(formattedStudent);

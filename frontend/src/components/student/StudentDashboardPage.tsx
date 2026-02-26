@@ -58,7 +58,13 @@ const StudentDashboardPage: React.FC = () => {
       <p className="mt-1 text-lg text-gray-600">
         Welcome back, {studentData.name}.
       </p>
-
+      <div className="mt-8 p-6 bg-white border-gray-200 rounded-lg shadow-sm">
+        <h2 className="text-xl font-semibold">Quick Overview</h2>
+        <p className="mt-2 text-gray-700">
+          This is your main dashboard. Important announcements, upcoming
+          deadlines, and quick links will be displayed here.
+        </p>
+      </div>
       {isRegistrationOpen && (
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="text-blue-600 mt-0.5" size={20} />
@@ -125,14 +131,6 @@ const StudentDashboardPage: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="mt-8 p-6 bg-white border rounded-lg shadow-sm">
-        <h2 className="text-xl font-semibold">Quick Overview</h2>
-        <p className="mt-2 text-gray-700">
-          This is your main dashboard. Important announcements, upcoming
-          deadlines, and quick links will be displayed here.
-        </p>
       </div>
     </div>
   );
