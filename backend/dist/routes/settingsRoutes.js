@@ -12,11 +12,13 @@ router.get("/active-requests-count", settingsController_1.getActiveRequestCount)
 router.put("/settings", settingsController_1.toggleSettings);
 router.get("/semStats", settingsController_1.getSemesterStats);
 router.post("/promote", settingsController_1.promoteStudents);
+router.get("/users", dueSettingsController_1.getAllUsers);
 // Due Configuration Routes
 router.get("/due-configs", dueSettingsController_1.getDueConfigs);
 router.post("/due-configs", dueSettingsController_1.createDueConfig);
 router.delete("/due-configs/:id", dueSettingsController_1.deleteDueConfig);
 router.get("/service-departments", dueSettingsController_1.getServiceDepartments);
 router.post("/service-departments", dueSettingsController_1.createServiceDepartment);
+router.put("/service-departments/:id", dueSettingsController_1.updateServiceDepartment);
 router.delete("/service-departments/:id", dueSettingsController_1.deleteServiceDepartment);
 exports.default = router;

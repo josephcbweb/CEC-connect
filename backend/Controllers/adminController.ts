@@ -21,7 +21,7 @@ export const fetchStats = async (req: Request, res: Response) => {
       },
     });
 
-    const departmentCounts = departmentStats.map((dept) => ({
+    const departmentCounts = departmentStats.map((dept: any) => ({
       title: dept.name, // Maps the full department name directly from the database
       count: dept.students.length,
     }));
@@ -76,7 +76,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
       orderBy: [{ currentSemester: "asc" }, { name: "asc" }],
     });
 
-    const enriched = students.map((student) => {
+    const enriched = students.map((student: any) => {
       return {
         id: student.id,
         name: student.name,
@@ -90,7 +90,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
     });
 
     const uniquePrograms = Array.from(
-      new Set(students.map((s) => s.program).filter(Boolean)),
+      new Set(students.map((s: any) => s.program).filter(Boolean)),
     );
 
     // NEW: Fetch all available departments directly from the DB
@@ -99,7 +99,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
       select: { name: true },
       orderBy: { name: "asc" }
     });
-    const uniqueDepartments = allDepartments.map(dept => dept.name);
+    const uniqueDepartments = allDepartments.map((dept: any) => dept.name);
 
     res.json({
       students: enriched,
@@ -184,7 +184,7 @@ export const demoteStudents = async (req: Request, res: Response) => {
     const decrement1Ids: number[] = [];
     const decrement2Ids: number[] = [];
 
-    students.forEach((s) => {
+    students.forEach((s: any) => {
       // User specifications:
       // S4 -> S3 (Dec 1)
       // S6 -> S5 (Dec 1)
