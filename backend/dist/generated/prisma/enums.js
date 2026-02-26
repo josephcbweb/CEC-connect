@@ -9,7 +9,7 @@
 * 🟢 You can import this file directly.
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EmailStatus = exports.CourseCategory = exports.CourseType = exports.Program = exports.AdmissionType = exports.StudentStatus = exports.NotificationTargetType = exports.NotificationPriority = exports.NotificationStatus = exports.PaymentStatus = exports.RequestWorkflowStatus = exports.InvoiceStatus = exports.RequestStatus = exports.ApprovalStatus = exports.NoDueStatus = exports.Gender = exports.UserStatus = exports.CertificateStatus = exports.CertificateType = exports.DepartmentStatus = exports.BatchStatus = void 0;
+exports.EmailStatus = exports.CourseCategory = exports.CourseType = exports.Program = exports.AdmissionType = exports.StudentStatus = exports.NotificationTargetType = exports.NotificationPriority = exports.NotificationStatus = exports.PaymentStatus = exports.RequestWorkflowStatus = exports.InvoiceStatus = exports.RequestStatus = exports.ApprovalStatus = exports.NoDueStatus = exports.Gender = exports.UserStatus = exports.CertificateWorkflowStatus = exports.CertificateStatus = exports.CertificateType = exports.DepartmentStatus = exports.BatchStatus = void 0;
 exports.BatchStatus = {
     UPCOMING: 'UPCOMING',
     ACTIVE: 'ACTIVE',
@@ -31,6 +31,15 @@ exports.CertificateStatus = {
     APPROVED: 'APPROVED',
     REJECTED: 'REJECTED',
     GENERATED: 'GENERATED'
+};
+exports.CertificateWorkflowStatus = {
+    SUBMITTED: 'SUBMITTED',
+    WITH_ADVISOR: 'WITH_ADVISOR',
+    WITH_HOD: 'WITH_HOD',
+    WITH_OFFICE: 'WITH_OFFICE',
+    WITH_PRINCIPAL: 'WITH_PRINCIPAL',
+    COMPLETED: 'COMPLETED',
+    REJECTED: 'REJECTED'
 };
 exports.UserStatus = {
     active: 'active',
