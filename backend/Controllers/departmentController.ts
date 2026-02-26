@@ -14,6 +14,9 @@ export const getDepartment = async (req: Request, res: Response) => {
     const departments = await prisma.department.findMany({
       where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
       include: {
+        _count: {
+          select: { students: true },
+        },
         hodDetails: {
           include: {
             user: {

@@ -1,15 +1,76 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Logo from "../assets/logo.png";
+import axios from "axios";
+
+const API_URL = "http://localhost:3000";
 
 interface SectionRefs {
   [key: string]: HTMLDivElement | null;
 }
 
+interface LandingStats {
+  students: number;
+  faculty: number;
+  departments: number;
+}
+
+interface Department {
+  id: number;
+  name: string;
+  department_code: string;
+  _count: {
+    students: number;
+  };
+}
+
 export const Landing: React.FC = () => {
   const sectionRefs = useRef<SectionRefs>({});
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await axios.get(
+          `${API_URL}/api/departments?program=BTECH`,
+        );
+        setDepartments(response.data);
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
+
+  const getDepartmentColor = (code: string) => {
+    const colors: { [key: string]: string } = {
+      CSE: "bg-blue-500",
+      ECE: "bg-teal-500",
+      EEE: "bg-purple-500",
+      AD: "bg-pink-500",
+    };
+    return colors[code] || "bg-gray-500";
+  };
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [stats, setStats] = useState<LandingStats>({
+    students: 2000,
+    faculty: 150,
+    departments: 4,
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/stats`);
+        setStats(response.data);
+      } catch (error) {
+        console.error("Failed to fetch landing stats:", error);
+      }
+    };
+    fetchStats();
+  }, []);
 
   useEffect(() => {
     // Intersection Observer for centered scroll animations
@@ -18,19 +79,26 @@ export const Landing: React.FC = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("animate-in");
+            observer.unobserve(entry.target);
           }
         });
       },
       {
-        threshold: 0.3,
-        rootMargin: "0px 0px -20% 0px", // Triggers when element enters center of viewport
-      }
+        threshold: 0.1,
+        rootMargin: "0px",
+      },
     );
 
     Object.values(sectionRefs.current).forEach((ref) => {
       if (ref) observer.observe(ref);
     });
 
+    return () => {
+      observer.disconnect();
+    };
+  }, [departments, stats]);
+
+  useEffect(() => {
     // Enhanced animated background
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -141,12 +209,11 @@ export const Landing: React.FC = () => {
     return () => {
       window.removeEventListener("resize", resizeCanvas);
       cancelAnimationFrame(animationFrameId);
-      observer.disconnect();
     };
   }, []);
 
   const addToRefs = (el: HTMLDivElement | null, key: string) => {
-    if (el && !sectionRefs.current[key]) {
+    if (el) {
       sectionRefs.current[key] = el;
     }
   };
@@ -360,17 +427,17 @@ export const Landing: React.FC = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-5xl mx-auto">
             {[
               {
-                number: "15,000+",
+                number: `${stats.students}+`,
                 label: "Students",
                 color: "from-blue-500 to-blue-600",
               },
               {
-                number: "500+",
+                number: `${stats.faculty}+`,
                 label: "Faculty",
                 color: "from-teal-500 to-teal-600",
               },
               {
-                number: "25+",
+                number: `${stats.departments}`,
                 label: "Departments",
                 color: "from-purple-500 to-purple-600",
               },
@@ -505,34 +572,9 @@ export const Landing: React.FC = () => {
           </div>
 
           <div className="max-w-5xl mx-auto space-y-6">
-            {[
-              {
-                name: "Computer Science",
-                duration: "4 Years",
-                students: "2,400",
-                color: "blue",
-              },
-              {
-                name: "Business Administration",
-                duration: "4 Years",
-                students: "1,800",
-                color: "teal",
-              },
-              {
-                name: "Electrical Engineering",
-                duration: "4 Years",
-                students: "1,200",
-                color: "purple",
-              },
-              {
-                name: "Liberal Arts",
-                duration: "4 Years",
-                students: "900",
-                color: "pink",
-              },
-            ].map((program, index) => (
+            {departments.map((dept, index) => (
               <div
-                key={program.name}
+                key={dept.id}
                 ref={(el) => addToRefs(el, `program-${index}`)}
                 className="opacity-0 translate-y-8 transition-all duration-700 ease-out group"
                 style={{ transitionDelay: `${index * 100}ms` }}
@@ -541,26 +583,23 @@ export const Landing: React.FC = () => {
                   <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center">
                     <div className="flex items-center space-x-6">
                       <div
-                        className={`w-4 h-16 bg-${program.color}-500 rounded-full transform group-hover:scale-110 transition-transform duration-300`}
+                        className={`w-4 h-16 ${getDepartmentColor(
+                          dept.department_code,
+                        )} rounded-full transform group-hover:scale-110 transition-transform duration-300`}
                       ></div>
                       <div>
                         <h3 className="text-2xl font-semibold text-gray-900 group-hover:text-gray-800 transition-colors duration-300 mb-2">
-                          {program.name}
+                          {dept.name}
                         </h3>
                         <p className="text-gray-500 text-sm font-light">
-                          {program.duration}
+                          4 Years
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-8 mt-4 lg:mt-0">
                       <span className="text-gray-600 text-lg font-light">
-                        {program.students} Students
+                        {dept._count.students} Students
                       </span>
-                      <button className="w-12 h-12 rounded-full bg-gray-100 hover:bg-blue-500 text-gray-600 hover:text-white transition-all duration-300 transform group-hover:translate-x-2 flex items-center justify-center">
-                        <span className="transform transition-transform duration-300 group-hover:scale-110">
-                          →
-                        </span>
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -698,9 +737,9 @@ export const Landing: React.FC = () => {
       {/* Enhanced Footer */}
       <footer className="py-20 bg-gradient-to-b from-white to-gray-50 border-t border-gray-200/50 relative z-10">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
             {/* Brand Column */}
-            <div className="lg:col-span-2">
+            <div className="flex flex-col items-center">
               <div className="flex items-center space-x-4 mb-8">
                 <div className="relative">
                   <img src={Logo} alt="Acads Logo" className="h-12 w-12" />
@@ -708,47 +747,12 @@ export const Landing: React.FC = () => {
                 </div>
                 <span className="text-2xl font-light text-gray-900">Acads</span>
               </div>
-              <p className="text-gray-600 text-lg font-light leading-relaxed max-w-md">
+              <p className="text-gray-600 text-lg font-light leading-relaxed max-w-md text-center">
                 Empowering the next generation of thinkers, innovators, and
                 leaders through cutting-edge technology and transformative
                 education.
               </p>
-              <div className="flex space-x-4 mt-8">
-                {["twitter", "linkedin", "github", "instagram"].map(
-                  (social) => (
-                    <div
-                      key={social}
-                      className="w-10 h-10 rounded-full bg-gray-100 hover:bg-blue-500 text-gray-600 hover:text-white transition-all duration-300 flex items-center justify-center cursor-pointer transform hover:scale-110"
-                    >
-                      {social[0].toUpperCase()}
-                    </div>
-                  )
-                )}
-              </div>
             </div>
-
-            {/* Links Columns */}
-            {["Academics", "Admissions", "Campus Life", "Contact"].map(
-              (category) => (
-                <div key={category}>
-                  <h4 className="font-semibold text-gray-900 mb-6 text-lg">
-                    {category}
-                  </h4>
-                  <ul className="space-y-4">
-                    {Array.from({ length: 4 }, (_, i) => (
-                      <li key={i}>
-                        <a
-                          href="#"
-                          className="text-gray-600 hover:text-blue-600 transition-all duration-300 font-light text-lg hover:pl-2"
-                        >
-                          {category} Link {i + 1}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )
-            )}
           </div>
 
           <div className="border-t border-gray-200/50 mt-16 pt-8 text-center">
