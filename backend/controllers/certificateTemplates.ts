@@ -8,8 +8,7 @@ export const certificateTemplates = {
       { text: `Admission Number: ${data.admissionNumber}`, fontSize: 14, alignment: 'center', margin: [0, 0, 0, 10] },
       { text: `Program: ${data.program}`, fontSize: 14, alignment: 'center', margin: [0, 0, 0, 10] },
       { text: `Department: ${data.department}`, fontSize: 14, alignment: 'center', margin: [0, 0, 0, 20] },
-      { text: `is a bona fide student of this institution for the academic year ${data.academicYear}.`, fontSize: 14, alignment: 'center', margin: [0, 0, 0, 30] },
-      { text: 'This certificate is issued for:', fontSize: 14, alignment: 'center', margin: [0, 0, 0, 10] },
+      { text: `is a bonafide student of this institution for the academic year ${data.academicYear}.`, fontSize: 14, alignment: 'center', margin: [0, 0, 0, 30] },
       { text: data.reason, fontSize: 14, alignment: 'center', margin: [0, 0, 0, 30] },
       { text: `Date: ${data.issuedDate}`, fontSize: 12, alignment: 'right', margin: [0, 50, 0, 0] },
       { text: 'Principal', fontSize: 12, alignment: 'right', margin: [0, 40, 0, 0] }
@@ -64,8 +63,8 @@ export const certificateTemplates = {
 
   OTHER: (data: any) => ({
     content: [
-      { text: 'CERTIFICATE', fontSize: 24, bold: true, alignment: 'center', margin: [0, 20, 0, 30] },
-      { text: 'This is to certify that', fontSize: 16, alignment: 'center', margin: [0, 0, 0, 20] },
+      { text: 'REQUEST', fontSize: 24, bold: true, alignment: 'center', margin: [0, 20, 0, 30] },
+      { text: 'The request is approved successfully', fontSize: 16, alignment: 'center', margin: [0, 0, 0, 20] },
       { text: data.studentName, fontSize: 18, bold: true, alignment: 'center', margin: [0, 0, 0, 20] },
       { text: `Admission Number: ${data.admissionNumber}`, fontSize: 14, alignment: 'center', margin: [0, 0, 0, 10] },
       { text: `Program: ${data.program}`, fontSize: 14, alignment: 'center', margin: [0, 0, 0, 10] },
