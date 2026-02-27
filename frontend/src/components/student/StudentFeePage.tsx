@@ -1,5 +1,5 @@
-import React from "react";
-import { useOutletContext } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import type { Student, Invoice, FeeStructure } from "../../types";
 
 interface StudentWithFees extends Student {
@@ -25,6 +25,24 @@ const formatDate = (dateString: string) => {
     month: "short",
     year: "numeric",
   });
+};
+
+const SuccessBanner = ({ message, onDismiss }: { message: string, onDismiss: () => void }) => {
+  React.useEffect(() => {
+    const timer = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+
+  return (
+    <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-md flex justify-between items-center shadow-sm animate-in fade-in slide-in-from-top-4">
+      <div className="flex items-center">
+        <svg className="h-5 w-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+        <p className="text-sm font-medium text-green-800">{message}</p>
+      </div>
+    </div>
+  );
 };
 
 const getStatusBadge = (status: "paid" | "unpaid" | "overdue") => {
@@ -55,6 +73,8 @@ const StatCard: React.FC<{ title: string; value: string; color?: string }> = ({
 
 const StudentFeePage: React.FC = () => {
   const { studentData } = useOutletContext<OutletContextType>();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const totalDue = studentData.invoices.reduce(
     (sum, inv) => sum + parseFloat(inv.amount as any),
@@ -65,8 +85,18 @@ const StudentFeePage: React.FC = () => {
     .reduce((sum, inv) => sum + parseFloat(inv.amount as any), 0);
   const outstandingBalance = totalDue - totalPaid;
 
+  const dismissSuccess = () => {
+    navigate(location.pathname, { replace: true, state: {} });
+  };
+
   return (
     <div>
+      {location?.state?.paymentSuccess && (
+        <SuccessBanner
+          message={`Payment successful! Invoice #${location.state.invoiceId} has been paid.`}
+          onDismiss={dismissSuccess}
+        />
+      )}
       <h1 className="text-3xl font-bold text-gray-900">Fee Payment Portal</h1>
       <p className="mt-1 text-lg text-gray-600">
         Here is a summary of your account.
@@ -142,14 +172,22 @@ const StudentFeePage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       {invoice.status !== "paid" && (
-                        <a
-                          className="border-none "
-                          href="https://onlinesbi.sbi.bank.in/sbicollect/icollecthome.htm"
+                        <button
+                          onClick={() => {
+                            if (navigate) {
+                              navigate("/student/payment", {
+                                state: {
+                                  invoiceId: invoice.id,
+                                  amount: invoice.amount,
+                                  feeType: invoice.FeeStructure?.name || "Fee",
+                                }
+                              });
+                            }
+                          }}
+                          className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-xs font-semibold"
                         >
-                          <button className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-xs font-semibold">
-                            Pay Now
-                          </button>
-                        </a>
+                          Pay Now
+                        </button>
                       )}
                     </td>
                   </tr>
