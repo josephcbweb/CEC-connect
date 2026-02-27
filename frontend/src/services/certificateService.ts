@@ -6,7 +6,7 @@ const API_BASE = "http://localhost:3000";
 
 // Get auth token from localStorage
 const getAuthHeader = () => {
-  const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+  const token = localStorage.getItem("authToken") || localStorage.getItem("token");
   return {
     Authorization: `Bearer ${token}`,
   };
@@ -25,42 +25,30 @@ export const certificateService = {
       );
       
       console.log("Submit response:", response.data);
-      return response.data;
+      return response.data.certificate || response.data;
     } catch (error: unknown) {
       console.error("Error submitting request:", error);
       
-      // Handle Axios errors
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError<{ error: string; details?: string }>;
         
-        // Get server response error message
         const serverError = axiosError.response?.data?.error;
-        const serverDetails = axiosError.response?.data?.details;
         
         if (serverError) {
-          // Create a detailed error message
-          let errorMessage = serverError;
-          if (process.env.NODE_ENV === 'development' && serverDetails) {
-            errorMessage += ` (${serverDetails})`;
-          }
-          throw new Error(errorMessage);
+          throw new Error(serverError);
         }
         
-        // Handle network errors
         if (axiosError.message === 'Network Error') {
           throw new Error("Network error. Please check your connection.");
         }
         
-        // Handle other Axios errors
         throw new Error(axiosError.message || "Failed to submit request");
       }
       
-      // Handle standard Error objects
       if (error instanceof Error) {
         throw error;
       }
       
-      // Handle unknown errors
       throw new Error("An unexpected error occurred");
     }
   },
