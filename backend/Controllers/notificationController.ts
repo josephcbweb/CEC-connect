@@ -5,6 +5,8 @@ import { NotificationTargetType, NotificationPriority, NotificationStatus } from
 import fs from 'fs';
 import path from 'path';
 
+import { sendPushNotification } from '../services/pushNotificationService';
+
 export const createNotification = async (req: Request, res: Response) => {
   try {
     const { title, description, targetType, targetValue, priority, expiryDate, status } = req.body;
@@ -27,6 +29,21 @@ export const createNotification = async (req: Request, res: Response) => {
         senderId: senderId,
       },
     });
+
+    // Send Push Notification if published
+    if (notification.status === NotificationStatus.published) {
+        // Run asynchronously to not block response
+        // In production, use a job queue
+        sendPushNotification(
+            notification.id,
+            notification.targetType,
+            notification.targetValue,
+            notification.title,
+            notification.description || '',
+            { notificationId: notification.id },
+            notification.priority
+        ).catch(err => console.error("Async push error", err));
+    }
 
     res.status(201).json(notification);
   } catch (error) {
@@ -155,3 +172,68 @@ export const deleteNotification = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to delete notification" });
   }
 };
+
+export const registerToken = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { fcmToken, deviceType } = req.body;
+    // Assuming userId exists on req.user. If not, this cast might need adjustment based on auth middleware.
+    // In student app, standard JWT usually has userId.
+    const userId = typeof req.user === 'object' && req.user ? (req.user as any).userId : null;
+    
+    if (!userId || !fcmToken) {
+        return res.status(400).json({ error: "Missing token or user ID" });
+    }
+
+    // Check if userId belongs to a student first (as this is student app)
+    const student = await prisma.student.findUnique({
+        where: { id: parseInt(userId) }
+    });
+
+    if (student) {
+         await prisma.deviceToken.upsert({
+            where: { token: fcmToken },
+            update: { 
+                studentId: student.id, 
+                deviceType: deviceType || 'android',
+                userId: null // Clear userId if it was previously associated with staff
+            },
+            create: {
+                token: fcmToken,
+                studentId: student.id,
+                deviceType: deviceType || 'android'
+            }
+        });
+        res.status(200).json({ message: "Token registered for student" });
+        return;
+    }
+    
+    // If not student, try User (staff/admin)
+    const user = await prisma.user.findUnique({
+        where: { id: parseInt(userId) }
+    });
+
+    if (user) {
+         await prisma.deviceToken.upsert({
+            where: { token: fcmToken },
+            update: { 
+                userId: user.id, 
+                deviceType: deviceType || 'android',
+                studentId: null
+            },
+            create: {
+                token: fcmToken,
+                userId: user.id,
+                deviceType: deviceType || 'android'
+            }
+        });
+        res.status(200).json({ message: "Token registered for user" });
+        return;
+    }
+
+    res.status(404).json({ error: "User or Student not found" });
+  } catch (error) {
+    console.error("Error registering token:", error);
+    res.status(500).json({ error: "Failed to register token" });
+  }
+};
+
