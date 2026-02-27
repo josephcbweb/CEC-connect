@@ -6,7 +6,7 @@ import {
   updateStudentProfile,
   getAllBusRoutes,
   requestBusService,
-} from "../controllers/studentController";
+} from "../Controllers/studentController";
 
 const router = express.Router();
 

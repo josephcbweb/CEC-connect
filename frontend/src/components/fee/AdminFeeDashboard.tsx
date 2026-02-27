@@ -15,7 +15,6 @@ interface FilterConfig {
   gender: string;
   feeStatus: string;
   program: string;
-  year: string;
   semester: string;
   admission_type: string;
 }
@@ -43,7 +42,6 @@ const AdminFeesDashboard: React.FC = () => {
     gender: "",
     feeStatus: "",
     program: "",
-    year: "",
     semester: "",
     admission_type: "",
   });
@@ -74,11 +72,12 @@ const AdminFeesDashboard: React.FC = () => {
       const studentData: Student[] = await response.json();
 
       const studentsWithFees: StudentFee[] = studentData.map((student) => {
+        const activeInvoices = student.invoices?.filter(inv => !inv.fee?.archived) || [];
         const totalDue =
-          student.invoices?.reduce((sum, inv) => sum + Number(inv.amount), 0) ||
+          activeInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0) ||
           0;
         const totalPaid =
-          student.invoices
+          activeInvoices
             ?.filter((inv) => inv.status === "paid")
             .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
         const pendingAmount = totalDue - totalPaid;
@@ -88,7 +87,7 @@ const AdminFeesDashboard: React.FC = () => {
           if (pendingAmount <= 0) {
             feeStatus = "paid";
           } else {
-            const hasOverdue = student.invoices?.some(
+            const hasOverdue = activeInvoices.some(
               (inv) =>
                 inv.status !== "paid" && new Date(inv.dueDate) < new Date(),
             );
@@ -141,14 +140,6 @@ const AdminFeesDashboard: React.FC = () => {
         student.currentSemester?.toString() !== filters.semester
       )
         return false;
-      if (filters.year) {
-        const currentYear = new Date().getFullYear();
-        const admissionYear = new Date(
-          student.admission_date || student.createdAt,
-        ).getFullYear();
-        const yearDiff = currentYear - admissionYear + 1;
-        if (yearDiff.toString() !== filters.year) return false;
-      }
       return true;
     });
 
@@ -188,7 +179,6 @@ const AdminFeesDashboard: React.FC = () => {
       gender: "",
       feeStatus: "",
       program: firstProgram,
-      year: "1",
       semester: "1",
       admission_type: "",
     });
@@ -234,7 +224,6 @@ const AdminFeesDashboard: React.FC = () => {
       setFilters((prev) => ({
         ...prev,
         program: firstProgram,
-        year: "1",
         semester: "1",
       }));
     }
@@ -266,16 +255,11 @@ const AdminFeesDashboard: React.FC = () => {
 
   useEffect(() => {
     const isPG = filters.program === "MCA" || filters.program === "MTECH";
-    const maxYear = isPG ? 2 : 4;
     const maxSem = isPG ? 4 : 8;
 
     setFilters((prev) => {
       let updated = false;
       const next = { ...prev };
-      if (Number(prev.year) > maxYear) {
-        next.year = "1";
-        updated = true;
-      }
       if (Number(prev.semester) > maxSem) {
         next.semester = "1";
         updated = true;
@@ -297,7 +281,6 @@ const AdminFeesDashboard: React.FC = () => {
       genders: getUniqueValues(students, "gender"),
       admission_types: getUniqueValues(students, "admission_type"),
       feeStatuses: ["pending", "due", "paid", "overdue"],
-      years: isPG ? ["1", "2"] : ["1", "2", "3", "4"],
       semesters: isPG
         ? ["1", "2", "3", "4"]
         : ["1", "2", "3", "4", "5", "6", "7", "8"],

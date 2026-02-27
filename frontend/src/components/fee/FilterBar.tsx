@@ -11,7 +11,6 @@ interface FilterBarProps {
   genders: string[];
   admission_types: string[]; // Changed to admission_types
   feeStatuses: string[];
-  years: string[];
   semesters?: string[];
   onFilterChange: (key: keyof FilterConfig, value: string) => void;
   onClearFilters: () => void;
@@ -26,7 +25,6 @@ const FilterBar: React.FC<FilterBarProps> = ({
   genders,
   admission_types, // Destructure the new prop
   feeStatuses,
-  years,
   semesters = [],
   onFilterChange,
   onClearFilters,
@@ -73,11 +71,9 @@ const FilterBar: React.FC<FilterBarProps> = ({
         {showAllOption && <option value="">{placeholder}</option>}
         {options.map((option) => (
           <option key={option} value={option}>
-            {label === "Year"
-              ? `Year ${option}`
-              : label === "Semester"
-                ? `Semester ${option}`
-                : formatOption(option, label)}
+            {label === "Semester"
+              ? `Semester ${option}`
+              : formatOption(option, label)}
           </option>
         ))}
       </select>
@@ -111,13 +107,6 @@ const FilterBar: React.FC<FilterBarProps> = ({
           filterKey="department"
           options={departments}
           placeholder="All Departments"
-          showAllOption={false}
-        />
-        <FilterDropdown
-          label="Year"
-          filterKey="year"
-          options={years}
-          placeholder="All Years"
           showAllOption={false}
         />
         <FilterDropdown

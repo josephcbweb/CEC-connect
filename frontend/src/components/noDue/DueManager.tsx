@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Search,
   Clock,
@@ -19,12 +20,14 @@ import { Settings as SettingsIcon, LayoutList, BookCopy } from "lucide-react";
 interface DueItem {
   id: number;
   requestId: number;
+  studentId?: number;
   studentName?: string;
   registerNo?: string;
   semester?: number;
   program?: string;
   department?: string | { name: string };
   student?: {
+    id: number;
     name: string;
     registerNo: string;
     semester: number;
@@ -34,7 +37,7 @@ interface DueItem {
     };
   };
   dueType: string;
-  status: "pending" | "cleared";
+  status: "pending" | "cleared" | "archived";
   updatedAt: string;
 }
 
@@ -51,7 +54,7 @@ const DueManager = () => {
   const [typeFilter, setTypeFilter] = useState<"all" | "academic" | "service">(
     "all",
   );
-  const [statusFilter, setStatusFilter] = useState<"pending" | "cleared">(
+  const [statusFilter, setStatusFilter] = useState<"pending" | "cleared" | "archived">(
     "pending",
   );
   const [expandedRequestId, setExpandedRequestId] = useState<number | null>(
@@ -82,12 +85,33 @@ const DueManager = () => {
     activating: boolean;
   }>({ show: false, activating: false });
   const [togglingSettings, setTogglingSettings] = useState(false);
+  const [deactivationAction, setDeactivationAction] = useState<"" | "CLEAR" | "KEEP">("");
+  const [relevantArchivedCount, setRelevantArchivedCount] = useState(0);
+  const [activationAction, setActivationAction] = useState<"" | "REACTIVATE" | "KEEP">("");
+  const [fetchingCounts, setFetchingCounts] = useState(false);
 
   // Pagination State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+
+  // RBAC State
+  const [canManageDues, setCanManageDues] = useState(false);
+
+  useEffect(() => {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+      const user = JSON.parse(userString);
+      const roles = Array.isArray(user.role) ? user.role.map((r: string) => r.toLowerCase()) : [user.role?.toLowerCase()];
+      const permissions = Array.isArray(user.permission) ? user.permission : [];
+
+      const isAdmin = roles.includes("admin") || roles.includes("super admin");
+      const hasManagePermission = permissions.includes("manage:due");
+
+      setCanManageDues(isAdmin || hasManagePermission);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -125,6 +149,7 @@ const DueManager = () => {
   }, []);
 
   const fetchActiveRequestCount = async () => {
+    setFetchingCounts(true);
     try {
       const res = await fetch(
         "http://localhost:3000/settings/active-requests-count",
@@ -132,9 +157,12 @@ const DueManager = () => {
       if (res.ok) {
         const data = await res.json();
         setActiveRequestCount(data.count);
+        setRelevantArchivedCount(data.relevantArchivedCount || 0);
       }
     } catch (error) {
       console.error("Failed to fetch active requests count", error);
+    } finally {
+      setFetchingCounts(false);
     }
   };
 
@@ -145,15 +173,23 @@ const DueManager = () => {
   const handleToggleNoDue = async () => {
     setTogglingSettings(true);
     const targetState = showActivationModal.activating;
+    const action = targetState ? activationAction : deactivationAction;
+
     try {
       const res = await fetch("http://localhost:3000/settings/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "noDueRequestEnabled", value: targetState }),
+        body: JSON.stringify({
+          name: "noDueRequestEnabled",
+          value: targetState,
+          action: action || (targetState ? undefined : "KEEP")
+        }),
       });
       if (res.ok) {
         setNoDueRequestEnabled(targetState);
         setShowActivationModal({ show: false, activating: false });
+        if (!targetState) setDeactivationAction("");
+        fetchApprovals(); // Refresh list
       }
     } catch (error) {
       console.error("Failed to toggle setting", error);
@@ -405,26 +441,28 @@ const DueManager = () => {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex gap-3">
-              {noDueRequestEnabled ? (
-                <button
-                  onClick={() =>
-                    setShowActivationModal({ show: true, activating: false })
-                  }
-                  className="bg-amber-100 text-amber-700 px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-amber-200 transition-colors font-medium border border-amber-200"
-                >
-                  <AlertCircle size={18} />
-                  Deactivate Requests
-                </button>
-              ) : (
-                <button
-                  onClick={() =>
-                    setShowActivationModal({ show: true, activating: true })
-                  }
-                  className="bg-teal-600 text-white px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-teal-700 transition-colors font-medium"
-                >
-                  <CheckCircle size={18} />
-                  Activate Requests
-                </button>
+              {canManageDues && (
+                noDueRequestEnabled ? (
+                  <button
+                    onClick={() =>
+                      setShowActivationModal({ show: true, activating: false })
+                    }
+                    className="bg-amber-100 text-amber-700 px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-amber-200 transition-colors font-medium border border-amber-200"
+                  >
+                    <AlertCircle size={18} />
+                    Deactivate Requests
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      setShowActivationModal({ show: true, activating: true })
+                    }
+                    className="bg-teal-600 text-white px-4 py-2 flex items-center gap-2 rounded-lg hover:bg-teal-700 transition-colors font-medium"
+                  >
+                    <CheckCircle size={18} />
+                    Activate Requests
+                  </button>
+                )
               )}
             </div>
             {activeTab === "approvals" && (
@@ -443,7 +481,7 @@ const DueManager = () => {
                     Clear Selected ({selectedDueIds.length})
                   </button>
                 )}
-                {statusFilter !== "cleared" && (
+                {statusFilter !== "cleared" && canManageDues && (
                   <>
                     <button
                       onClick={() => setShowBulkModal(true)}
@@ -477,26 +515,30 @@ const DueManager = () => {
             <LayoutList size={18} />
             Approvals
           </button>
-          <button
-            onClick={() => setActiveTab("courses")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "courses"
-              ? "text-teal-600 border-b-2 border-teal-600"
-              : "text-slate-500 hover:text-slate-700"
-              }`}
-          >
-            <BookCopy size={18} />
-            Courses
-          </button>
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "settings"
-              ? "text-teal-600 border-b-2 border-teal-600"
-              : "text-slate-500 hover:text-slate-700"
-              }`}
-          >
-            <SettingsIcon size={18} />
-            Settings
-          </button>
+          {canManageDues && (
+            <>
+              <button
+                onClick={() => setActiveTab("courses")}
+                className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "courses"
+                  ? "text-teal-600 border-b-2 border-teal-600"
+                  : "text-slate-500 hover:text-slate-700"
+                  }`}
+              >
+                <BookCopy size={18} />
+                Courses
+              </button>
+              <button
+                onClick={() => setActiveTab("settings")}
+                className={`pb-2 px-1 flex items-center gap-2 font-medium text-sm transition-colors relative ${activeTab === "settings"
+                  ? "text-teal-600 border-b-2 border-teal-600"
+                  : "text-slate-500 hover:text-slate-700"
+                  }`}
+              >
+                <SettingsIcon size={18} />
+                Settings
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -585,10 +627,14 @@ const DueManager = () => {
             </div>
 
             <div className="flex bg-slate-100 p-1 rounded-lg">
-              {(["pending", "cleared"] as const).map((tab) => (
+              {(["pending", "cleared", "archived"] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setStatusFilter(tab)}
+                  onClick={() => {
+                    setStatusFilter(tab);
+                    // setPagination({ ...pagination, page: 1 }); // Assuming pagination state is not directly available here
+                    setPage(1); // Reset page to 1 when filter changes
+                  }}
                   className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${statusFilter === tab
                     ? "bg-white text-slate-900 shadow-sm"
                     : "text-slate-500 hover:text-slate-700"
@@ -668,8 +714,13 @@ const DueManager = () => {
                       <td className="px-6 py-4 font-mono text-slate-600">
                         {due.registerNo || due.student?.registerNo || "N/A"}
                       </td>
-                      <td className="px-6 py-4 font-medium text-slate-900">
-                        {due.studentName || due.student?.name || "N/A"}
+                      <td className="px-6 py-4 font-medium text-slate-900 hover:text-teal-600 transition-colors">
+                        <Link
+                          to={`/admin/studentDetails/${due.studentId || due.student?.id}`}
+                          className="hover:underline underline-offset-2"
+                        >
+                          {due.studentName || due.student?.name || "N/A"}
+                        </Link>
                       </td>
                       <td className="px-6 py-4 text-slate-600">
                         S{due.semester || due.student?.semester || "?"}
@@ -682,9 +733,13 @@ const DueManager = () => {
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 transition-all duration-300">
                             <Clock size={12} /> Pending
                           </span>
-                        ) : (
+                        ) : due.status === "cleared" ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 animate-in zoom-in duration-300">
                             <CheckCircle size={12} /> Cleared
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-700">
+                            <AlertCircle size={12} /> Archived
                           </span>
                         )}
                       </td>
@@ -934,39 +989,127 @@ const DueManager = () => {
       {/* Activation Confirmation Modal */}
       {showActivationModal.show && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fade-in backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative animate-scale-in">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg relative animate-scale-in">
             <h2 className="text-xl font-bold text-slate-900 mb-4">
               {showActivationModal.activating
                 ? "Activate Due Requests"
                 : "Deactivate Due Requests"}
             </h2>
 
-            <div className="mb-6">
-              {showActivationModal.activating ? (
-                <div className="rounded-md bg-amber-50 p-4 border border-amber-200 text-amber-800 text-sm">
-                  <div className="flex gap-3 mb-2 font-medium">
-                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    <p>Important Notice</p>
-                  </div>
-                  <p className="ml-8 text-amber-700">
-                    Students will now be able to access the due details from
-                    their profile. Please ensure that all necessary procedures
-                    and fee structures for all students have been fully
-                    configured before activating.
-                  </p>
+            <div className="mb-6 space-y-4 min-h-[100px] flex flex-col justify-center">
+              {fetchingCounts ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-3" />
+                  <p className="text-sm text-slate-500">Checking request statistics...</p>
                 </div>
+              ) : showActivationModal.activating ? (
+                <>
+                  <div className="rounded-md bg-amber-50 p-4 border border-amber-200 text-amber-800 text-sm">
+                    <div className="flex gap-3 mb-2 font-medium">
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                      <p>Important Notice</p>
+                    </div>
+                    <p className="ml-8 text-amber-700">
+                      Students will now be able to access the due details from
+                      their profile. Please ensure that all necessary procedures
+                      and fee structures for all students have been fully
+                      configured before activating.
+                    </p>
+                  </div>
+
+                  {relevantArchivedCount > 0 && (
+                    <div className="mt-6 space-y-4">
+                      <div className="rounded-md bg-blue-50 p-4 border border-blue-200 text-blue-800 text-sm">
+                        <div className="flex gap-3 mb-2 font-medium">
+                          <Clock className="h-5 w-5 flex-shrink-0" />
+                          <p>Relevant Archived Dues Found</p>
+                        </div>
+                        <p className="ml-8 text-blue-700">
+                          We found <strong>{relevantArchivedCount}</strong> archived pending due entries that match the students' current semester. How would you like to handle them?
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className={`flex p-4 border rounded-lg cursor-pointer transition-colors ${activationAction === "REACTIVATE" ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
+                          <input
+                            type="radio"
+                            name="actAction"
+                            className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                            checked={activationAction === "REACTIVATE"}
+                            onChange={() => setActivationAction("REACTIVATE")}
+                          />
+                          <div className="ml-3">
+                            <h5 className="font-medium text-slate-900">Reactivate Relevant Archived Entries</h5>
+                            <p className="text-sm text-slate-500">Restore previous pending due entries for students who are still in the same semester. This allows them to continue their previous clearance process.</p>
+                          </div>
+                        </label>
+
+                        <label className={`flex p-4 border rounded-lg cursor-pointer transition-colors ${activationAction === "KEEP" ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
+                          <input
+                            type="radio"
+                            name="actAction"
+                            className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                            checked={activationAction === "KEEP"}
+                            onChange={() => setActivationAction("KEEP")}
+                          />
+                          <div className="ml-3">
+                            <h5 className="font-medium text-slate-900">Keep All Archived</h5>
+                            <p className="text-sm text-slate-500">Keep all previous dues archived. Students will need to have new dues initiated for them.</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : activeRequestCount > 0 ? (
-                <div className="rounded-md bg-rose-50 p-4 border border-rose-200 text-rose-800 text-sm">
-                  <div className="flex gap-3 mb-2 font-medium">
-                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    <p>Warning: Active Requests Discovered</p>
+                <>
+                  <div className="rounded-md bg-rose-50 p-4 border border-rose-200 text-rose-800 text-sm">
+                    <div className="flex gap-3 mb-2 font-medium">
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                      <p>Warning: Active Requests Discovered</p>
+                    </div>
+                    <p className="ml-8 text-rose-700">
+                      There are currently <strong>{activeRequestCount}</strong>{" "}
+                      active no-due requests. Please select how you want to handle these pending dues.
+                    </p>
                   </div>
-                  <p className="ml-8 text-rose-700">
-                    There are currently <strong>{activeRequestCount}</strong>{" "}
-                    active no-due requests. Deactivating will archive them and
-                    halt the clearance process for these students.
-                  </p>
-                </div>
+
+                  <div className="space-y-3 mt-4">
+                    <label className={`flex p-4 border rounded-lg cursor-pointer transition-colors ${deactivationAction === "CLEAR" ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
+                      <input
+                        type="radio"
+                        name="deacAction"
+                        className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                        checked={deactivationAction === "CLEAR"}
+                        onChange={() => setDeactivationAction("CLEAR")}
+                      />
+                      <div className="ml-3">
+                        <h5 className="font-medium text-slate-900">Clear All Dues</h5>
+                        <p className="text-sm text-slate-500">All pending dues will be marked as cleared and their requests approved.</p>
+                      </div>
+                    </label>
+
+                    <label className={`flex p-4 border rounded-lg cursor-pointer transition-colors ${deactivationAction === "KEEP" ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
+                      <input
+                        type="radio"
+                        name="deacAction"
+                        className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                        checked={deactivationAction === "KEEP"}
+                        onChange={() => setDeactivationAction("KEEP")}
+                      />
+                      <div className="ml-3">
+                        <h5 className="font-medium text-slate-900">Keep as Archived</h5>
+                        <p className="text-sm text-slate-500">Archive the dues without clearing them.</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {deactivationAction === "KEEP" && (
+                    <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-sm animate-in fade-in zoom-in duration-200">
+                      <strong>Note:</strong> These requests will be hidden from students and only be visible to administrators.
+                    </div>
+                  )}
+                </>
               ) : (
                 <p className="text-slate-600">
                   Are you sure you want to deactivate new due requests? Students
@@ -975,11 +1118,13 @@ const DueManager = () => {
               )}
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() =>
-                  setShowActivationModal({ show: false, activating: false })
-                }
+                onClick={() => {
+                  setShowActivationModal({ show: false, activating: false });
+                  setDeactivationAction("");
+                  setActivationAction("");
+                }}
                 disabled={togglingSettings}
                 className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
               >
@@ -987,10 +1132,14 @@ const DueManager = () => {
               </button>
               <button
                 onClick={handleToggleNoDue}
-                disabled={togglingSettings}
-                className={`px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 ${showActivationModal.activating
-                  ? "bg-teal-600 hover:bg-teal-700"
-                  : "bg-amber-600 hover:bg-amber-700"
+                disabled={
+                  togglingSettings ||
+                  (!showActivationModal.activating && activeRequestCount > 0 && !deactivationAction) ||
+                  (showActivationModal.activating && relevantArchivedCount > 0 && !activationAction)
+                }
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-white ${showActivationModal.activating
+                  ? "bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400"
+                  : "bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:opacity-50"
                   }`}
               >
                 {togglingSettings ? (

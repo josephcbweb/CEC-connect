@@ -113,8 +113,8 @@ const BusServiceManager = () => {
 
   if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-[#009689] w-12 h-12" /></div>;
 
-  // ─── CASE E: Suspended (bus_service: true AND hasUnpaidBusFee: true) ───
-  if (student?.bus_service && student?.hasUnpaidBusFee) {
+  // ─── CASE E: Suspended (bus_service: true AND hasOverdueBusFee: true) ───
+  if (student?.bus_service && student?.hasOverdueBusFee) {
     const { busName, busNumber, stopName } = student.busDetails || {};
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -135,10 +135,10 @@ const BusServiceManager = () => {
             <div className="bg-white rounded-2xl p-6 border border-red-100 flex items-start gap-4">
               <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-gray-800 text-lg">Pending Dues Detected</h3>
+                <h3 className="font-semibold text-gray-800 text-lg">Overdue Dues Detected</h3>
                 <p className="text-gray-600 mt-1">
                   Your bus pass for <strong>{busName}</strong> ({busNumber}) at <strong>{stopName}</strong> has been
-                  suspended due to unpaid bus fees. Please clear outstanding dues to reactivate your pass.
+                  suspended due to overdue bus fees. Please clear your outstanding dues to reactivate your pass.
                 </p>
               </div>
             </div>
@@ -153,8 +153,8 @@ const BusServiceManager = () => {
     );
   }
 
-  // ─── CASE D: Active Pass (bus_service: true AND hasUnpaidBusFee: false) ───
-  if (student?.bus_service && !student?.hasUnpaidBusFee && student?.busDetails) {
+  // ─── CASE D: Active Pass (bus_service: true AND hasOverdueBusFee: false) ───
+  if (student?.bus_service && !student?.hasOverdueBusFee && student?.busDetails) {
     const { busName, busNumber, stopName, feeAmount } = student.busDetails;
     return (
       <div className="max-w-4xl mx-auto p-6">
