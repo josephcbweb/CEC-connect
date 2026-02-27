@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, LogOut, Menu, BookOpen } from "lucide-react";
+import { ChevronLeft, LogOut, Menu } from "lucide-react";
 import { sidebarItems } from "../../utilities/sidebarItems";
 import SidebarItem from "./SideBarItem";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -9,26 +9,33 @@ const Sidebar = () => {
   const location = useLocation();
   const [activeItem, setActiveItem] = useState(location.pathname);
   const navigate = useNavigate();
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const userString = localStorage.getItem("user");
     if (userString) {
       const user = JSON.parse(userString);
-      // user.role is an array of strings based on AuthService
+      // user.role and user.permission are arrays of strings based on AuthService
       const roles =
         user.role && Array.isArray(user.role)
-          ? user.role
-          : [user.role || "Admin"];
+          ? user.role.map((r: string) => r.toLowerCase())
+          : [user.role?.toLowerCase() || "guest"];
 
-      if (roles.includes("Librarian")) {
+      const permissions = user.permission && Array.isArray(user.permission)
+        ? user.permission
+        : [];
+
+      setUserPermissions(permissions);
+
+      if (roles.includes("library_staff") || roles.includes("librarian")) {
         setUserRole("Librarian");
-      } else if (roles.includes("Admin") || roles.includes("Super Admin")) {
+      } else if (roles.includes("admin") || roles.includes("super admin")) {
         setUserRole("Admin");
-      } else if (roles.includes("Staff") || roles.includes("Faculty")) {
+      } else if (roles.includes("staff") || roles.includes("faculty") || roles.includes("accounts_staff")) {
         setUserRole("Staff");
       } else {
-        setUserRole("Admin"); // Default fallback
+        setUserRole(roles[0] || "guest"); // No default to Admin!
       }
     }
   }, []);
@@ -37,38 +44,35 @@ const Sidebar = () => {
     setActiveItem(location.pathname);
   }, [location.pathname]);
 
-  const filteredItems = sidebarItems.filter((item) => {
-    if (userRole === "Librarian") {
-      return item.text === "Due Management";
+  const filteredItems = sidebarItems.filter((item: any) => {
+    // 1. If user is Admin, they see everything
+    if (userRole === "Admin") {
+      return true;
     }
-    if (userRole === "Staff") {
-      // Staff assigned to subjects can see Due Management.
-      // They might need Dashboard or others, but definitely not Settings.
-      // Based on request "won't have access to settings", implying maybe others are OK?
-      // But "clear dues for... subject assigned... won't have access to settings" suggest a limited role.
-      // Let's allow Due Management and Dashboard.
-      const allowed = ["Dashboard", "Due Management"];
-      return allowed.includes(item.text);
+
+    // 2. If the item has a permission requirement, check if the user has it
+    if (item.permission) {
+      return userPermissions.includes(item.permission);
     }
+
+    // 3. For items without a permission field, show them by default 
+    // (This includes basic sections like Dashboard, Notifications, etc.)
     return true;
   });
 
   return (
     <aside className="h-screen sticky top-0">
       <nav
-        className={`h-full flex flex-col shadow-lg transition-all duration-300 ease-in-out ${
-          collapsed ? "w-20" : "w-64"
-        }`}
+        className={`h-full flex flex-col shadow-lg transition-all duration-300 ease-in-out ${collapsed ? "w-20" : "w-64"
+          }`}
       >
         <div
-          className={`p-4 pb-2 flex items-center ${
-            collapsed ? "justify-center" : "justify-between"
-          }`}
+          className={`p-4 pb-2 flex items-center ${collapsed ? "justify-center" : "justify-between"
+            }`}
         >
           <span
-            className={`overflow-hidden transition-all font-bold text-2xl text-gray-800 ${
-              collapsed ? "w-0" : "w-32"
-            }`}
+            className={`overflow-hidden transition-all font-bold text-2xl text-gray-800 ${collapsed ? "w-0" : "w-32"
+              }`}
           >
             ACADS
           </span>

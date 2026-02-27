@@ -8,7 +8,6 @@ interface StudentRowProps {
   name: string;
   program: string;
   department: string;
-  year: number | null;
   currentSemester?: number; // Optional to prevent breaking other usages, but good to have
   isSelected: boolean;
   onSelect: (id: number) => void;
@@ -19,7 +18,6 @@ const StudentRow: React.FC<StudentRowProps> = ({
   name,
   program,
   department,
-  year,
   currentSemester,
   isSelected,
   onSelect,
@@ -52,10 +50,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
       {/* Column 3: Department */}
       <div className="w-3/12 px-2 text-gray-600 truncate">{department}</div>
 
-      {/* Column 4: Year */}
-      <div className="w-2/12 pr-4 text-gray-600">{year ?? "—"}</div>
-
-      {/* Column 5: View Details Link */}
+      {/* Column 4: View Details Link */}
       <div className="w-2/12 pr-4 text-right">
         <button
           onClick={() => navigate(`/admin/studentDetails/${id}`)}

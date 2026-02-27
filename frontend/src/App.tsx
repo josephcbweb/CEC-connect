@@ -17,7 +17,6 @@ import PaymentPage from "./components/student/PaymentPage";
 import Settings from "./components/settings/Settings";
 import StaffRolesPage from "./components/staff-roles/StaffRolesPage";
 import AdmissionsPage from "./components/admin/admissions/AdmissionsPage";
-import AdmissionSettings from "./components/settings/AdmissionSettings";
 import DepartmentDashboard from "./components/department/DepartmentDashboard";
 import StudentProfile from "./components/student/StudentProfile";
 import SemesterRegister from "./components/student/SemesterRegister";
@@ -45,10 +44,8 @@ const App = () => {
           <Route path="/admin/fee" element={<AdminFeesDashboard />} />
           <Route path="/admin/fee" element={<AdminFeesPage />} />
           <Route path="/admin/certificate" element={<StaffCertificatePage />} />
-          <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/staff-roles" element={<StaffRolesPage />} />
           <Route path="admissions" element={<AdmissionsPage />} />
-          <Route path="admissions/settings" element={<AdmissionSettings />} />
           <Route path="/admin/departments" element={<DepartmentDashboard />} />
           <Route path="/admin/bus" element={<BusManagement />} />
           <Route path="/admin/bus/:id" element={<BusDetailsDashboard />} />{" "}

@@ -1,4 +1,4 @@
-import React from "react";
+import { Link } from "react-router-dom";
 import { exportToPDF } from "../../utilities/feereport";
 import { Download } from "lucide-react";
 import type { StudentFee, SortConfig, FilterConfig } from "../../types";
@@ -198,8 +198,13 @@ const StudentFeeTable: React.FC<StudentFeeTableProps> = ({
                   />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
-                    {student.name}
+                  <div className="text-sm font-medium text-gray-900 hover:text-teal-600 transition-colors">
+                    <Link
+                      to={`/admin/studentDetails/${student.id}`}
+                      className="hover:underline underline-offset-2"
+                    >
+                      {student.name}
+                    </Link>
                   </div>
                   <div className="text-sm text-gray-500">
                     {student.admission_number || student.email}

@@ -38,6 +38,7 @@ export interface FeeDetails {
   amount: number;
   dueDate: string;
   studentId: number;
+  archived?: boolean;
 }
 
 export interface FeeStructure {
@@ -52,7 +53,7 @@ export interface Invoice {
   studentId: number;
   feeId: number;
   FeeStructure: { name: string };
-  fee: { feeType: string };
+  fee: { feeType: string; archived?: boolean };
   amount: number;
   dueDate: string;
   issueDate: string;
@@ -80,7 +81,6 @@ export interface FilterConfig {
   gender: string;
   feeStatus: string;
   program: string;
-  year: string;
   semester: string; // Added semester
   admission_type: string;
 }

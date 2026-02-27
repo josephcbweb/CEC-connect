@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle, Loader2 } from "lucide-react";
 import type { StudentFee, Invoice } from "../../types";
 
 interface StudentDetailsModalProps {
@@ -12,10 +14,12 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   onClose,
   onRefresh,
 }) => {
+  const [processingInvoiceId, setProcessingInvoiceId] = useState<number | null>(null);
+  const [successInvoiceId, setSuccessInvoiceId] = useState<number | null>(null);
+
   const handleMarkAsPaid = async (invoiceId: number) => {
-    if (!window.confirm("Are you sure you want to mark this invoice as paid?"))
-      return;
     try {
+      setProcessingInvoiceId(invoiceId);
       const response = await fetch(
         "http://localhost:3000/fee/invoices/mark-paid",
         {
@@ -24,19 +28,26 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
           body: JSON.stringify({
             invoiceId: invoiceId,
             paymentMethod: "Manual",
+            userId: localStorage.getItem("userId"),
           }),
         },
       );
       if (response.ok) {
-        alert("Invoice marked as paid!");
-        onRefresh();
-        onClose();
+        setProcessingInvoiceId(null);
+        setSuccessInvoiceId(invoiceId);
+
+        // Wait for animation to show success state before refresh
+        setTimeout(() => {
+          onRefresh();
+          setSuccessInvoiceId(null);
+        }, 1500);
       } else {
         const errData = await response.json();
         throw new Error(errData.error);
       }
     } catch (err: any) {
       alert(`Error: ${err.message}`);
+      setProcessingInvoiceId(null);
     }
   };
 
@@ -89,7 +100,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                   {invoices.map((invoice: Invoice) => (
                     <tr key={invoice.id}>
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
-                        {invoice.FeeStructure.name || "N/A"}
+                        {invoice.FeeStructure?.name || "N/A"}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
                         ₹{invoice.amount}
@@ -98,15 +109,20 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                         {new Date(invoice.dueDate).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            invoice.status === "paid"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {invoice.status}
-                        </span>
+                        <AnimatePresence mode="wait">
+                          <motion.span
+                            key={invoice.status}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${invoice.status === "paid"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                              }`}
+                          >
+                            {invoice.status}
+                          </motion.span>
+                        </AnimatePresence>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
                         {invoice.semester
@@ -114,14 +130,44 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                           : "-"}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm">
-                        {invoice.status !== "paid" && (
-                          <button
-                            onClick={() => handleMarkAsPaid(invoice.id)}
-                            className="text-teal-600 hover:text-teal-900"
-                          >
-                            Mark as Paid
-                          </button>
-                        )}
+                        <AnimatePresence mode="wait">
+                          {invoice.status !== "paid" && (
+                            <motion.div
+                              key="action-container"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                            >
+                              {successInvoiceId === invoice.id ? (
+                                <motion.div
+                                  initial={{ scale: 0.5, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  className="flex items-center text-green-600 font-bold"
+                                >
+                                  <CheckCircle className="w-5 h-5 mr-1" />
+                                  Paid
+                                </motion.div>
+                              ) : (
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => handleMarkAsPaid(invoice.id)}
+                                  disabled={processingInvoiceId !== null}
+                                  className={`flex items-center text-teal-600 hover:text-teal-900 font-medium disabled:opacity-50`}
+                                >
+                                  {processingInvoiceId === invoice.id ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Processing...
+                                    </>
+                                  ) : (
+                                    "Mark as Paid"
+                                  )}
+                                </motion.button>
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </td>
                     </tr>
                   ))}
