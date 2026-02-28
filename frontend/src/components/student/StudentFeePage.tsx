@@ -1,4 +1,5 @@
 import React from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useOutletContext } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -56,6 +57,7 @@ const StatCard: React.FC<{ title: string; value: string; color?: string }> = ({
 );
 
 const StudentFeePage: React.FC = () => {
+  usePageTitle("My Fees");
   const { studentData } = useOutletContext<OutletContextType>();
 
   const activeInvoices = studentData.invoices.filter(

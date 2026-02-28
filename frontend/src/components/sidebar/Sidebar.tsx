@@ -100,7 +100,7 @@ const Sidebar = () => {
           <hr className="my-2 border-gray-300" />
         </div>
 
-        <ul className="flex-1 px-3 mt-5">
+        <ul className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin px-3 mt-2">
           {filteredItems.map((item, index) => (
             <SidebarItem
               key={index}
@@ -109,7 +109,7 @@ const Sidebar = () => {
               active={activeItem === `/admin${item.route}`}
               collapsed={collapsed}
               route={`/admin${item.route}`}
-              onClick={() => setActiveItem(item.text)}
+              onClick={() => setActiveItem(`/admin${item.route}`)}
             />
           ))}
         </ul>

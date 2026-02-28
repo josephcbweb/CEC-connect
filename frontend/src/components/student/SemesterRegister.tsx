@@ -1,17 +1,13 @@
 import { useState, useEffect } from "react";
-import {
-  CheckCircle,
-  Clock,
-  Download,
-  Loader2,
-  FileText,
-} from "lucide-react";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { CheckCircle, Clock, Download, Loader2, FileText } from "lucide-react";
 import { motion } from "motion/react";
 import { jwtDecode } from "jwt-decode";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const SemesterRegister = () => {
+  usePageTitle("Semester Registration");
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [existingRequest, setExistingRequest] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState<
@@ -52,7 +48,7 @@ const SemesterRegister = () => {
       if (settingsResponse.ok) {
         const settingsData = await settingsResponse.json();
         const noDueSetting = settingsData.find(
-          (s: any) => s.key === "noDueRequestEnabled"
+          (s: any) => s.key === "noDueRequestEnabled",
         );
         if (noDueSetting && !noDueSetting.enabled) {
           // If registration is closed, redirect to dashboard
@@ -73,8 +69,6 @@ const SemesterRegister = () => {
       setCheckingStatus(false);
     }
   };
-
-
 
   const generatePDF = () => {
     if (!existingRequest || !existingRequest.student) return;
@@ -161,7 +155,9 @@ const SemesterRegister = () => {
 
     // 3. Fallback: Academic Dues without courses
     existingRequest.noDues
-      .filter((due: any) => due.department && !due.serviceDepartment && !due.course)
+      .filter(
+        (due: any) => due.department && !due.serviceDepartment && !due.course,
+      )
       .forEach((due: any) => {
         tableRows.push([
           due.department.name,
@@ -180,7 +176,7 @@ const SemesterRegister = () => {
       columnStyles: {
         0: { cellWidth: 80 },
         1: { cellWidth: 60 },
-        2: { cellWidth: 'auto', halign: 'right' }
+        2: { cellWidth: "auto", halign: "right" },
       },
     });
 
@@ -202,8 +198,6 @@ const SemesterRegister = () => {
     doc.save("No_Due_Status_Form.pdf");
   };
 
-
-
   if (checkingStatus) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-slate-50/50 rounded-2xl border border-slate-100/50 backdrop-blur-sm shadow-sm m-4 lg:m-8">
@@ -217,7 +211,9 @@ const SemesterRegister = () => {
           transition={{ delay: 0.2 }}
           className="text-center"
         >
-          <h3 className="text-xl font-semibold text-slate-800 mb-2">Preparing Your Profile</h3>
+          <h3 className="text-xl font-semibold text-slate-800 mb-2">
+            Preparing Your Profile
+          </h3>
           <p className="text-slate-500 max-w-sm">
             Please wait while we check your no due clearance status...
           </p>
@@ -229,7 +225,6 @@ const SemesterRegister = () => {
   // Removed the early return for existingRequest to allow adding more courses
   // if (existingRequest) { ... }
 
-
   const displayRows: any[] = [];
   if (existingRequest) {
     if (existingRequest.noDues) {
@@ -240,7 +235,8 @@ const SemesterRegister = () => {
           const status = due.status;
 
           // Filter logic
-          const matchesStatus = filterStatus === "all" || status === filterStatus;
+          const matchesStatus =
+            filterStatus === "all" || status === filterStatus;
           const matchesCategory =
             filterCategory === "all" || filterCategory === "academic";
 
@@ -250,7 +246,8 @@ const SemesterRegister = () => {
 
             let categoryLabel = "";
             if (course.category === "ELECTIVE") categoryLabel = " • Elective";
-            else if (course.category === "HONOURS") categoryLabel = " • Honours";
+            else if (course.category === "HONOURS")
+              categoryLabel = " • Honours";
 
             const facultyName = course.staff?.name || "Unassigned";
 
@@ -261,7 +258,7 @@ const SemesterRegister = () => {
               status: status,
               details: `${typeLabel}${categoryLabel}`,
               faculty: facultyName,
-              semester: existingRequest.targetSemester
+              semester: existingRequest.targetSemester,
             });
           }
         });
@@ -282,18 +279,19 @@ const SemesterRegister = () => {
             type: "Service",
             status: status,
             details: "Service Dept",
-            semester: existingRequest.targetSemester
+            semester: existingRequest.targetSemester,
           });
         }
       });
 
     // 3. Fallback for Academic Dues without courses
     existingRequest.noDues
-      .filter((due: any) => due.department && !due.serviceDepartment && !due.course)
+      .filter(
+        (due: any) => due.department && !due.serviceDepartment && !due.course,
+      )
       .forEach((due: any) => {
         const status = due.status;
-        const matchesStatus =
-          filterStatus === "all" || status === filterStatus;
+        const matchesStatus = filterStatus === "all" || status === filterStatus;
         const matchesCategory =
           filterCategory === "all" || filterCategory === "academic";
 
@@ -304,7 +302,7 @@ const SemesterRegister = () => {
             type: "Academic",
             status: status,
             details: "Department Clearance",
-            semester: existingRequest.targetSemester
+            semester: existingRequest.targetSemester,
           });
         }
       });
@@ -348,10 +346,11 @@ const SemesterRegister = () => {
                 </div>
                 <div className="flex gap-3">
                   <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${existingRequest.status === "cleared"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-blue-100 text-blue-700"
-                      }`}
+                    className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${
+                      existingRequest.status === "cleared"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}
                   >
                     {existingRequest.status}
                   </span>
@@ -370,7 +369,9 @@ const SemesterRegister = () => {
                   <p>Important: Download PDF Report</p>
                 </div>
                 <p className="ml-8 text-amber-700">
-                  Please download your No Due format report using the Export PDF button above and keep it with you. You may be required to submit this document at the office.
+                  Please download your No Due format report using the Export PDF
+                  button above and keep it with you. You may be required to
+                  submit this document at the office.
                 </p>
               </div>
 
@@ -419,18 +420,26 @@ const SemesterRegister = () => {
                               <span>{row.name}</span>
                               <span className="text-[11px] text-slate-500 font-normal">
                                 {row.type === "Academic" ? (
-                                  <span className="text-blue-600/80">Academic Due</span>
+                                  <span className="text-blue-600/80">
+                                    Academic Due
+                                  </span>
                                 ) : (
-                                  <span className="text-purple-600/80">Service Due</span>
+                                  <span className="text-purple-600/80">
+                                    Service Due
+                                  </span>
                                 )}
                               </span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col">
-                              <span className="text-sm text-slate-700">{row.details}</span>
+                              <span className="text-sm text-slate-700">
+                                {row.details}
+                              </span>
                               {row.faculty && (
-                                <span className="text-xs text-slate-500 mt-0.5">Faculty: {row.faculty}</span>
+                                <span className="text-xs text-slate-500 mt-0.5">
+                                  Faculty: {row.faculty}
+                                </span>
                               )}
                             </div>
                           </td>
@@ -448,8 +457,7 @@ const SemesterRegister = () => {
                               <span className="inline-flex items-center gap-1 text-amber-600 font-medium text-xs">
                                 <Clock size={12} /> Pending
                               </span>
-                            )
-                            }
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -474,17 +482,23 @@ const SemesterRegister = () => {
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-6">
               <FileText className="w-8 h-8 text-slate-300" />
             </div>
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">No Registration Data Found</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mb-2">
+              No Registration Data Found
+            </h2>
             <p className="text-slate-500 mb-8">
-              No registration information is available for you at this time. This usually happens when the registration period hasn't started or your record hasn't been initialized by the office.
+              No registration information is available for you at this time.
+              This usually happens when the registration period hasn't started
+              or your record hasn't been initialized by the office.
             </p>
             <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg text-blue-700 text-sm">
               <p className="font-medium mb-1">Think this is a mistake?</p>
-              <p>Please contact the college office to verify your registration status.</p>
+              <p>
+                Please contact the college office to verify your registration
+                status.
+              </p>
             </div>
           </div>
         )}
-
       </motion.div>
     </div>
   );

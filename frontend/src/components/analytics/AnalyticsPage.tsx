@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import {
   BarChart,
   Bar,
@@ -439,6 +440,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const AnalyticsPage: React.FC = () => {
+  usePageTitle("Analytics");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

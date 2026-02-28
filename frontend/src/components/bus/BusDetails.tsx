@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { Bus, Users, MapPin, Phone, CreditCard } from "lucide-react";
@@ -44,6 +45,7 @@ export interface BusData {
 /* ---------------- COMPONENT ---------------- */
 
 const BusDetailsPage = () => {
+  usePageTitle("Bus Details");
   const { id } = useParams<{ id: string }>();
   const [bus, setBus] = useState<BusData | null>(null);
   const [activeTab, setActiveTab] = useState<"students" | "stops">("students");

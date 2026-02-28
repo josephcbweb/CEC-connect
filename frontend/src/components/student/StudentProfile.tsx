@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Camera } from "lucide-react";
 import { useParams } from "react-router-dom";
 import EditStudentModal from "./EditStudentModal";
@@ -44,6 +45,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
 );
 
 const StudentProfile: React.FC = () => {
+  usePageTitle("My Profile");
   const [activeTab, setActiveTab] = useState("profile");
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -115,10 +117,11 @@ const StudentProfile: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === tab.id
                       ? "border-indigo-600 text-indigo-600"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    }`}
+                  }`}
                 >
                   {tab.label}
                 </button>
@@ -317,7 +320,6 @@ const StudentProfile: React.FC = () => {
         student={student}
         onSuccess={fetchStudentData}
       />
-
     </div>
   );
 };
