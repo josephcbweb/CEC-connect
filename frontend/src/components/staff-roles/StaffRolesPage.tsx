@@ -1,4 +1,4 @@
-// StaffRolesPage.tsx - UPDATED with required permission description
+// StaffRolesPage.tsx - UPDATED with all permissions in role modal and fixed modal data loading
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,6 +21,7 @@ import {
   Badge,
   Tooltip,
   Breadcrumb,
+  Pagination,
 } from "antd";
 import {
   PlusOutlined,
@@ -98,10 +99,30 @@ const StaffRolesPage: React.FC = () => {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [allPermissions, setAllPermissions] = useState<Permission[]>([]); // For role permissions modal
   const [loading, setLoading] = useState(false);
   const [staffLoading, setStaffLoading] = useState(false);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("staff");
+
+  // Separate pagination states for each tab
+  const [staffPagination, setStaffPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
+  const [rolesPagination, setRolesPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
+  const [permissionsPagination, setPermissionsPagination] = useState({
+    current: 1,
+    pageSize: 12,
+    total: 0,
+  });
 
   const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
   const [isStaffModalVisible, setIsStaffModalVisible] = useState(false);
@@ -120,13 +141,8 @@ const StaffRolesPage: React.FC = () => {
   const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
 
   const [searchText, setSearchText] = useState("");
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 10,
-    total: 0,
-  });
 
-  // API Configuration - DIRECT URL like your fee management
+  // API Configuration
   const API_BASE_URL = "http://localhost:3000";
 
   const getHeaders = () => {
@@ -136,7 +152,7 @@ const StaffRolesPage: React.FC = () => {
     };
 
     if (authToken) {
-      headers["Authorization"] = `Bearer ${authToken}`; // Add Bearer prefix
+      headers["Authorization"] = `Bearer ${authToken}`;
     }
 
     return headers;
@@ -154,7 +170,7 @@ const StaffRolesPage: React.FC = () => {
     setStaffLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/users?page=${page}&limit=10&search=${search}`,
+        `${API_BASE_URL}/api/users?page=${page}&limit=${staffPagination.pageSize}&search=${search}`,
         { headers: getHeaders() }
       );
 
@@ -166,7 +182,7 @@ const StaffRolesPage: React.FC = () => {
 
       if (data.success) {
         setStaff(data.data);
-        setPagination((prev) => ({
+        setStaffPagination((prev) => ({
           ...prev,
           current: data.pagination.page,
           total: data.pagination.total,
@@ -187,7 +203,7 @@ const StaffRolesPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/roles?page=${page}&limit=10&search=${search}`,
+        `${API_BASE_URL}/api/roles?page=${page}&limit=${rolesPagination.pageSize}&search=${search}`,
         { headers: getHeaders() }
       );
 
@@ -198,7 +214,7 @@ const StaffRolesPage: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         setRoles(data.data);
-        setPagination((prev) => ({
+        setRolesPagination((prev) => ({
           ...prev,
           current: data.pagination.page,
           total: data.pagination.total,
@@ -219,7 +235,7 @@ const StaffRolesPage: React.FC = () => {
     setPermissionsLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/permissions?page=${page}&limit=12&search=${search}`,
+        `${API_BASE_URL}/api/permissions?page=${page}&limit=${permissionsPagination.pageSize}&search=${search}`,
         { headers: getHeaders() }
       );
 
@@ -230,7 +246,7 @@ const StaffRolesPage: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         setPermissions(data.data);
-        setPagination((prev) => ({
+        setPermissionsPagination((prev) => ({
           ...prev,
           current: data.pagination.page,
           total: data.pagination.total,
@@ -248,15 +264,16 @@ const StaffRolesPage: React.FC = () => {
 
   // Load data based on active tab
   const loadData = () => {
+    setSearchText("");
     switch (activeTab) {
       case "staff":
-        fetchStaff(1, searchText);
+        fetchStaff(1, "");
         break;
       case "roles":
-        fetchRoles(1, searchText);
+        fetchRoles(1, "");
         break;
       case "permissions":
-        fetchPermissions(1, searchText);
+        fetchPermissions(1, "");
         break;
     }
   };
@@ -288,7 +305,7 @@ const StaffRolesPage: React.FC = () => {
         setIsRoleModalVisible(false);
         roleForm.resetFields();
         setEditingRole(null);
-        fetchRoles();
+        fetchRoles(rolesPagination.current, searchText);
       } else {
         message.error(data.message);
       }
@@ -308,7 +325,7 @@ const StaffRolesPage: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         message.success("Role deleted successfully");
-        fetchRoles();
+        fetchRoles(rolesPagination.current, searchText);
       } else {
         message.error(data.message);
       }
@@ -339,7 +356,7 @@ const StaffRolesPage: React.FC = () => {
         setIsStaffModalVisible(false);
         staffForm.resetFields();
         setEditingStaff(null);
-        fetchStaff();
+        fetchStaff(staffPagination.current, searchText);
       } else {
         message.error(data.message);
       }
@@ -359,7 +376,7 @@ const StaffRolesPage: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         message.success("Staff deactivated successfully");
-        fetchStaff();
+        fetchStaff(staffPagination.current, searchText);
       } else {
         message.error(data.message);
       }
@@ -390,7 +407,7 @@ const StaffRolesPage: React.FC = () => {
         setIsPermissionModalVisible(false);
         permissionForm.resetFields();
         setEditingPermission(null);
-        fetchPermissions();
+        fetchPermissions(permissionsPagination.current, searchText);
       } else {
         message.error(data.message);
       }
@@ -410,7 +427,7 @@ const StaffRolesPage: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         message.success("Permission deleted successfully");
-        fetchPermissions();
+        fetchPermissions(permissionsPagination.current, searchText);
       } else {
         message.error(data.message);
       }
@@ -440,7 +457,8 @@ const StaffRolesPage: React.FC = () => {
         setIsRolePermissionsModalVisible(false);
         setSelectedRoleForPermissions(null);
         setSelectedPermissions([]);
-        fetchRoles();
+        setAllPermissions([]); // Clear all permissions
+        fetchRoles(rolesPagination.current, searchText);
       } else {
         message.error(data.message);
       }
@@ -450,8 +468,25 @@ const StaffRolesPage: React.FC = () => {
     }
   };
 
-  const showRoleModal = (role: Role | null = null) => {
+  const showRoleModal = async (role: Role | null = null) => {
     setEditingRole(role);
+    
+    // Fetch permissions for the role permissions dropdown if needed
+    if (allPermissions.length === 0) {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/permissions?limit=1000`,
+          { headers: getHeaders() }
+        );
+        const data = await response.json();
+        if (data.success) {
+          setAllPermissions(data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching permissions:", error);
+      }
+    }
+
     if (role) {
       roleForm.setFieldsValue({
         name: role.name,
@@ -463,8 +498,28 @@ const StaffRolesPage: React.FC = () => {
     setIsRoleModalVisible(true);
   };
 
-  const showStaffModal = (staffMember: StaffMember | null = null) => {
+  const showStaffModal = async (staffMember: StaffMember | null = null) => {
     setEditingStaff(staffMember);
+    
+    // Fetch roles if they're empty
+    if (roles.length === 0) {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/roles?limit=100`, // Fetch all roles
+          { headers: getHeaders() }
+        );
+        const data = await response.json();
+        if (data.success) {
+          setRoles(data.data);
+        } else {
+          message.error("Failed to fetch roles");
+        }
+      } catch (error) {
+        console.error("Error fetching roles:", error);
+        message.error("Error fetching roles");
+      }
+    }
+
     if (staffMember) {
       staffForm.setFieldsValue({
         username: staffMember.username,
@@ -480,8 +535,9 @@ const StaffRolesPage: React.FC = () => {
     setIsStaffModalVisible(true);
   };
 
-  const showPermissionModal = (permission: Permission | null = null) => {
+  const showPermissionModal = async (permission: Permission | null = null) => {
     setEditingPermission(permission);
+    
     if (permission) {
       permissionForm.setFieldsValue({
         name: permission.name,
@@ -498,22 +554,37 @@ const StaffRolesPage: React.FC = () => {
   const showRolePermissionsModal = async (role: Role) => {
     setSelectedRoleForPermissions(role);
 
-    // Fetch role permissions
     try {
-      const response = await fetch(
+      // Fetch ALL permissions if not already loaded
+      if (allPermissions.length === 0) {
+        const permissionsResponse = await fetch(
+          `${API_BASE_URL}/api/permissions?limit=1000`,
+          { headers: getHeaders() }
+        );
+
+        const permissionsData = await permissionsResponse.json();
+        if (permissionsData.success) {
+          setAllPermissions(permissionsData.data);
+        } else {
+          message.error(permissionsData.message || "Failed to fetch permissions");
+        }
+      }
+
+      // Fetch the role's current permissions
+      const rolePermissionsResponse = await fetch(
         `${API_BASE_URL}/api/roles/${role.id}/permissions`,
         { headers: getHeaders() }
       );
 
-      const data = await response.json();
-      if (data.success) {
-        setSelectedPermissions(data.data.map((p: Permission) => p.id));
+      const rolePermissionsData = await rolePermissionsResponse.json();
+      if (rolePermissionsData.success) {
+        setSelectedPermissions(rolePermissionsData.data.map((p: Permission) => p.id));
       } else {
-        message.error(data.message);
+        message.error(rolePermissionsData.message || "Failed to fetch role permissions");
       }
     } catch (error) {
-      console.error("Failed to fetch role permissions:", error);
-      message.error("Failed to fetch role permissions");
+      console.error("Failed to fetch data:", error);
+      message.error("Failed to fetch permissions");
     }
 
     setIsRolePermissionsModalVisible(true);
@@ -538,20 +609,6 @@ const StaffRolesPage: React.FC = () => {
       month: "short",
       day: "numeric",
     });
-  };
-
-  const handleTableChange = (pagination: any) => {
-    switch (activeTab) {
-      case "staff":
-        fetchStaff(pagination.current, searchText);
-        break;
-      case "roles":
-        fetchRoles(pagination.current, searchText);
-        break;
-      case "permissions":
-        fetchPermissions(pagination.current, searchText);
-        break;
-    }
   };
 
   const handleSearch = (value: string) => {
@@ -671,7 +728,7 @@ const StaffRolesPage: React.FC = () => {
               <span>
                 <UserOutlined />
                 Staff Members
-                <Badge count={staff.length} offset={[10, -5]} />
+                <Badge count={staffPagination.total} offset={[10, -5]} />
               </span>
             }
             key="staff"
@@ -681,14 +738,16 @@ const StaffRolesPage: React.FC = () => {
               loading={staffLoading}
               rowKey="id"
               pagination={{
-                current: pagination.current,
-                pageSize: pagination.pageSize,
-                total: pagination.total,
+                current: staffPagination.current,
+                pageSize: staffPagination.pageSize,
+                total: staffPagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
                 showTotal: (total) => `Total ${total} staff members`,
               }}
-              onChange={handleTableChange}
+              onChange={(pagination) => 
+                fetchStaff(pagination.current || 1, searchText)
+              }
             >
               <Column
                 title="Username"
@@ -802,7 +861,7 @@ const StaffRolesPage: React.FC = () => {
               <span>
                 <TeamOutlined />
                 Roles
-                <Badge count={roles.length} offset={[10, -5]} />
+                <Badge count={rolesPagination.total} offset={[10, -5]} />
               </span>
             }
             key="roles"
@@ -812,14 +871,16 @@ const StaffRolesPage: React.FC = () => {
               loading={loading}
               rowKey="id"
               pagination={{
-                current: pagination.current,
-                pageSize: pagination.pageSize,
-                total: pagination.total,
+                current: rolesPagination.current,
+                pageSize: rolesPagination.pageSize,
+                total: rolesPagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
                 showTotal: (total) => `Total ${total} roles`,
               }}
-              onChange={handleTableChange}
+              onChange={(pagination) => 
+                fetchRoles(pagination.current || 1, searchText)
+              }
             >
               <Column
                 title="Role Name"
@@ -922,94 +983,140 @@ const StaffRolesPage: React.FC = () => {
               <span>
                 <KeyOutlined />
                 Permissions
-                <Badge count={permissions.length} offset={[10, -5]} />
+                <Badge count={permissionsPagination.total} offset={[10, -5]} />
               </span>
             }
             key="permissions"
           >
-            <Row gutter={[16, 16]}>
-              {permissions.map((permission) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={permission.id}>
-                  <Card
-                    size="small"
-                    title={
-                      <div className="flex justify-between items-center">
-                        <span className="truncate">{permission.name}</span>
-                        <Badge
-                          count={permission._count?.roles || 0}
-                          size="small"
-                          style={{ backgroundColor: "#1890ff" }}
-                        />
-                      </div>
-                    }
-                    extra={
-                      <Space>
-                        <Button
-                          type="link"
-                          size="small"
-                          icon={<EditOutlined />}
-                          onClick={() => showPermissionModal(permission)}
-                        />
-                        <Popconfirm
-                          title="Delete this permission?"
-                          description="This will remove it from all roles."
-                          onConfirm={() =>
-                            handleDeletePermission(permission.id)
-                          }
-                          okText="Yes"
-                          cancelText="No"
-                          disabled={
-                            permission._count?.roles
-                              ? permission._count.roles > 0
-                              : false
-                          }
-                        >
-                          <Button
-                            type="link"
-                            danger
-                            size="small"
-                            icon={<DeleteOutlined />}
-                            disabled={
-                              permission._count?.roles
-                                ? permission._count.roles > 0
-                                : false
-                            }
-                          />
-                        </Popconfirm>
-                      </Space>
-                    }
-                    hoverable
-                  >
-                    <div className="space-y-2">
-                      <div>
-                        <Text strong>Module: </Text>
-                        <Tag color="blue">{permission.moduleName}</Tag>
-                      </div>
-                      <div>
-                        <Text strong>Action: </Text>
-                        <Tag color="green">{permission.action}</Tag>
-                      </div>
-                      {permission.description && (
-                        <div>
-                          <Text strong>Description: </Text>
-                          <Text type="secondary" className="block truncate">
-                            {permission.description}
-                          </Text>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-            {permissions.length === 0 && !permissionsLoading && (
+            {permissionsLoading ? (
               <div className="text-center py-8">
-                <SafetyCertificateOutlined className="text-4xl text-gray-300 mb-4" />
-                <Title level={4}>No permissions found</Title>
-                <Text type="secondary">
-                  Create your first permission to get started
-                </Text>
+                <div className="ant-spin ant-spin-spinning">
+                  <span className="ant-spin-dot ant-spin-dot-spin">
+                    <i className="ant-spin-dot-item"></i>
+                    <i className="ant-spin-dot-item"></i>
+                    <i className="ant-spin-dot-item"></i>
+                    <i className="ant-spin-dot-item"></i>
+                  </span>
+                </div>
               </div>
+            ) : (
+              <>
+                <Row gutter={[16, 16]}>
+                  {permissions.map((permission) => (
+                    <Col xs={24} sm={12} md={8} lg={6} key={permission.id}>
+                      <Card
+                        size="small"
+                        title={
+                          <div className="flex justify-between items-center">
+                            <span className="truncate">{permission.name}</span>
+                            <Badge
+                              count={permission._count?.roles || 0}
+                              size="small"
+                              style={{ backgroundColor: "#1890ff" }}
+                            />
+                          </div>
+                        }
+                        extra={
+                          <Space>
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={() => showPermissionModal(permission)}
+                            />
+                            <Popconfirm
+                              title="Delete this permission?"
+                              description="This will remove it from all roles."
+                              onConfirm={() =>
+                                handleDeletePermission(permission.id)
+                              }
+                              okText="Yes"
+                              cancelText="No"
+                              disabled={
+                                permission._count?.roles
+                                  ? permission._count.roles > 0
+                                  : false
+                              }
+                            >
+                              <Button
+                                type="link"
+                                danger
+                                size="small"
+                                icon={<DeleteOutlined />}
+                                disabled={
+                                  permission._count?.roles
+                                    ? permission._count.roles > 0
+                                    : false
+                                }
+                              />
+                            </Popconfirm>
+                          </Space>
+                        }
+                        hoverable
+                      >
+                        <div className="space-y-2">
+                          <div>
+                            <Text strong>Module: </Text>
+                            <Tag color="blue">{permission.moduleName}</Tag>
+                          </div>
+                          <div>
+                            <Text strong>Action: </Text>
+                            <Tag color="green">{permission.action}</Tag>
+                          </div>
+                          {permission.description && (
+                            <div>
+                              <Text strong>Description: </Text>
+                              <Text type="secondary" className="block truncate">
+                                {permission.description}
+                              </Text>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+
+                {permissions.length === 0 && (
+                  <div className="text-center py-8">
+                    <SafetyCertificateOutlined className="text-4xl text-gray-300 mb-4" />
+                    <Title level={4}>No permissions found</Title>
+                    <Text type="secondary">
+                      Create your first permission to get started
+                    </Text>
+                  </div>
+                )}
+
+                {permissions.length > 0 && (
+                  <div className="flex justify-end mt-6">
+                    <Pagination
+                      current={permissionsPagination.current}
+                      pageSize={permissionsPagination.pageSize}
+                      total={permissionsPagination.total}
+                      showSizeChanger
+                      showQuickJumper
+                      showTotal={(total) => `Total ${total} permissions`}
+                      onChange={(page, pageSize) => {
+                        setPermissionsPagination(prev => ({
+                          ...prev,
+                          current: page,
+                          pageSize: pageSize || prev.pageSize
+                        }));
+                        fetchPermissions(page, searchText);
+                      }}
+                      onShowSizeChange={(current, size) => {
+                        setPermissionsPagination(prev => ({
+                          ...prev,
+                          current: 1,
+                          pageSize: size
+                        }));
+                        fetchPermissions(1, searchText);
+                      }}
+                      pageSizeOptions={['12', '24', '36', '48']}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </TabPane>
         </Tabs>
@@ -1259,6 +1366,7 @@ const StaffRolesPage: React.FC = () => {
           setIsRolePermissionsModalVisible(false);
           setSelectedRoleForPermissions(null);
           setSelectedPermissions([]);
+          setAllPermissions([]); // Clear all permissions when closing
         }}
         onOk={handleRolePermissionsSave}
         okText="Save Permissions"
@@ -1284,10 +1392,10 @@ const StaffRolesPage: React.FC = () => {
             </Text>
 
             <div className="max-h-96 overflow-y-auto border rounded p-4">
-              {/* Group permissions by moduleName */}
-              {Array.from(new Set(permissions.map((p) => p.moduleName))).map(
+              {/* Group permissions by moduleName - using allPermissions */}
+              {Array.from(new Set(allPermissions.map((p) => p.moduleName))).map(
                 (moduleName) => {
-                  const modulePermissions = permissions.filter(
+                  const modulePermissions = allPermissions.filter(
                     (p) => p.moduleName === moduleName
                   );
                   const allModuleSelected = modulePermissions.every((p) =>
@@ -1310,14 +1418,12 @@ const StaffRolesPage: React.FC = () => {
                               (p) => p.id
                             );
                             if (e.target.checked) {
-                              // Add all module permissions
                               setSelectedPermissions((prev) =>
                                 Array.from(
                                   new Set([...prev, ...modulePermissionIds])
                                 )
                               );
                             } else {
-                              // Remove all module permissions
                               setSelectedPermissions((prev) =>
                                 prev.filter(
                                   (id) => !modulePermissionIds.includes(id)

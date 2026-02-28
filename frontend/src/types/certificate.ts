@@ -49,8 +49,12 @@ export interface Certificate {
     name: string;
     admission_number: string;
     program?: string;
+    currentSemester?: number;  // ADD THIS LINE
     class?: { name: string };
-    department?: { name: string };
+    department?: { 
+      id?: number;              // Optional: add id if needed
+      name: string 
+    };
   };
   approvals?: CertificateApproval[];
 }
@@ -59,4 +63,15 @@ export interface CertificateRequest {
   studentId: number;
   type: CertificateType;
   reason: string;
+}
+
+// Optional: Add a response interface for paginated results
+export interface CertificateResponse {
+  data: Certificate[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
