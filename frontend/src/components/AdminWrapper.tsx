@@ -21,7 +21,7 @@ function AdminWrapper() {
       <div className="md:hidden block">
         <SidebarPhone />
       </div>
-      <main className="flex-1 transition-all duration-300 ">
+      <main className="flex-1 min-w-0 overflow-hidden transition-all duration-300 ">
         <Outlet />
       </main>
     </div>

@@ -23,7 +23,10 @@ const AssignFeeModal: React.FC<AssignFeeModalProps> = ({
     const fetchFeeStructures = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:3000/fee/");
+        const token = localStorage.getItem("authToken");
+        const response = await fetch("http://localhost:3000/fee/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (response.ok) {
           setFeeStructures(await response.json());
         }
@@ -60,9 +63,13 @@ const AssignFeeModal: React.FC<AssignFeeModalProps> = ({
     setSubmitting(true);
     setError(null);
     try {
+      const token = localStorage.getItem("authToken");
       const response = await fetch("http://localhost:3000/fee/assign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           feeStructureId: parseInt(selectedFeeId),
           studentIds: studentIds,
@@ -98,10 +105,20 @@ const AssignFeeModal: React.FC<AssignFeeModalProps> = ({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
             </svg>
-            <p className="text-lg text-gray-800 font-medium mb-2">No Fee Structures Found</p>
-            <p className="text-sm text-gray-600">Please create a fee structure from the Manage Fee Structures panel before assigning fees to students.</p>
+            <p className="text-lg text-gray-800 font-medium mb-2">
+              No Fee Structures Found
+            </p>
+            <p className="text-sm text-gray-600">
+              Please create a fee structure from the Manage Fee Structures panel
+              before assigning fees to students.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">

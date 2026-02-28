@@ -18,11 +18,12 @@ interface Department {
   program: string;
 }
 
-type ViewState = "list" | "create";
+type ViewState = "list" | "create" | "edit";
 
 const AdmissionWindowSettings: React.FC = () => {
   // --- State ---
   const [view, setView] = useState<ViewState>("list");
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [windows, setWindows] = useState<AdmissionWindow[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,8 +99,71 @@ const AdmissionWindowSettings: React.FC = () => {
     }
   };
 
+  const handleEdit = (window: AdmissionWindow) => {
+    const existingDeptIds =
+      window.batch?.batchDepartments?.map((bd) => bd.departmentId) || [];
+
+    setFormData({
+      program: window.program,
+      startDate: new Date(window.startDate).toISOString().split("T")[0],
+      endDate: new Date(window.endDate).toISOString().split("T")[0],
+      description: window.description || "",
+      batchName: window.batch?.name || "",
+      startYear:
+        window.batch?.startYear.toString() ||
+        new Date().getFullYear().toString(),
+      endYear:
+        window.batch?.endYear.toString() ||
+        (new Date().getFullYear() + 4).toString(),
+      departmentIds: existingDeptIds,
+    });
+    setEditingId(window.id);
+    setView("edit");
+  };
+
+  const handleUpdate = async () => {
+    if (!formData.endDate || !formData.batchName) {
+      showMessage("error", "Please fill all required fields");
+      return;
+    }
+
+    if (formData.departmentIds.length === 0) {
+      showMessage("error", "Please select at least one department");
+      return;
+    }
+
+    if (new Date(formData.endDate) <= new Date(formData.startDate)) {
+      showMessage("error", "End date must be after start date");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        endDate: formData.endDate,
+        description: formData.description,
+        batchName: formData.batchName,
+        departmentIds: formData.departmentIds,
+      };
+      await admissionService.updateAdmissionWindow(editingId!, payload);
+      await fetchInitialData();
+      showMessage("success", "Window updated successfully");
+      setView("list");
+      setEditingId(null);
+    } catch (error: any) {
+      showMessage(
+        "error",
+        error.response?.data?.error || "Failed to update window",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCreate = async () => {
-    const departmentsForProgram = departments.filter(d => d.program === formData.program);
+    const departmentsForProgram = departments.filter(
+      (d) => d.program === formData.program,
+    );
     if (departmentsForProgram.length === 0) {
       showMessage("error", `No departments available for ${formData.program}.`);
       return;
@@ -178,10 +242,11 @@ const AdmissionWindowSettings: React.FC = () => {
       {/* Feedback Message */}
       {message && (
         <div
-          className={`rounded-lg p-4 flex items-center gap-3 ${message.type === "success"
-            ? "bg-green-50 text-green-800"
-            : "bg-red-50 text-red-800"
-            }`}
+          className={`rounded-lg p-4 flex items-center gap-3 ${
+            message.type === "success"
+              ? "bg-green-50 text-green-800"
+              : "bg-red-50 text-red-800"
+          }`}
         >
           {message.type === "success" ? (
             <CheckCircle2 className="h-5 w-5" />
@@ -231,7 +296,11 @@ const AdmissionWindowSettings: React.FC = () => {
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2 border"
                   value={formData.program}
                   onChange={(e) =>
-                    setFormData({ ...formData, program: e.target.value.toUpperCase(), departmentIds: [] })
+                    setFormData({
+                      ...formData,
+                      program: e.target.value.toUpperCase(),
+                      departmentIds: [],
+                    })
                   }
                 >
                   <option value="BTECH">B.Tech</option>
@@ -282,10 +351,11 @@ const AdmissionWindowSettings: React.FC = () => {
                   .map((dept) => (
                     <label
                       key={dept.id}
-                      className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${formData.departmentIds.includes(dept.id)
-                        ? "bg-teal-50 border-teal-200 text-teal-800"
-                        : "bg-white border-gray-200 hover:bg-gray-50"
-                        }`}
+                      className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
+                        formData.departmentIds.includes(dept.id)
+                          ? "bg-teal-50 border-teal-200 text-teal-800"
+                          : "bg-white border-gray-200 hover:bg-gray-50"
+                      }`}
                     >
                       <input
                         type="checkbox"
@@ -294,7 +364,9 @@ const AdmissionWindowSettings: React.FC = () => {
                         onChange={(e) => {
                           const ids = e.target.checked
                             ? [...formData.departmentIds, dept.id]
-                            : formData.departmentIds.filter((d) => d !== dept.id);
+                            : formData.departmentIds.filter(
+                                (d) => d !== dept.id,
+                              );
                           setFormData({ ...formData, departmentIds: ids });
                         }}
                       />
@@ -302,12 +374,18 @@ const AdmissionWindowSettings: React.FC = () => {
                     </label>
                   ))}
               </div>
-              {departments.filter((dept) => dept.program === formData.program).length === 0 && (
+              {departments.filter((dept) => dept.program === formData.program)
+                .length === 0 && (
                 <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
                   <div className="text-sm">
                     <p className="font-bold">No departments available!</p>
-                    <p>You cannot create an admission window for {formData.program} because there are no departments assigned to this program yet. Please add departments first.</p>
+                    <p>
+                      You cannot create an admission window for{" "}
+                      {formData.program} because there are no departments
+                      assigned to this program yet. Please add departments
+                      first.
+                    </p>
                   </div>
                 </div>
               )}
@@ -361,7 +439,11 @@ const AdmissionWindowSettings: React.FC = () => {
               </button>
               <button
                 onClick={handleCreate}
-                disabled={saving || departments.filter(d => d.program === formData.program).length === 0}
+                disabled={
+                  saving ||
+                  departments.filter((d) => d.program === formData.program)
+                    .length === 0
+                }
                 className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -422,14 +504,16 @@ const AdmissionWindowSettings: React.FC = () => {
                           </span>
                         </div>
                         <div
-                          className={`flex items-center px-2 py-1 rounded text-xs font-bold uppercase tracking-wide ${isOpen
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-600"
-                            }`}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-bold uppercase tracking-wide ${
+                            isOpen
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
                         >
                           <span
-                            className={`w-2 h-2 rounded-full mr-1.5 ${isOpen ? "bg-green-500" : "bg-gray-400"
-                              }`}
+                            className={`w-2 h-2 rounded-full mr-1.5 ${
+                              isOpen ? "bg-green-500" : "bg-gray-400"
+                            }`}
                           />
                           {isOpen ? "Active" : "Closed"}
                         </div>
@@ -467,14 +551,24 @@ const AdmissionWindowSettings: React.FC = () => {
                           <span className="text-xs text-gray-400">
                             {w.batch?.id ? `Batch ID: ${w.batch.id}` : ""}
                           </span>
-                          <button
-                            onClick={() => handleDelete(w.id)}
-                            className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded"
-                            title="Delete Window"
-                            disabled={saving}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEdit(w)}
+                              className="text-teal-600 hover:text-teal-700 p-2 hover:bg-teal-50 rounded text-sm font-medium"
+                              title="Edit Window"
+                              disabled={saving}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(w.id)}
+                              className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded"
+                              title="Delete Window"
+                              disabled={saving}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -483,6 +577,153 @@ const AdmissionWindowSettings: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* --- View: Edit Form --- */}
+      {view === "edit" && (
+        <div className="animate-in slide-in-from-right-4 duration-300">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-800">
+              Edit Admission Window
+            </h3>
+            <button
+              onClick={() => {
+                setView("list");
+                setEditingId(null);
+              }}
+              className="text-gray-500 hover:text-gray-700 flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" /> Cancel
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {/* Batch & Program */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Batch Name (e.g. 2024-2028)
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2 border"
+                  value={formData.batchName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, batchName: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Program
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-md border-gray-300 bg-gray-100 shadow-sm p-2 border text-gray-500 cursor-not-allowed"
+                  value={formData.program}
+                  disabled
+                />
+              </div>
+            </div>
+
+            {/* Departments */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Eligible Departments
+              </label>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {departments
+                  .filter((dept) => dept.program === formData.program)
+                  .map((dept) => {
+                    const isExisting = windows
+                      .find((w) => w.id === editingId)
+                      ?.batch?.batchDepartments?.some(
+                        (bd) => bd.departmentId === dept.id,
+                      );
+                    return (
+                      <label
+                        key={dept.id}
+                        className={`flex items-center p-3 rounded-lg border transition-colors ${
+                          formData.departmentIds.includes(dept.id)
+                            ? "bg-teal-50 border-teal-200 text-teal-800"
+                            : "bg-white border-gray-200 hover:bg-gray-50"
+                        } ${isExisting ? "opacity-75 cursor-not-allowed" : "cursor-pointer"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="rounded text-teal-600 focus:ring-teal-500 mr-3 disabled:opacity-50"
+                          checked={formData.departmentIds.includes(dept.id)}
+                          disabled={isExisting}
+                          onChange={(e) => {
+                            if (isExisting) return;
+                            const ids = e.target.checked
+                              ? [...formData.departmentIds, dept.id]
+                              : formData.departmentIds.filter(
+                                  (d) => d !== dept.id,
+                                );
+                            setFormData({ ...formData, departmentIds: ids });
+                          }}
+                        />
+                        <span className="text-sm font-medium">{dept.name}</span>
+                      </label>
+                    );
+                  })}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Note: You can only add new departments. Existing departments
+                cannot be removed here.
+              </p>
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Window Opens
+                </label>
+                <input
+                  type="date"
+                  className="w-full rounded-md border-gray-300 bg-gray-100 shadow-sm p-2 border text-gray-500 cursor-not-allowed"
+                  value={formData.startDate}
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Window Closes
+                </label>
+                <input
+                  type="date"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2 border"
+                  value={formData.endDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, endDate: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 gap-3 border-t">
+              <button
+                onClick={() => {
+                  setView("list");
+                  setEditingId(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdate}
+                disabled={saving}
+                className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

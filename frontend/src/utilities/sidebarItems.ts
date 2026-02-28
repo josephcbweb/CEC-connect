@@ -10,22 +10,47 @@ import {
   LayoutGrid,
   Bell,
   Bed,
+  BarChart3,
+  Shield,
 } from "lucide-react";
 import { FaMoneyBill } from "react-icons/fa";
 
 export const sidebarItems = [
   { icon: LayoutDashboard, text: "Dashboard", route: "", active: true },
   { icon: Users, text: "Students", route: "/students" },
-  { icon: FaMoneyBill, text: "Fee Management", route: "/fee", permission: "view:fee" },
+  {
+    icon: FaMoneyBill,
+    text: "Fee Management",
+    route: "/fee",
+    permission: "view:fee",
+  },
   { icon: Bell, text: "Notifications", route: "/notifications" },
   { icon: BookOpen, text: "Certificates", route: "/certificate" },
   { icon: Building, text: "Departments", route: "/departments" },
   { icon: LayoutGrid, text: "Manage Classes", route: "/batches" },
-  { icon: CheckCircle, text: "Due Management", route: "/dues", permission: "view:due" },
-  { icon: UserPlus, text: "Admissions", route: "/admissions", alert: true, permission: "view:admissions" },
+  {
+    icon: CheckCircle,
+    text: "Due Management",
+    route: "/dues",
+    permission: "view:due",
+  },
+  {
+    icon: UserPlus,
+    text: "Admissions",
+    route: "/admissions",
+    alert: true,
+    permission: "view:admissions",
+  },
   { icon: Bus, text: "College Bus", route: "/bus", alert: true },
   { icon: Bed, text: "Hostel", route: "/hostel" },
+  { icon: BarChart3, text: "Analytics", route: "/analytics", adminOnly: true },
+  { icon: Shield, text: "Audit Logs", route: "/audit-logs", adminOnly: true },
   // { icon: GraduationCap, text: "Faculty", route: "/faculty" },
   // { icon: BookCopy, text: "Classes", route: "/classes" },
-  { icon: UserCog, text: "Staff & Roles", route: "/staff-roles" },
+  {
+    icon: UserCog,
+    text: "Staff & Roles",
+    route: "/staff-roles",
+    adminOnly: true,
+  },
 ];

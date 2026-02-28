@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "../lib/prisma";
-import { StudentStatus } from "../generated/prisma/enums";
+import { StudentStatus, InvoiceStatus } from "../generated/prisma/enums";
+import { Decimal } from "@prisma/client/runtime/client";
 
 // This cron job is scheduled to run at 00:00 on January 1st every year
 export const initCronJobs = () => {
@@ -80,5 +81,104 @@ export const initCronJobs = () => {
   });
   console.log(
     "Cron scheduling initialized. Daily email queue processor scheduled for midnight.",
+  );
+
+  // --- Daily Fine Calculation Cron Job ---
+  // Runs every day at 12:05 AM (after email queue)
+  cron.schedule("5 0 * * *", async () => {
+    console.log("[CRON] Running daily fine calculation...");
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Find all unpaid invoices that are past due and have a linked fee structure with fines enabled
+      const overdueInvoices = await prisma.invoice.findMany({
+        where: {
+          status: InvoiceStatus.unpaid,
+          dueDate: { lt: today },
+          feeStructureId: { not: null },
+          FeeStructure: {
+            fineEnabled: true,
+            fineSlabs: { some: {} }, // Has at least one slab
+          },
+        },
+        include: {
+          FeeStructure: {
+            include: {
+              fineSlabs: { orderBy: { startDay: "asc" } },
+            },
+          },
+        },
+      });
+
+      if (overdueInvoices.length === 0) {
+        console.log("[CRON] No overdue invoices with fines to process.");
+        return;
+      }
+
+      let updatedCount = 0;
+
+      for (const invoice of overdueInvoices) {
+        const slabs = invoice.FeeStructure?.fineSlabs;
+        if (!slabs || slabs.length === 0) continue;
+
+        const dueDate = new Date(invoice.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+
+        // Calculate days overdue (from due date to today)
+        const daysOverdue = Math.floor(
+          (today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        if (daysOverdue <= 0) continue;
+
+        // Calculate total fine based on slabs
+        let totalFine = new Decimal(0);
+
+        for (const slab of slabs) {
+          // Determine how many days fall into this slab
+          const slabStart = slab.startDay; // e.g., 1 (1st day after due)
+          const slabEnd = slab.endDay; // e.g., 15, or null for unlimited
+
+          if (daysOverdue < slabStart) break; // Haven't reached this slab yet
+
+          const effectiveEnd =
+            slabEnd !== null ? Math.min(daysOverdue, slabEnd) : daysOverdue;
+          const daysInSlab = effectiveEnd - slabStart + 1;
+
+          if (daysInSlab > 0) {
+            totalFine = totalFine.add(
+              new Decimal(slab.amountPerDay).times(daysInSlab),
+            );
+          }
+        }
+
+        const baseAmount = invoice.baseAmount ?? invoice.amount;
+        const newAmount = new Decimal(baseAmount).add(totalFine);
+
+        // Only update if the fine has changed
+        if (!totalFine.equals(invoice.fineAmount)) {
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              fineAmount: totalFine,
+              baseAmount: baseAmount,
+              amount: newAmount,
+            },
+          });
+          updatedCount++;
+        }
+      }
+
+      console.log(
+        `[CRON] Fine calculation complete. Updated ${updatedCount} of ${overdueInvoices.length} overdue invoices.`,
+      );
+    } catch (error) {
+      console.error("[CRON] Error during daily fine calculation:", error);
+    }
+  });
+
+  console.log(
+    "Cron scheduling initialized. Daily fine calculation scheduled for 12:05 AM.",
   );
 };
