@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import {
   Shield,
   Search,
@@ -128,6 +129,7 @@ function timeAgo(dateStr: string): string {
 }
 
 const AuditLogPage: React.FC = () => {
+  usePageTitle("Audit Logs");
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,

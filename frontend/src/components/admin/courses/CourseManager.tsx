@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Search, Filter, Edit, Trash2, RefreshCw, Loader2 } from "lucide-react";
+import { usePageTitle } from "../../../hooks/usePageTitle";
+import {
+  Plus,
+  Search,
+  Filter,
+  Edit,
+  Trash2,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
 import { motion } from "motion/react";
 import AddCourseModal from "./AddCourseModal";
 import EditCourseModal from "./EditCourseModal";
@@ -22,6 +31,7 @@ interface Course {
 }
 
 const CourseManager = () => {
+  usePageTitle("Courses");
   const [courses, setCourses] = useState<Course[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -111,7 +121,8 @@ const CourseManager = () => {
     const matchesProgram =
       programFilter === "all" || course.department?.program === programFilter;
     const matchesDepartment =
-      departmentFilter === "all" || course.departmentId.toString() === departmentFilter;
+      departmentFilter === "all" ||
+      course.departmentId.toString() === departmentFilter;
 
     // Legacy filter: keep "isNotCore" if it was strictly filtering non-core?
     // Wait, the original code had: const isNotCore = course.category !== "CORE";
@@ -121,7 +132,13 @@ const CourseManager = () => {
     // I will leave it exactly as it was.
     const isNotCore = course.category !== "CORE";
 
-    return matchesSearch && matchesSemester && matchesProgram && matchesDepartment && isNotCore;
+    return (
+      matchesSearch &&
+      matchesSemester &&
+      matchesProgram &&
+      matchesDepartment &&
+      isNotCore
+    );
   });
 
   return (
@@ -200,7 +217,9 @@ const CourseManager = () => {
           >
             <option value="all">All Departments</option>
             {departments
-              .filter((d) => programFilter === "all" || d.program === programFilter)
+              .filter(
+                (d) => programFilter === "all" || d.program === programFilter,
+              )
               .map((dept) => (
                 <option key={dept.id} value={dept.id}>
                   {dept.name}
@@ -246,7 +265,10 @@ const CourseManager = () => {
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-500 gap-3">
-                      <Loader2 size={32} className="animate-spin text-slate-900" />
+                      <Loader2
+                        size={32}
+                        className="animate-spin text-slate-900"
+                      />
                       <p className="text-sm font-medium">Loading courses...</p>
                     </div>
                   </td>
@@ -266,24 +288,26 @@ const CourseManager = () => {
                     <td className="px-6 py-4 text-slate-600">{course.name}</td>
                     <td className="px-6 py-4">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${course.type === "LAB"
-                          ? "bg-purple-50 text-purple-700"
-                          : "bg-blue-50 text-blue-700"
-                          }`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          course.type === "LAB"
+                            ? "bg-purple-50 text-purple-700"
+                            : "bg-blue-50 text-blue-700"
+                        }`}
                       >
                         {course.type}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${course.category === "CORE"
-                          ? "bg-indigo-50 text-indigo-700"
-                          : course.category === "ELECTIVE"
-                            ? "bg-amber-50 text-amber-700"
-                            : course.category === "HONOURS"
-                              ? "bg-rose-50 text-rose-700"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          course.category === "CORE"
+                            ? "bg-indigo-50 text-indigo-700"
+                            : course.category === "ELECTIVE"
+                              ? "bg-amber-50 text-amber-700"
+                              : course.category === "HONOURS"
+                                ? "bg-rose-50 text-rose-700"
+                                : "bg-slate-100 text-slate-600"
+                        }`}
                       >
                         {course.category || "N/A"}
                       </span>
@@ -296,10 +320,11 @@ const CourseManager = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${course.isActive
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-600"
-                          }`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          course.isActive
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
                       >
                         {course.isActive ? "Active" : "Inactive"}
                       </span>

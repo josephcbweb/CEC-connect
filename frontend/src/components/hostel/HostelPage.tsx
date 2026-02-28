@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import {
   Loader2,
   Plus,
@@ -43,6 +44,7 @@ export interface Resident {
 }
 
 const HostelPage = () => {
+  usePageTitle("Hostel");
   // Data States
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [loading, setLoading] = useState(true);

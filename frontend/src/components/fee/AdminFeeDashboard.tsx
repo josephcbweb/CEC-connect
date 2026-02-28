@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import StudentFeeTable from "./StudentFeeTable";
 import FeeStructuresPanel from "./FeeStructuresPanel";
 import FilterBar from "./FilterBar";
@@ -29,6 +30,7 @@ const getUniqueValues = <T, K extends keyof T>(
 };
 
 const AdminFeesDashboard: React.FC = () => {
+  usePageTitle("Fee Management");
   const [students, setStudents] = useState<StudentFee[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showFeeStructures, setShowFeeStructures] = useState<boolean>(false);

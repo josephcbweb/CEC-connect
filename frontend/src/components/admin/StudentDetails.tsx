@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useEffect, useState } from "react";
 import {
   User,
@@ -24,6 +25,7 @@ import { ArrowLeft } from "lucide-react";
 const baseURL = "http://localhost:3000";
 
 const StudentDetails = () => {
+  usePageTitle("Student Details");
   const { id } = useParams();
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);

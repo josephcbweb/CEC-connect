@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { usePageTitle } from "../../../hooks/usePageTitle";
 import { admissionService } from "../../../services/admissionService";
 import type {
   AdmissionStudent,
@@ -75,6 +76,7 @@ interface ApprovedStudent {
 type TabType = "applications" | "assign-classes";
 
 const AdmissionsPage: React.FC = () => {
+  usePageTitle("Admissions");
   // RBAC
   const { hasPermission } = usePermissions();
   const canUpdateStatus = hasPermission("admission:update_status");

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import StudentSummary from "../StudentSummary";
 import StudentRow from "../StudentRow";
 import { Search } from "lucide-react";
@@ -31,6 +32,7 @@ interface StatItem {
 }
 
 const StudentsPage = () => {
+  usePageTitle("Students");
   const [viewStatus, setViewStatus] = useState<"approved" | "graduated">(
     "approved",
   );
@@ -100,7 +102,7 @@ const StudentsPage = () => {
         const deptObj = departmentsInfo.find(
           (d) =>
             d.department_code?.trim().toLowerCase() ===
-            code.trim().toLowerCase() ||
+              code.trim().toLowerCase() ||
             d.name?.trim().toLowerCase() === code.trim().toLowerCase(),
         );
 
@@ -178,15 +180,12 @@ const StudentsPage = () => {
       filters.departments && filters.departments.length > 0
         ? filters.departments
         : Array.from(
-          new Set(students.map((s) => s.department).filter(Boolean)),
-        );
+            new Set(students.map((s) => s.department).filter(Boolean)),
+          );
 
     departmentsToExport.forEach((deptCode) => {
       const filtered = students.filter((s) => {
-        return (
-          s.program === filters.program &&
-          s.department === deptCode
-        );
+        return s.program === filters.program && s.department === deptCode;
       });
 
       if (filtered.length === 0) return;
@@ -356,19 +355,21 @@ const StudentsPage = () => {
           <div className="flex bg-gray-100 p-1 rounded-md h-fit">
             <button
               onClick={() => setViewStatus("approved")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewStatus === "approved"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-                }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                viewStatus === "approved"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               Active
             </button>
             <button
               onClick={() => setViewStatus("graduated")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewStatus === "graduated"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-                }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                viewStatus === "graduated"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               Graduated
             </button>
@@ -404,10 +405,11 @@ const StudentsPage = () => {
               setSelectedProgram(prog);
               setSelectedDepartment("All"); // Reset department filter on program change
             }}
-            className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ease-in-out ${selectedProgram === prog
-              ? "bg-white text-indigo-600 shadow-sm transform scale-100"
-              : "text-gray-500 hover:text-gray-800 scale-95 hover:scale-100"
-              }`}
+            className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ease-in-out ${
+              selectedProgram === prog
+                ? "bg-white text-indigo-600 shadow-sm transform scale-100"
+                : "text-gray-500 hover:text-gray-800 scale-95 hover:scale-100"
+            }`}
           >
             {prog}
           </button>
@@ -440,10 +442,11 @@ const StudentsPage = () => {
           {/* "All" IS EXPLICITLY RENDERED FIRST */}
           <button
             onClick={() => setSelectedDepartment("All")}
-            className={`px-4 py-2 text-sm font-medium ${selectedDepartment === "All"
-              ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
-              : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
-              }`}
+            className={`px-4 py-2 text-sm font-medium ${
+              selectedDepartment === "All"
+                ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
+                : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
+            }`}
           >
             All
           </button>
@@ -453,10 +456,11 @@ const StudentsPage = () => {
             <button
               key={code}
               onClick={() => setSelectedDepartment(code)}
-              className={`px-4 py-2 text-sm font-medium ${selectedDepartment === code
-                ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
-                : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
-                }`}
+              className={`px-4 py-2 text-sm font-medium ${
+                selectedDepartment === code
+                  ? "bg-white text-indigo-800 border-gray-300 border rounded-lg"
+                  : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200 cursor-pointer"
+              }`}
             >
               {code}
             </button>
@@ -500,13 +504,13 @@ const StudentsPage = () => {
                   student.currentSemester <= 7
                 );
               }) && (
-                  <button
-                    onClick={handleDemote}
-                    className="bg-orange-500 hover:bg-orange-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3 text-sm font-semibold"
-                  >
-                    Year Back
-                  </button>
-                )}
+                <button
+                  onClick={handleDemote}
+                  className="bg-orange-500 hover:bg-orange-600 text-white h-fit p-2 rounded-[.3rem] cursor-pointer px-3 text-sm font-semibold"
+                >
+                  Year Back
+                </button>
+              )}
               <DeleteBtn onClick={handleDeleteClick} />
             </div>
           )}

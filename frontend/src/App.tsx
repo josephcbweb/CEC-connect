@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import MobileGuard from "./components/MobileGuard";
 import Admin_Login from "./components/Admin_Login";
 import Student_Login from "./components/Student_Login";
 import AdminWrapper from "./components/AdminWrapper";
@@ -32,7 +33,7 @@ import AuditLogPage from "./components/audit/AuditLogPage";
 
 const App = () => {
   return (
-    <div>
+    <MobileGuard>
       <Routes>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/signup" element={<Admin_Login />} />
@@ -71,7 +72,7 @@ const App = () => {
           <Route path="profile/:id" element={<StudentProfile />} />
         </Route>
       </Routes>
-    </div>
+    </MobileGuard>
   );
 };
 

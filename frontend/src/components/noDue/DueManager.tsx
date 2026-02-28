@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Link } from "react-router-dom";
 import {
   Search,
@@ -43,6 +44,7 @@ interface DueItem {
 }
 
 const DueManager = () => {
+  usePageTitle("Due Management");
   const [approvals, setApprovals] = useState<DueItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Loader2, Plus } from "lucide-react";
 import axios from "axios";
 
@@ -9,7 +10,7 @@ import BusStudentList from "./BusStudentList";
 import BusFeeManager from "./BusFeeManager";
 import BusRequestsTab from "./BusRequestsTab";
 // New Component
-import BusPaymentVerificationTab from "./BusPaymentVerificationTab"; 
+import BusPaymentVerificationTab from "./BusPaymentVerificationTab";
 
 export interface Bus {
   id: number;
@@ -21,6 +22,7 @@ export interface Bus {
 }
 
 const BusListPage = () => {
+  usePageTitle("College Bus");
   const [buses, setBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("buses");
@@ -47,7 +49,7 @@ const BusListPage = () => {
 
   const handleActionSuccess = () => {
     // When a request is approved, increment key to refresh the payments list
-    setRefreshKey(prev => prev + 1);
+    setRefreshKey((prev) => prev + 1);
   };
 
   if (loading) {
