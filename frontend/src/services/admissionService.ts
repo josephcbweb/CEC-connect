@@ -4,7 +4,7 @@ const API_BASE = "http://localhost:3000";
 
 // Get auth token from localStorage
 const getAuthHeader = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
+  Authorization: `Bearer ${localStorage.getItem("authToken")}`,
 });
 
 export interface AdmissionFilters {
@@ -228,7 +228,7 @@ export const admissionService = {
     const response = await axios.post(
       `${API_BASE}/api/admission/admin/auto-assign-batch`,
       { batchId },
-      { headers: getAuthHeader() }
+      { headers: getAuthHeader() },
     );
     return response.data;
   },
@@ -246,7 +246,7 @@ export const admissionService = {
   deleteStaleAdmissions: async () => {
     const response = await axios.delete(
       `${API_BASE}/api/admission/admin/admissions/stale`,
-      { headers: getAuthHeader() }
+      { headers: getAuthHeader() },
     );
     return response.data;
   },

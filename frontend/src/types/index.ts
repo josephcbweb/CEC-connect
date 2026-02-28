@@ -41,24 +41,35 @@ export interface FeeDetails {
   archived?: boolean;
 }
 
+export interface FineSlab {
+  id?: number;
+  startDay: number;
+  endDay: number | null;
+  amountPerDay: number;
+}
+
 export interface FeeStructure {
   id: number;
   name: string;
   description: string | null;
-  amount: number; // Prisma's Decimal is handled as a number in TS client
+  amount: number;
+  fineEnabled: boolean;
+  fineSlabs: FineSlab[];
 }
 
 export interface Invoice {
   id: number;
   studentId: number;
   feeId: number;
-  FeeStructure: { name: string };
+  FeeStructure: FeeStructure | null;
   fee: { feeType: string; archived?: boolean };
   amount: number;
+  baseAmount: number | null;
+  fineAmount: number;
   dueDate: string;
   issueDate: string;
   status: "paid" | "unpaid" | "overdue";
-  semester?: number; // Added semester
+  semester?: number;
 }
 
 export interface StudentFee extends Student {

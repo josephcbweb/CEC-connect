@@ -20,6 +20,8 @@ import batchRoutes from "./routes/batchRoutes";
 import promotionRoutes from "./routes/promotionRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import hostelRoutes from "./routes/hostelRoutes";
+import analyticsRoutes from "./routes/analyticsRoutes";
+import auditRoutes from "./routes/auditRoutes";
 import cors from "cors";
 dotenv.config();
 
@@ -32,7 +34,7 @@ app.use(
     origin: "*", // allow all origins
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 app.use("/", homeRoutes);
 app.use("/admin", adminRoutes);
@@ -55,6 +57,8 @@ app.use("/api/staff", staffRoutes);
 app.use("/api/promotion", promotionRoutes);
 app.use("/api", batchRoutes);
 app.use("/api/hostel", hostelRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/audit-logs", auditRoutes);
 import { initCronJobs } from "./services/cronService";
 initCronJobs();
 
