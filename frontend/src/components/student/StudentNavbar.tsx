@@ -157,7 +157,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
                   : "text-gray-600 hover:bg-gray-50"
                 }`}
             >
-              Certificates
+              Requests
             </NavLink>
 
             {/* Link to Bus application Form */}
