@@ -27,6 +27,8 @@ interface BusRoute {
   id: number;
   busNumber: string;
   busName: string;
+  isFull: boolean;
+  availableSeats: number;
   stops: BusStop[];
 }
 
@@ -117,12 +119,26 @@ const BusServiceManager = () => {
     }
   };
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="p-10 text-center">
-        <Loader2 className="animate-spin mx-auto text-[#009689] w-12 h-12" />
+      <div className="max-w-4xl mx-auto p-6 space-y-6 animate-pulse">
+        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex flex-col gap-6 min-h-[300px]">
+          <div className="h-8 bg-gray-200 rounded-lg w-1/3"></div>
+          <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+          <div className="grid md:grid-cols-2 gap-8 mt-4">
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-12 bg-gray-100 rounded-xl"></div>
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-12 bg-gray-100 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
       </div>
     );
+  }
 
   // ─── CASE F: Suspended by Admin (is_bus_pass_suspended: true) ───
   if (student?.is_bus_pass_suspended && student?.bus_pass_suspended_until && new Date(student.bus_pass_suspended_until) > new Date()) {
@@ -273,7 +289,7 @@ const BusServiceManager = () => {
     student?.pendingBusRequest?.status === "approved" &&
     !student?.bus_service
   ) {
-    const { busName, stopName, feeAmount } = student.pendingBusRequest;
+    const { busName, stopName, feeAmount, dueDate } = student.pendingBusRequest;
     return (
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-emerald-50 border border-emerald-200 rounded-3xl overflow-hidden">
@@ -317,6 +333,21 @@ const BusServiceManager = () => {
                 </div>
               </div>
             </div>
+
+            {dueDate && (
+              <div className="bg-red-50 rounded-xl p-4 flex items-start gap-3 border border-red-200">
+                <Clock className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5 animate-pulse" />
+                <div>
+                  <p className="text-red-800 font-bold text-sm">
+                    ⚠️ Payment Due: {new Date(dueDate).toLocaleDateString()}
+                  </p>
+                  <p className="text-red-700 text-xs mt-1 leading-relaxed">
+                    You have exactly 5 days from approval to pay this enrollment fee.
+                    If the fee is not paid before the due date, this request will automatically <strong className="font-extrabold">expire</strong>, and you will be required to submit a brand new application.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="bg-amber-50 rounded-xl p-4 flex items-start gap-3 border border-amber-200">
               <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -404,7 +435,9 @@ const BusServiceManager = () => {
                     placeholder="Choose a bus route"
                     options={buses.map((b) => ({
                       value: b.id,
-                      label: `${b.busNumber} - ${b.busName}`,
+                      label: `${b.busNumber} - ${b.busName}${b.isFull ? " (Full)" : ""
+                        }`,
+                      disabled: b.isFull,
                     }))}
                     onChange={handleBusChange}
                     value={selectedBus}
@@ -441,11 +474,10 @@ const BusServiceManager = () => {
                 onClick={handleSubmit}
                 disabled={!selectedBus || !selectedStop || submitting}
                 className={`w-full py-3 rounded-xl font-semibold text-white transition-all
-                            ${
-                              !selectedBus || !selectedStop || submitting
-                                ? "bg-gray-300 cursor-not-allowed"
-                                : "bg-[#009689] hover:bg-[#007f74] shadow-lg shadow-teal-700/20 active:scale-[0.98]"
-                            }`}
+                            ${!selectedBus || !selectedStop || submitting
+                    ? "bg-gray-300 cursor-not-allowed"
+                    : "bg-[#009689] hover:bg-[#007f74] shadow-lg shadow-teal-700/20 active:scale-[0.98]"
+                  }`}
               >
                 {submitting ? (
                   <span className="flex items-center justify-center gap-2">
