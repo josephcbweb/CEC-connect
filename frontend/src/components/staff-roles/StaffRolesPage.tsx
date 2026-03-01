@@ -1,5 +1,6 @@
 // StaffRolesPage.tsx - UPDATED with all permissions in role modal and fixed modal data loading
 import React, { useState, useEffect } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -90,6 +91,7 @@ interface Permission {
 }
 
 const StaffRolesPage: React.FC = () => {
+  usePageTitle("Staff & Roles");
   const navigate = useNavigate();
   const token = localStorage.getItem("authToken");
   const [roleForm] = Form.useForm();
@@ -134,7 +136,7 @@ const StaffRolesPage: React.FC = () => {
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [editingPermission, setEditingPermission] = useState<Permission | null>(
-    null
+    null,
   );
   const [selectedRoleForPermissions, setSelectedRoleForPermissions] =
     useState<Role | null>(null);
@@ -171,7 +173,7 @@ const StaffRolesPage: React.FC = () => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/users?page=${page}&limit=${staffPagination.pageSize}&search=${search}`,
-        { headers: getHeaders() }
+        { headers: getHeaders() },
       );
 
       if (!response.ok) {
@@ -204,7 +206,7 @@ const StaffRolesPage: React.FC = () => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/roles?page=${page}&limit=${rolesPagination.pageSize}&search=${search}`,
-        { headers: getHeaders() }
+        { headers: getHeaders() },
       );
 
       if (!response.ok) {
@@ -236,7 +238,7 @@ const StaffRolesPage: React.FC = () => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/permissions?page=${page}&limit=${permissionsPagination.pageSize}&search=${search}`,
-        { headers: getHeaders() }
+        { headers: getHeaders() },
       );
 
       if (!response.ok) {
@@ -448,7 +450,7 @@ const StaffRolesPage: React.FC = () => {
           method: "POST",
           headers: getHeaders(),
           body: JSON.stringify({ permissionIds: selectedPermissions }),
-        }
+        },
       );
 
       const data = await response.json();
@@ -470,13 +472,13 @@ const StaffRolesPage: React.FC = () => {
 
   const showRoleModal = async (role: Role | null = null) => {
     setEditingRole(role);
-    
+
     // Fetch permissions for the role permissions dropdown if needed
     if (allPermissions.length === 0) {
       try {
         const response = await fetch(
           `${API_BASE_URL}/api/permissions?limit=1000`,
-          { headers: getHeaders() }
+          { headers: getHeaders() },
         );
         const data = await response.json();
         if (data.success) {
@@ -500,13 +502,13 @@ const StaffRolesPage: React.FC = () => {
 
   const showStaffModal = async (staffMember: StaffMember | null = null) => {
     setEditingStaff(staffMember);
-    
+
     // Fetch roles if they're empty
     if (roles.length === 0) {
       try {
         const response = await fetch(
           `${API_BASE_URL}/api/roles?limit=100`, // Fetch all roles
-          { headers: getHeaders() }
+          { headers: getHeaders() },
         );
         const data = await response.json();
         if (data.success) {
@@ -537,7 +539,7 @@ const StaffRolesPage: React.FC = () => {
 
   const showPermissionModal = async (permission: Permission | null = null) => {
     setEditingPermission(permission);
-    
+
     if (permission) {
       permissionForm.setFieldsValue({
         name: permission.name,
@@ -559,28 +561,34 @@ const StaffRolesPage: React.FC = () => {
       if (allPermissions.length === 0) {
         const permissionsResponse = await fetch(
           `${API_BASE_URL}/api/permissions?limit=1000`,
-          { headers: getHeaders() }
+          { headers: getHeaders() },
         );
 
         const permissionsData = await permissionsResponse.json();
         if (permissionsData.success) {
           setAllPermissions(permissionsData.data);
         } else {
-          message.error(permissionsData.message || "Failed to fetch permissions");
+          message.error(
+            permissionsData.message || "Failed to fetch permissions",
+          );
         }
       }
 
       // Fetch the role's current permissions
       const rolePermissionsResponse = await fetch(
         `${API_BASE_URL}/api/roles/${role.id}/permissions`,
-        { headers: getHeaders() }
+        { headers: getHeaders() },
       );
 
       const rolePermissionsData = await rolePermissionsResponse.json();
       if (rolePermissionsData.success) {
-        setSelectedPermissions(rolePermissionsData.data.map((p: Permission) => p.id));
+        setSelectedPermissions(
+          rolePermissionsData.data.map((p: Permission) => p.id),
+        );
       } else {
-        message.error(rolePermissionsData.message || "Failed to fetch role permissions");
+        message.error(
+          rolePermissionsData.message || "Failed to fetch role permissions",
+        );
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -745,7 +753,7 @@ const StaffRolesPage: React.FC = () => {
                 showQuickJumper: true,
                 showTotal: (total) => `Total ${total} staff members`,
               }}
-              onChange={(pagination) => 
+              onChange={(pagination) =>
                 fetchStaff(pagination.current || 1, searchText)
               }
             >
@@ -878,7 +886,7 @@ const StaffRolesPage: React.FC = () => {
                 showQuickJumper: true,
                 showTotal: (total) => `Total ${total} roles`,
               }}
-              onChange={(pagination) => 
+              onChange={(pagination) =>
                 fetchRoles(pagination.current || 1, searchText)
               }
             >
@@ -1097,22 +1105,22 @@ const StaffRolesPage: React.FC = () => {
                       showQuickJumper
                       showTotal={(total) => `Total ${total} permissions`}
                       onChange={(page, pageSize) => {
-                        setPermissionsPagination(prev => ({
+                        setPermissionsPagination((prev) => ({
                           ...prev,
                           current: page,
-                          pageSize: pageSize || prev.pageSize
+                          pageSize: pageSize || prev.pageSize,
                         }));
                         fetchPermissions(page, searchText);
                       }}
                       onShowSizeChange={(current, size) => {
-                        setPermissionsPagination(prev => ({
+                        setPermissionsPagination((prev) => ({
                           ...prev,
                           current: 1,
-                          pageSize: size
+                          pageSize: size,
                         }));
                         fetchPermissions(1, searchText);
                       }}
-                      pageSizeOptions={['12', '24', '36', '48']}
+                      pageSizeOptions={["12", "24", "36", "48"]}
                     />
                   </div>
                 )}
@@ -1396,13 +1404,13 @@ const StaffRolesPage: React.FC = () => {
               {Array.from(new Set(allPermissions.map((p) => p.moduleName))).map(
                 (moduleName) => {
                   const modulePermissions = allPermissions.filter(
-                    (p) => p.moduleName === moduleName
+                    (p) => p.moduleName === moduleName,
                   );
                   const allModuleSelected = modulePermissions.every((p) =>
-                    selectedPermissions.includes(p.id)
+                    selectedPermissions.includes(p.id),
                   );
                   const someModuleSelected = modulePermissions.some((p) =>
-                    selectedPermissions.includes(p.id)
+                    selectedPermissions.includes(p.id),
                   );
 
                   return (
@@ -1415,19 +1423,19 @@ const StaffRolesPage: React.FC = () => {
                           checked={allModuleSelected}
                           onChange={(e) => {
                             const modulePermissionIds = modulePermissions.map(
-                              (p) => p.id
+                              (p) => p.id,
                             );
                             if (e.target.checked) {
                               setSelectedPermissions((prev) =>
                                 Array.from(
-                                  new Set([...prev, ...modulePermissionIds])
-                                )
+                                  new Set([...prev, ...modulePermissionIds]),
+                                ),
                               );
                             } else {
                               setSelectedPermissions((prev) =>
                                 prev.filter(
-                                  (id) => !modulePermissionIds.includes(id)
-                                )
+                                  (id) => !modulePermissionIds.includes(id),
+                                ),
                               );
                             }
                           }}
@@ -1445,7 +1453,7 @@ const StaffRolesPage: React.FC = () => {
                           <Col span={12} key={permission.id}>
                             <Checkbox
                               checked={selectedPermissions.includes(
-                                permission.id
+                                permission.id,
                               )}
                               onChange={(e) => {
                                 if (e.target.checked) {
@@ -1456,8 +1464,8 @@ const StaffRolesPage: React.FC = () => {
                                 } else {
                                   setSelectedPermissions(
                                     selectedPermissions.filter(
-                                      (id) => id !== permission.id
-                                    )
+                                      (id) => id !== permission.id,
+                                    ),
                                   );
                                 }
                               }}
@@ -1479,7 +1487,7 @@ const StaffRolesPage: React.FC = () => {
                       </Row>
                     </div>
                   );
-                }
+                },
               )}
             </div>
 

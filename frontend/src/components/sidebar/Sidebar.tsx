@@ -22,9 +22,10 @@ const Sidebar = () => {
           ? user.role.map((r: string) => r.toLowerCase())
           : [user.role?.toLowerCase() || "guest"];
 
-      const permissions = user.permission && Array.isArray(user.permission)
-        ? user.permission
-        : [];
+      const permissions =
+        user.permission && Array.isArray(user.permission)
+          ? user.permission
+          : [];
 
       setUserPermissions(permissions);
 
@@ -32,7 +33,11 @@ const Sidebar = () => {
         setUserRole("Librarian");
       } else if (roles.includes("admin") || roles.includes("super admin")) {
         setUserRole("Admin");
-      } else if (roles.includes("staff") || roles.includes("faculty") || roles.includes("accounts_staff")) {
+      } else if (
+        roles.includes("staff") ||
+        roles.includes("faculty") ||
+        roles.includes("accounts_staff")
+      ) {
         setUserRole("Staff");
       } else {
         setUserRole(roles[0] || "guest"); // No default to Admin!
@@ -50,12 +55,17 @@ const Sidebar = () => {
       return true;
     }
 
-    // 2. If the item has a permission requirement, check if the user has it
+    // 2. If the item is admin-only, hide it for non-admin users
+    if (item.adminOnly) {
+      return false;
+    }
+
+    // 3. If the item has a permission requirement, check if the user has it
     if (item.permission) {
       return userPermissions.includes(item.permission);
     }
 
-    // 3. For items without a permission field, show them by default 
+    // 4. For items without a permission field, show them by default
     // (This includes basic sections like Dashboard, Notifications, etc.)
     return true;
   });
@@ -63,16 +73,19 @@ const Sidebar = () => {
   return (
     <aside className="h-screen sticky top-0">
       <nav
-        className={`h-full flex flex-col shadow-lg transition-all duration-300 ease-in-out ${collapsed ? "w-20" : "w-64"
-          }`}
+        className={`h-full flex flex-col shadow-lg transition-all duration-300 ease-in-out ${
+          collapsed ? "w-20" : "w-64"
+        }`}
       >
         <div
-          className={`p-4 pb-2 flex items-center ${collapsed ? "justify-center" : "justify-between"
-            }`}
+          className={`p-4 pb-2 flex items-center ${
+            collapsed ? "justify-center" : "justify-between"
+          }`}
         >
           <span
-            className={`overflow-hidden transition-all font-bold text-2xl text-gray-800 ${collapsed ? "w-0" : "w-32"
-              }`}
+            className={`overflow-hidden transition-all font-bold text-2xl text-gray-800 ${
+              collapsed ? "w-0" : "w-32"
+            }`}
           >
             ACADS
           </span>
@@ -87,7 +100,7 @@ const Sidebar = () => {
           <hr className="my-2 border-gray-300" />
         </div>
 
-        <ul className="flex-1 px-3 mt-5">
+        <ul className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin px-3 mt-2">
           {filteredItems.map((item, index) => (
             <SidebarItem
               key={index}
@@ -96,7 +109,7 @@ const Sidebar = () => {
               active={activeItem === `/admin${item.route}`}
               collapsed={collapsed}
               route={`/admin${item.route}`}
-              onClick={() => setActiveItem(item.text)}
+              onClick={() => setActiveItem(`/admin${item.route}`)}
             />
           ))}
         </ul>

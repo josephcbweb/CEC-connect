@@ -11,14 +11,22 @@ export const getStudents = async (req: Request, res: Response) => {
       },
       include: {
         department: true,
-        invoices: { include: { FeeStructure: true } },
+        invoices: {
+          include: {
+            FeeStructure: {
+              include: { fineSlabs: { orderBy: { startDay: "asc" } } },
+            },
+          },
+        },
         feeDetails: true,
       },
     });
     res.status(201).json(result);
   } catch (error: any) {
     console.error("Error fetching students:", error);
-    res.status(500).json({ error: "Failed to fetch students", details: error.toString() });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch students", details: error.toString() });
   }
 };
 const calculateYear = (admissionDate: Date | null): number | null => {
@@ -45,13 +53,16 @@ export const getStudentFeeDetails = async (req: Request, res: Response) => {
     const studentWithFees = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
+        department: true,
         invoices: {
           orderBy: {
             dueDate: "asc",
           },
           include: {
             fee: true,
-            FeeStructure: true,
+            FeeStructure: {
+              include: { fineSlabs: { orderBy: { startDay: "asc" } } },
+            },
           },
         },
       },
@@ -167,20 +178,20 @@ export const getStudentProfile = async (req: Request, res: Response) => {
       bus_service: student.bus_service,
       busDetails: student.bus
         ? {
-          busName: student.bus.busName,
-          busNumber: student.bus.busNumber,
-          stopName: student.busStop?.stopName,
-          feeAmount: student.busStop?.feeAmount,
-        }
+            busName: student.bus.busName,
+            busNumber: student.bus.busNumber,
+            stopName: student.busStop?.stopName,
+            feeAmount: student.busStop?.feeAmount,
+          }
         : null,
       pendingBusRequest: pendingBusRequest
         ? {
-          id: pendingBusRequest.id,
-          busName: pendingBusRequest.bus.busName,
-          stopName: pendingBusRequest.busStop.stopName,
-          feeAmount: pendingBusRequest.busStop.feeAmount,
-          status: pendingBusRequest.status,
-        }
+            id: pendingBusRequest.id,
+            busName: pendingBusRequest.bus.busName,
+            stopName: pendingBusRequest.busStop.stopName,
+            feeAmount: pendingBusRequest.busStop.feeAmount,
+            status: pendingBusRequest.status,
+          }
         : null,
       hasOverdueBusFee,
     };

@@ -5,6 +5,70 @@ import { certificateTemplates } from './certificateTemplates';
 import { prisma } from "../lib/prisma";
 import { verifyToken } from "../utils/jwt";
 
+// ============ NEW: Notification Helper Function ============
+const createCertificateNotification = async (
+  studentId: number,
+  certificateId: number,
+  certificateType: string
+) => {
+  try {
+    // Get student details to verify student exists
+    const student = await prisma.student.findUnique({
+      where: { id: studentId }
+    });
+
+    if (!student) return;
+
+    // Find a user to be the sender (preferably office staff or any user)
+    let senderId = null;
+    
+    // Try to find office staff first
+    const officeUser = await prisma.user.findFirst({
+      where: {
+        userRoles: {
+          some: {
+            role: {
+              name: { in: ['office', 'office_staff', 'OFFICE'] }
+            }
+          }
+        }
+      }
+    });
+    
+    if (officeUser) {
+      senderId = officeUser.id;
+    } else {
+      // Fallback to any user
+      const anyUser = await prisma.user.findFirst();
+      senderId = anyUser?.id || 1; // Default to ID 1 if no users found
+    }
+
+    // Format certificate type for display
+    const formattedType = certificateType.replace(/_/g, ' ').toLowerCase()
+      .split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+    // Create notification
+    await prisma.notification.create({
+      data: {
+        title: "Certificate Generated",
+        description: `Your ${formattedType} certificate has been generated and is ready for download.`,
+        targetType: "STUDENT",
+        targetValue: studentId.toString(),
+        priority: "IMPORTANT",
+        status: "published",
+        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        senderId: senderId,
+      },
+    });
+
+    console.log(`✅ Certificate notification created for student ID: ${studentId}`);
+  } catch (error) {
+    console.error("❌ Error creating certificate notification:", error);
+    // Don't throw - we don't want to fail certificate generation if notification fails
+  }
+};
+// ============ END NEW FUNCTION ============
+
 // Helper to get user from token
 const getUserFromToken = (req: Request) => {
   const authHeader = req.headers.authorization;
@@ -16,6 +80,97 @@ const getUserFromToken = (req: Request) => {
   } catch (error) {
     return null;
   }
+};
+
+// Helper to check if next approver exists
+const checkNextApproverExists = async (currentRole: string, certificate: any) => {
+  const departmentId = certificate.student?.departmentId;
+  
+  switch (currentRole) {
+    case 'advisor':
+      // Check if HOD exists for this department
+      if (!departmentId) {
+        return {
+          exists: false,
+          message: "❌ Cannot forward: Student is not assigned to any department. Please contact administration."
+        };
+      }
+      
+      // Check multiple ways HOD could be assigned
+      const hodViaDetails = await prisma.hodDetails.findFirst({
+        where: { departmentId }
+      });
+      
+      const hodViaDepartment = await prisma.department.findFirst({
+        where: { 
+          id: departmentId,
+          hodId: { not: null }
+        }
+      });
+      
+      const hodExists = hodViaDetails || hodViaDepartment;
+      
+      if (!hodExists) {
+        return {
+          exists: false,
+          message: "❌ Cannot forward: No HOD (Head of Department) assigned to this department. Please contact administration to assign a HOD."
+        };
+      }
+      break;
+      
+    case 'hod':
+      // Check if Office staff exists
+      const officeExists = await prisma.user.findFirst({
+        where: {
+          userRoles: {
+            some: {
+              role: {
+                name: { in: ['office', 'office_staff', 'OFFICE'] }
+              }
+            }
+          }
+        }
+      });
+      
+      if (!officeExists) {
+        return {
+          exists: false,
+          message: "❌ Cannot forward: No Office Staff assigned in the system. Please contact administration to assign office staff."
+        };
+      }
+      break;
+      
+    case 'office':
+      // Check if Principal exists
+      const principalExists = await prisma.user.findFirst({
+        where: {
+          userRoles: {
+            some: {
+              role: {
+                name: { in: ['principal', 'PRINCIPAL', 'Principal'] }
+              }
+            }
+          }
+        }
+      });
+      
+      if (!principalExists) {
+        return {
+          exists: false,
+          message: "❌ Cannot forward: No Principal assigned in the system. Please contact administration to assign a Principal."
+        };
+      }
+      break;
+      
+    case 'principal':
+      // Principal is final approver, no next approver needed
+      return { exists: true };
+      
+    default:
+      return { exists: true };
+  }
+  
+  return { exists: true };
 };
 
 export const certificateController = {
@@ -64,14 +219,71 @@ export const certificateController = {
 
       if (!student.class) {
         return res.status(400).json({ 
-          error: "You are not assigned to any class. Please contact the administration." 
+          error: "❌ Cannot submit: You are not assigned to any class. Please contact the administration." 
         });
       }
 
       if (!student.class.advisorId) {
         return res.status(400).json({ 
-          error: "Your class does not have an advisor assigned. Please contact the administration." 
+          error: "❌ Cannot submit: Your class does not have an advisor assigned. Please contact the administration." 
         });
+      }
+
+      // Check if HOD exists for student's department before creating request
+      const departmentId = student.departmentId;
+      let hodWarning = null;
+      
+      if (departmentId) {
+        const hodExists = await prisma.hodDetails.findFirst({
+          where: { departmentId }
+        }) || await prisma.department.findFirst({
+          where: { 
+            id: departmentId,
+            hodId: { not: null }
+          }
+        });
+        
+        if (!hodExists) {
+          hodWarning = "⚠️ Warning: Your department does not have a HOD (Head of Department) assigned. Your request can be submitted but will be delayed until a HOD is assigned. Please contact administration.";
+        }
+      }
+
+      // Check if Office staff exists
+      const officeExists = await prisma.user.findFirst({
+        where: {
+          userRoles: {
+            some: {
+              role: {
+                name: { in: ['office', 'office_staff', 'OFFICE'] }
+              }
+            }
+          }
+        }
+      });
+
+      if (!officeExists) {
+        hodWarning = hodWarning 
+          ? hodWarning + " Also, no office staff is assigned in the system."
+          : "⚠️ Warning: No office staff is assigned in the system. Your request will be delayed. Please contact administration.";
+      }
+
+      // Check if Principal exists
+      const principalExists = await prisma.user.findFirst({
+        where: {
+          userRoles: {
+            some: {
+              role: {
+                name: { in: ['principal', 'PRINCIPAL', 'Principal'] }
+              }
+            }
+          }
+        }
+      });
+
+      if (!principalExists) {
+        hodWarning = hodWarning 
+          ? hodWarning + " Also, no principal is assigned in the system."
+          : "⚠️ Warning: No principal is assigned in the system. Your request will be delayed. Please contact administration.";
       }
 
       // Create certificate WITH_ADVISOR status directly
@@ -97,11 +309,18 @@ export const certificateController = {
         }
       });
 
-      res.status(201).json({
+      // Return with warning if any approvers are missing
+      const responseData: any = {
         success: true,
         message: "Certificate request submitted successfully",
         certificate
-      });
+      };
+
+      if (hodWarning) {
+        responseData.warning = hodWarning;
+      }
+
+      res.status(201).json(responseData);
 
     } catch (error: unknown) {
       console.error("SUBMIT ERROR DETAILS:", error);
@@ -158,8 +377,8 @@ export const certificateController = {
         search, 
         page = 1, 
         limit = 10,
-        departmentId,  // NEW: Department filter
-        semester       // NEW: Semester filter
+        departmentId,
+        semester
       } = req.query;
 
       console.log(`Getting certificates for role: ${role}, userId: ${userId}`);
@@ -192,8 +411,6 @@ export const certificateController = {
           const advisorStudentIds = advisedClass.students.map(s => s.id);
           whereClause.studentId = { in: advisorStudentIds };
           
-          // For advisor, they see their students regardless of department
-          // But we can still filter by semester if provided
           if (semester && semester !== 'all') {
             whereClause.student = {
               currentSemester: parseInt(semester as string)
@@ -224,7 +441,7 @@ export const certificateController = {
 
           if (!hodRole) {
             console.log('HOD role not found in roles table');
-            return res.status(404).json({ error: "HOD role not configured" });
+            return res.status(404).json({ error: "HOD role not configured in the system. Please contact administration." });
           }
 
           // Check if this user has the HOD role
@@ -247,7 +464,7 @@ export const certificateController = {
           if (!userHasHODRole) {
             console.log(`User ${parsedUserId} is not a HOD`);
             return res.status(403).json({ 
-              error: "Access denied. User does not have HOD role.",
+              error: "Access denied. You do not have HOD role.",
               requiredRole: "hod"
             });
           }
@@ -266,7 +483,7 @@ export const certificateController = {
 
           if (!hodDepartmentId) {
             console.log('Could not find department for HOD');
-            return res.status(400).json({ error: "Department not assigned to HOD" });
+            return res.status(400).json({ error: "You are not assigned to any department as HOD. Please contact administration." });
           }
 
           // Get students from that department with optional filters
@@ -275,13 +492,10 @@ export const certificateController = {
             status: { not: 'deleted' }
           };
           
-          // Apply semester filter if provided
           if (semester && semester !== 'all') {
             studentWhere.currentSemester = parseInt(semester as string);
           }
           
-          // Apply department filter if provided (HOD can filter by department within their college)
-          // Note: HOD is typically only for one department, but if they oversee multiple, this works
           if (departmentId && departmentId !== 'all') {
             studentWhere.departmentId = parseInt(departmentId as string);
           }
@@ -295,7 +509,6 @@ export const certificateController = {
             in: deptStudents.map(s => s.id) 
           };
 
-          // Apply status filter
           if (status && status !== 'all' && status !== 'undefined') {
             whereClause.workflowStatus = status;
           } else {
@@ -333,30 +546,26 @@ export const certificateController = {
 
           if (!hasOfficeRole) {
             console.log('User is not office staff');
-            return res.status(403).json({ error: "User is not authorized as office staff" });
+            return res.status(403).json({ error: "Access denied. You are not authorized as office staff." });
           }
 
           // Office staff can see ALL certificates, but with filters
           whereClause = {};
 
-          // Apply department filter if provided
           if (departmentId && departmentId !== 'all') {
             whereClause.student = {
               departmentId: parseInt(departmentId as string)
             };
           }
 
-          // Apply semester filter if provided
           if (semester && semester !== 'all') {
             if (!whereClause.student) whereClause.student = {};
             whereClause.student.currentSemester = parseInt(semester as string);
           }
 
-          // Apply status filter
           if (status && status !== 'all' && status !== 'undefined') {
             whereClause.workflowStatus = status;
           } else {
-            // Default: Show certificates that are ready for office processing
             whereClause.workflowStatus = {
               in: ['WITH_OFFICE', 'WITH_PRINCIPAL', 'COMPLETED']
             };
@@ -379,7 +588,7 @@ export const certificateController = {
 
           if (!principalRole) {
             console.log('Principal role not found in roles table');
-            return res.status(404).json({ error: "Principal role not configured" });
+            return res.status(404).json({ error: "Principal role not configured in the system. Please contact administration." });
           }
 
           // Now find the user who has this principal role
@@ -396,34 +605,82 @@ export const certificateController = {
 
           if (!principalUserRole) {
             console.log(`User ${parsedUserId} does not have principal role`);
-            return res.status(403).json({ error: "User is not authorized as principal" });
+            return res.status(403).json({ error: "Access denied. You are not authorized as principal." });
           }
 
           // PRINCIPAL SEES ALL CERTIFICATES with filters
           whereClause = {};
 
-          // Apply department filter if provided
           if (departmentId && departmentId !== 'all') {
             whereClause.student = {
               departmentId: parseInt(departmentId as string)
             };
           }
 
-          // Apply semester filter if provided
           if (semester && semester !== 'all') {
             if (!whereClause.student) whereClause.student = {};
             whereClause.student.currentSemester = parseInt(semester as string);
           }
 
-          // Apply status filter
           if (status && status !== 'all' && status !== 'undefined') {
             whereClause.workflowStatus = status;
           } else {
-            // Default: Show certificates that need principal attention
             whereClause.workflowStatus = {
               in: ['WITH_PRINCIPAL', 'COMPLETED']
             };
           }
+          break;
+          
+        case 'admin':
+          console.log(`Processing admin request for userId: ${parsedUserId}`);
+          
+          // Verify this user is actually an admin
+          const adminUser = await prisma.user.findUnique({
+            where: { id: parsedUserId },
+            include: {
+              userRoles: {
+                include: {
+                  role: true
+                }
+              }
+            }
+          });
+
+          if (!adminUser) {
+            return res.status(404).json({ error: "User not found" });
+          }
+
+          // Check for admin role
+          const hasAdminRole = adminUser.userRoles.some(ur => 
+            ur.role.name.toLowerCase() === 'admin'
+          );
+
+          if (!hasAdminRole) {
+            console.log('User is not admin');
+            return res.status(403).json({ error: "Access denied. You are not authorized as admin." });
+          }
+
+          // Admin can see ALL certificates with filters
+          whereClause = {};
+
+          // Apply filters
+          if (departmentId && departmentId !== 'all') {
+            whereClause.student = {
+              departmentId: parseInt(departmentId as string)
+            };
+          }
+
+          if (semester && semester !== 'all') {
+            if (!whereClause.student) whereClause.student = {};
+            whereClause.student.currentSemester = parseInt(semester as string);
+          }
+
+          if (status && status !== 'all' && status !== 'undefined') {
+            whereClause.workflowStatus = status;
+          }
+          // No default filter - admins see everything
+
+          console.log('Admin user - showing all certificates');
           break;
           
         default:
@@ -432,20 +689,20 @@ export const certificateController = {
 
       // Search filter (applies to all roles)
       if (search) {
-        // If we already have a student condition, merge it
+        const searchValue = search as string;
         if (whereClause.student) {
           whereClause.student = {
             ...whereClause.student,
             OR: [
-              { name: { contains: search as string, mode: 'insensitive' } },
-              { admission_number: { contains: search as string, mode: 'insensitive' } }
+              { name: { contains: searchValue, mode: 'insensitive' } },
+              { admission_number: { contains: searchValue, mode: 'insensitive' } }
             ]
           };
         } else {
           whereClause.student = {
             OR: [
-              { name: { contains: search as string, mode: 'insensitive' } },
-              { admission_number: { contains: search as string, mode: 'insensitive' } }
+              { name: { contains: searchValue, mode: 'insensitive' } },
+              { admission_number: { contains: searchValue, mode: 'insensitive' } }
             ]
           };
         }
@@ -532,6 +789,18 @@ export const certificateController = {
 
       if (!certificate) {
         return res.status(404).json({ error: "Certificate not found" });
+      }
+
+      // If action is FORWARD, check if next approver exists
+      if (action === 'FORWARD') {
+        const nextApproverCheck = await checkNextApproverExists(role, certificate);
+        
+        if (!nextApproverCheck.exists) {
+          return res.status(400).json({ 
+            error: nextApproverCheck.message,
+            code: 'NEXT_APPROVER_MISSING'
+          });
+        }
       }
 
       const updateData: any = {};
@@ -677,6 +946,7 @@ export const certificateController = {
         include: {
           student: {
             select: {
+              id: true,  // Make sure to include student ID for notification
               name: true,
               admission_number: true,
               program: true,
@@ -706,6 +976,14 @@ export const certificateController = {
           certificateUrl: `http://localhost:3000/api/certificates/${id}/download`,
         }
       });
+
+      // ============ NEW: Create notification for student ============
+      await createCertificateNotification(
+        certificate.student.id,
+        certificate.id,
+        certificate.type
+      );
+      // ============ END NEW NOTIFICATION ============
 
       res.json(updatedCertificate);
 
@@ -833,7 +1111,7 @@ export const certificateController = {
               admission_number: true,
               currentSemester: true,
               class: { select: { name: true } },
-              department: { select: { name: true } }
+              department: { select: { name: true, id: true } }
             }
           },
           approvals: {

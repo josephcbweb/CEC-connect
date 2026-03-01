@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageTitle } from "../../../hooks/usePageTitle";
 import { Plus, Trash2, Edit2, Loader2, ArrowLeft } from "lucide-react";
 import {
   type Notification,
@@ -7,6 +8,7 @@ import {
 import NotificationModal from "./NotificationModal";
 
 export default function NotificationManager() {
+  usePageTitle("Notifications");
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);

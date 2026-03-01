@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useOutletContext } from "react-router-dom";
 import { type FeeStructure, type Invoice, type Student } from "../../types";
 import { AlertCircle, Bell, Calendar, BadgeAlert } from "lucide-react";
@@ -29,6 +30,7 @@ interface StudentWithFees extends Student {
 }
 
 const StudentDashboardPage: React.FC = () => {
+  usePageTitle("Student Dashboard");
   const { studentData, isRegistrationOpen } = useOutletContext<{
     studentData: StudentWithFees;
     isRegistrationOpen: boolean;
@@ -69,9 +71,7 @@ const StudentDashboardPage: React.FC = () => {
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="text-blue-600 mt-0.5" size={20} />
           <div>
-            <h3 className="font-semibold text-blue-900">
-              No Due Status Open
-            </h3>
+            <h3 className="font-semibold text-blue-900">No Due Status Open</h3>
             <p className="text-blue-700 text-sm mt-1">
               Registration for the upcoming semester is now open. Please
               complete your registration to initiate the No Due clearance

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import DepartmentTable from "./DepartmentTable";
 import AddDepartmentModal from "./AddDepartmentModal";
 import DepartmentControls from "./DepartmentControls";
@@ -20,6 +21,7 @@ export interface Department {
 }
 
 export default function DepartmentDashboard() {
+  usePageTitle("Departments");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,7 +39,9 @@ export default function DepartmentDashboard() {
       if (programFilter && programFilter !== "all") {
         queryParams.append("program", programFilter);
       }
-      const res = await fetch(`http://localhost:3000/api/departments?${queryParams}`);
+      const res = await fetch(
+        `http://localhost:3000/api/departments?${queryParams}`,
+      );
       const data = await res.json();
       setDepartments(data);
     } catch (err) {

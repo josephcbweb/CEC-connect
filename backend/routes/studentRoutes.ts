@@ -6,7 +6,7 @@ import {
   updateStudentProfile,
   getAllBusRoutes,
   requestBusService,
-} from "../Controllers/studentController";
+} from "../controllers/studentController";
 
 const router = express.Router();
 
@@ -17,6 +17,5 @@ router.patch("/update/:id", updateStudentProfile);
 
 router.get("/bus/routes", getAllBusRoutes);
 router.post("/request-bus", requestBusService);
-
 
 export default router;

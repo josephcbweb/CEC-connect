@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { usePageTitle } from "../../../hooks/usePageTitle";
 import { admissionService } from "../../../services/admissionService";
 import type {
   AdmissionStudent,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 import AdmissionWindowSettings from "./AdmissionWindowSettings";
 import { AVAILABLE_PROGRAMS } from "../../../utils/constants";
+import { usePermissions } from "../../../hooks/usePermissions";
 
 interface BatchDepartment {
   id: number;
@@ -74,6 +76,16 @@ interface ApprovedStudent {
 type TabType = "applications" | "assign-classes";
 
 const AdmissionsPage: React.FC = () => {
+  usePageTitle("Admissions");
+  // RBAC
+  const { hasPermission } = usePermissions();
+  const canUpdateStatus = hasPermission("admission:update_status");
+  const canBulkUpdate = hasPermission("admission:bulk_update");
+  const canDelete = hasPermission("admission:delete");
+  const canManageWindows = hasPermission("admission:manage_windows");
+  const canAssignClass = hasPermission("admission:assign_class");
+  const canDeleteStale = hasPermission("admission:delete_stale");
+
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>("applications");
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -122,7 +134,8 @@ const AdmissionsPage: React.FC = () => {
   const [selectedApprovedIds, setSelectedApprovedIds] = useState<number[]>([]);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
-  const [assignmentProgramFilter, setAssignmentProgramFilter] = useState("BTECH");
+  const [assignmentProgramFilter, setAssignmentProgramFilter] =
+    useState("BTECH");
   const [assignmentDepartmentFilter, setAssignmentDepartmentFilter] =
     useState<string>("all");
   const [availableDepartments, setAvailableDepartments] = useState<
@@ -134,7 +147,8 @@ const AdmissionsPage: React.FC = () => {
     setSelectedIds([]); // Clear selection when filters change
   }, [filters]);
 
-  const currentProgram = activeTab === "applications" ? filters.program : assignmentProgramFilter;
+  const currentProgram =
+    activeTab === "applications" ? filters.program : assignmentProgramFilter;
 
   useEffect(() => {
     if (currentProgram) {
@@ -151,9 +165,10 @@ const AdmissionsPage: React.FC = () => {
 
   const fetchDepartments = async (program: string) => {
     try {
-      const url = program === "all"
-        ? "http://localhost:3000/api/departments"
-        : `http://localhost:3000/api/departments?program=${program}`;
+      const url =
+        program === "all"
+          ? "http://localhost:3000/api/departments"
+          : `http://localhost:3000/api/departments?program=${program}`;
 
       const response = await fetch(url, {
         headers: {
@@ -235,7 +250,11 @@ const AdmissionsPage: React.FC = () => {
   };
 
   const handleDeleteEntry = async (id: number) => {
-    if (!confirm("Are you sure you want to permanently delete this admission entry? This action cannot be undone and will remove the student from the database completely.")) {
+    if (
+      !confirm(
+        "Are you sure you want to permanently delete this admission entry? This action cannot be undone and will remove the student from the database completely.",
+      )
+    ) {
       return;
     }
     try {
@@ -284,7 +303,10 @@ const AdmissionsPage: React.FC = () => {
     try {
       setIsCleaningUp(true);
       const res = await admissionService.deleteStaleAdmissions();
-      showMessage("success", res.message || "Stale applications cleaned up successfully.");
+      showMessage(
+        "success",
+        res.message || "Stale applications cleaned up successfully.",
+      );
       await fetchData(); // Refresh the data to reflect changes
       setShowCleanupWarning(false);
     } catch (error) {
@@ -418,8 +440,9 @@ const AdmissionsPage: React.FC = () => {
     };
     return (
       <span
-        className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] || "bg-gray-100 text-gray-800"
-          }`}
+        className={`px-2 py-1 rounded-full text-xs font-medium ${
+          colors[status] || "bg-gray-100 text-gray-800"
+        }`}
       >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
@@ -450,37 +473,44 @@ const AdmissionsPage: React.FC = () => {
           <div className="group relative flex items-center">
             <Info className="w-5 h-5 text-gray-400 cursor-help hover:text-teal-600 transition-colors" />
             <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:block w-72 p-3 bg-gray-900 text-white text-xs rounded shadow-lg z-50 animate-fade-in">
-              <strong>Automated Cleanup:</strong> Pending, rejected, and waitlisted applications are automatically removed every year on January 1st.
+              <strong>Automated Cleanup:</strong> Pending, rejected, and
+              waitlisted applications are automatically removed every year on
+              January 1st.
               {/* Tooltip arrow */}
               <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-4 border-transparent border-b-gray-900"></div>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowCleanupWarning(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-md text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-            Clean Stale Applications
-          </button>
-          <button
-            onClick={() => setShowSettingsModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all transform hover:scale-105"
-          >
-            <Settings className="w-4 h-4" />
-            Manage Windows
-          </button>
+          {canDeleteStale && (
+            <button
+              onClick={() => setShowCleanupWarning(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-md text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clean Stale Applications
+            </button>
+          )}
+          {canManageWindows && (
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all transform hover:scale-105"
+            >
+              <Settings className="w-4 h-4" />
+              Manage Windows
+            </button>
+          )}
         </div>
       </div>
 
       {/* Success/Error Message */}
       {message && (
         <div
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg animate-slide-down shadow-lg ${message.type === "success"
-            ? "bg-green-50 text-green-800 border border-green-200"
-            : "bg-red-50 text-red-800 border border-red-200"
-            }`}
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg animate-slide-down shadow-lg ${
+            message.type === "success"
+              ? "bg-green-50 text-green-800 border border-green-200"
+              : "bg-red-50 text-red-800 border border-red-200"
+          }`}
         >
           {message.type === "success" ? (
             <CheckCircle className="w-5 h-5" />
@@ -496,20 +526,22 @@ const AdmissionsPage: React.FC = () => {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab("applications")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${activeTab === "applications"
-              ? "border-teal-500 text-teal-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
+              activeTab === "applications"
+                ? "border-teal-500 text-teal-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
           >
             <FileText className="w-5 h-5" />
             Applications
           </button>
           <button
             onClick={() => setActiveTab("assign-classes")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${activeTab === "assign-classes"
-              ? "border-teal-500 text-teal-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
+              activeTab === "assign-classes"
+                ? "border-teal-500 text-teal-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
           >
             <UserPlus className="w-5 h-5" />
             Assign to Classes
@@ -604,7 +636,12 @@ const AdmissionsPage: React.FC = () => {
                   className="px-3 py-2 border border-gray-300 rounded-md"
                   value={filters.program}
                   onChange={(e) =>
-                    setFilters({ ...filters, program: e.target.value, departmentId: "all", page: 1 })
+                    setFilters({
+                      ...filters,
+                      program: e.target.value,
+                      departmentId: "all",
+                      page: 1,
+                    })
                   }
                 >
                   <option value="all">All Programs</option>
@@ -691,7 +728,7 @@ const AdmissionsPage: React.FC = () => {
           </div>
 
           {/* Bulk Actions */}
-          {selectedIds.length > 0 && (
+          {selectedIds.length > 0 && canBulkUpdate && (
             <div className="bg-teal-50 p-4 rounded-lg flex items-center justify-between border border-teal-200 animate-slide-down">
               <span className="text-sm font-medium text-teal-900 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4" />
@@ -705,7 +742,9 @@ const AdmissionsPage: React.FC = () => {
                       disabled={bulkUpdating}
                       className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-all transform hover:scale-105 disabled:opacity-50 flex items-center gap-2"
                     >
-                      {bulkUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {bulkUpdating && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
                       Approve Selected
                     </button>
                     <button
@@ -713,7 +752,9 @@ const AdmissionsPage: React.FC = () => {
                       disabled={bulkUpdating}
                       className="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-all transform hover:scale-105 disabled:opacity-50 flex items-center gap-2"
                     >
-                      {bulkUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {bulkUpdating && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
                       Reject Selected
                     </button>
                   </>
@@ -776,7 +817,10 @@ const AdmissionsPage: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading ? (
                     <tr>
-                      <td colSpan={filters.status === "pending" ? 9 : 8} className="px-6 py-12 text-center">
+                      <td
+                        colSpan={filters.status === "pending" ? 9 : 8}
+                        className="px-6 py-12 text-center"
+                      >
                         <div className="flex flex-col items-center gap-4">
                           <Loader2 className="w-12 h-12 text-teal-600 animate-spin" />
                           <span className="text-gray-500">
@@ -787,7 +831,10 @@ const AdmissionsPage: React.FC = () => {
                     </tr>
                   ) : students.length === 0 ? (
                     <tr>
-                      <td colSpan={filters.status === "pending" ? 9 : 8} className="px-6 py-12 text-center">
+                      <td
+                        colSpan={filters.status === "pending" ? 9 : 8}
+                        className="px-6 py-12 text-center"
+                      >
                         <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-500 font-medium">
                           No applications found
@@ -821,7 +868,8 @@ const AdmissionsPage: React.FC = () => {
                           {student.name}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {student.allotted_branch && student.allotted_branch !== "Not Assigned"
+                          {student.allotted_branch &&
+                          student.allotted_branch !== "Not Assigned"
                             ? student.allotted_branch
                             : student.preferredDepartment?.name
                               ? student.preferredDepartment.name
@@ -847,46 +895,51 @@ const AdmissionsPage: React.FC = () => {
                             >
                               View
                             </button>
-                            {student.status === "pending" && (
-                              <>
-                                <button
-                                  onClick={() =>
-                                    handleStatusUpdate(student.id, "approved")
-                                  }
-                                  disabled={updating === student.id}
-                                  className="text-green-600 hover:text-green-900 font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
-                                >
-                                  {updating === student.id && (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
+                            {student.status === "pending" &&
+                              canUpdateStatus && (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      handleStatusUpdate(student.id, "approved")
+                                    }
+                                    disabled={updating === student.id}
+                                    className="text-green-600 hover:text-green-900 font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                                  >
+                                    {updating === student.id && (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    )}
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleStatusUpdate(student.id, "rejected")
+                                    }
+                                    disabled={updating === student.id}
+                                    className="text-red-600 hover:text-red-900 font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                                  >
+                                    {updating === student.id && (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    )}
+                                    Reject
+                                  </button>
+                                  {canDelete && (
+                                    <button
+                                      onClick={() =>
+                                        handleDeleteEntry(student.id)
+                                      }
+                                      disabled={updating === student.id}
+                                      className="text-gray-500 hover:text-red-600 font-medium transition-colors disabled:opacity-50 flex items-center gap-1 ml-2"
+                                      title="Permanently Delete Application"
+                                    >
+                                      {updating === student.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                      )}
+                                    </button>
                                   )}
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleStatusUpdate(student.id, "rejected")
-                                  }
-                                  disabled={updating === student.id}
-                                  className="text-red-600 hover:text-red-900 font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
-                                >
-                                  {updating === student.id && (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  )}
-                                  Reject
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteEntry(student.id)}
-                                  disabled={updating === student.id}
-                                  className="text-gray-500 hover:text-red-600 font-medium transition-colors disabled:opacity-50 flex items-center gap-1 ml-2"
-                                  title="Permanently Delete Application"
-                                >
-                                  {updating === student.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                  )}
-                                </button>
-                              </>
-                            )}
+                                </>
+                              )}
                           </div>
                         </td>
                       </tr>
@@ -1004,10 +1057,11 @@ const AdmissionsPage: React.FC = () => {
                           aria-current={
                             filters.page === pageNum ? "page" : undefined
                           }
-                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${filters.page === pageNum
-                            ? "z-10 bg-teal-600 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
-                            : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
-                            }`}
+                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                            filters.page === pageNum
+                              ? "z-10 bg-teal-600 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                              : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                          }`}
                         >
                           {pageNum}
                         </button>
@@ -1348,7 +1402,12 @@ const AdmissionsPage: React.FC = () => {
                   value={assignmentProgramFilter}
                   onChange={(e) => {
                     const newProgram = e.target.value;
-                    const newFilters = { ...filters, program: newProgram, departmentId: "all", page: 1 };
+                    const newFilters = {
+                      ...filters,
+                      program: newProgram,
+                      departmentId: "all",
+                      page: 1,
+                    };
                     setFilters(newFilters);
                     setAssignmentProgramFilter(newProgram);
                   }}
@@ -1431,10 +1490,11 @@ const AdmissionsPage: React.FC = () => {
                       {approvedStudents.map((student) => (
                         <div
                           key={student.id}
-                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${selectedApprovedIds.includes(student.id)
-                            ? "bg-teal-50"
-                            : ""
-                            }`}
+                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                            selectedApprovedIds.includes(student.id)
+                              ? "bg-teal-50"
+                              : ""
+                          }`}
                         >
                           <div className="flex items-start gap-3">
                             <input
@@ -1450,19 +1510,27 @@ const AdmissionsPage: React.FC = () => {
                                 </p>
                                 <div className="text-sm text-gray-500 flex flex-wrap items-center gap-2">
                                   <span>{student.admission_number}</span>
-                                  {student.allotted_branch && student.allotted_branch !== "Not Assigned" && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="text-teal-600 font-medium">
-                                        Branch: {student.allotted_branch}
-                                      </span>
-                                    </>
-                                  )}
+                                  {student.allotted_branch &&
+                                    student.allotted_branch !==
+                                      "Not Assigned" && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="text-teal-600 font-medium">
+                                          Branch: {student.allotted_branch}
+                                        </span>
+                                      </>
+                                    )}
                                   {student.preferredDepartment && (
                                     <>
                                       <span>•</span>
                                       <span className="text-indigo-600 font-medium">
-                                        Preferred: {student.preferredDepartment.name} ({student.preferredDepartment.department_code})
+                                        Preferred:{" "}
+                                        {student.preferredDepartment.name} (
+                                        {
+                                          student.preferredDepartment
+                                            .department_code
+                                        }
+                                        )
                                       </span>
                                     </>
                                   )}
@@ -1548,10 +1616,11 @@ const AdmissionsPage: React.FC = () => {
                                   <div
                                     key={bd.id}
                                     onClick={() => setSelectedDepartment(bd)}
-                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedDepartment?.id === bd.id
-                                      ? "border-teal-500 bg-teal-50"
-                                      : "border-gray-200 hover:border-gray-300"
-                                      }`}
+                                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                                      selectedDepartment?.id === bd.id
+                                        ? "border-teal-500 bg-teal-50"
+                                        : "border-gray-200 hover:border-gray-300"
+                                    }`}
                                   >
                                     <div className="flex items-center justify-between">
                                       <div>
@@ -1615,28 +1684,31 @@ const AdmissionsPage: React.FC = () => {
                         ) : (
                           <>
                             {/* Auto Assign Button */}
-                            <div className="mb-4">
-                              <button
-                                onClick={handleAutoAssign}
-                                disabled={
-                                  assigning || selectedApprovedIds.length === 0
-                                }
-                                className="w-full px-4 py-3 bg-gradient-to-r from-teal-600 to-green-600 text-white rounded-lg hover:from-teal-700 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
-                              >
-                                {assigning ? (
-                                  <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                  <UserPlus className="w-5 h-5" />
-                                )}
-                                Auto-Assign{" "}
-                                {selectedApprovedIds.length > 0
-                                  ? `(${selectedApprovedIds.length} students)`
-                                  : "Selected Students"}
-                              </button>
-                              <p className="text-xs text-gray-500 text-center mt-2">
-                                Distributes students evenly across all classes
-                              </p>
-                            </div>
+                            {canAssignClass && (
+                              <div className="mb-4">
+                                <button
+                                  onClick={handleAutoAssign}
+                                  disabled={
+                                    assigning ||
+                                    selectedApprovedIds.length === 0
+                                  }
+                                  className="w-full px-4 py-3 bg-gradient-to-r from-teal-600 to-green-600 text-white rounded-lg hover:from-teal-700 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+                                >
+                                  {assigning ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                  ) : (
+                                    <UserPlus className="w-5 h-5" />
+                                  )}
+                                  Auto-Assign{" "}
+                                  {selectedApprovedIds.length > 0
+                                    ? `(${selectedApprovedIds.length} students)`
+                                    : "Selected Students"}
+                                </button>
+                                <p className="text-xs text-gray-500 text-center mt-2">
+                                  Distributes students evenly across all classes
+                                </p>
+                              </div>
+                            )}
 
                             <div className="border-t pt-4">
                               <p className="text-sm text-gray-600 mb-3">
@@ -1657,18 +1729,20 @@ const AdmissionsPage: React.FC = () => {
                                         {cls._count.students !== 1 ? "s" : ""}
                                       </p>
                                     </div>
-                                    <button
-                                      onClick={() =>
-                                        handleAssignToClass(cls.id, cls.name)
-                                      }
-                                      disabled={
-                                        assigning ||
-                                        selectedApprovedIds.length === 0
-                                      }
-                                      className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      Assign
-                                    </button>
+                                    {canAssignClass && (
+                                      <button
+                                        onClick={() =>
+                                          handleAssignToClass(cls.id, cls.name)
+                                        }
+                                        disabled={
+                                          assigning ||
+                                          selectedApprovedIds.length === 0
+                                        }
+                                        className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Assign
+                                      </button>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -1743,7 +1817,10 @@ const AdmissionsPage: React.FC = () => {
               Confirm Manual Cleanup
             </h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to permanently delete all <strong>pending</strong>, <strong>rejected</strong>, and <strong>waitlisted</strong> applications? This action cannot be undone.
+              Are you sure you want to permanently delete all{" "}
+              <strong>pending</strong>, <strong>rejected</strong>, and{" "}
+              <strong>waitlisted</strong> applications? This action cannot be
+              undone.
             </p>
             <div className="flex justify-end gap-3">
               <button

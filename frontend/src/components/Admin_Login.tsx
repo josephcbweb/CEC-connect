@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail } from "lucide-react";
 import Logo from "../assets/logo.png";
@@ -31,6 +32,7 @@ const MessageAlert = ({ message, type }: MessageAlertProps) => {
 
 // Main Login Component
 const Login = () => {
+  usePageTitle("Admin Login");
   const navigate = useNavigate();
   const handleBack = () => {
     navigate("/");
