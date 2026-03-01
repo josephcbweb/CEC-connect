@@ -14,7 +14,7 @@ const getAuthHeader = () => {
 
 export const certificateService = {
   // Student: Submit request
-  submitRequest: async (data: CertificateRequest): Promise<Certificate> => {
+  submitRequest: async (data: CertificateRequest): Promise<Certificate & { warning?: string }> => {
     try {
       console.log("Submitting certificate request:", data);
       
@@ -25,17 +25,27 @@ export const certificateService = {
       );
       
       console.log("Submit response:", response.data);
-      return response.data.certificate || response.data;
+      
+      // Return the certificate data along with any warnings
+      return {
+        ...(response.data.certificate || response.data),
+        warning: response.data.warning
+      };
     } catch (error: unknown) {
       console.error("Error submitting request:", error);
       
       if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<{ error: string; details?: string }>;
+        const axiosError = error as AxiosError<{ error: string; details?: string; code?: string }>;
         
         const serverError = axiosError.response?.data?.error;
+        const errorCode = axiosError.response?.data?.code;
         
         if (serverError) {
-          throw new Error(serverError);
+          // Create a more descriptive error message
+          const errorMessage = errorCode === 'NEXT_APPROVER_MISSING' 
+            ? serverError
+            : serverError;
+          throw new Error(errorMessage);
         }
         
         if (axiosError.message === 'Network Error') {
@@ -115,7 +125,14 @@ export const certificateService = {
       console.error("Error processing certificate:", error);
       
       if (axios.isAxiosError(error)) {
-        throw new Error(error.response?.data?.error || "Failed to process certificate");
+        const axiosError = error as AxiosError<{ error: string; code?: string }>;
+        
+        // Check if it's the special "NEXT_APPROVER_MISSING" error
+        if (axiosError.response?.data?.code === 'NEXT_APPROVER_MISSING') {
+          throw new Error(axiosError.response.data.error);
+        }
+        
+        throw new Error(axiosError.response?.data?.error || "Failed to process certificate");
       }
       
       if (error instanceof Error) {
