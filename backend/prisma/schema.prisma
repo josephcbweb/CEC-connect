@@ -28,9 +28,7 @@ model User {
   assignedDueTypes      ServiceDepartment[] @relation("AssignedDueTypes")
   students              Student[]
   userRoles             UserRole[]
-  assignedDueTypes      ServiceDepartment[] @relation("AssignedDueTypes")
   deviceTokens          DeviceToken[]       @relation("UserDeviceTokens")
-
   @@map("users")
 }
 
