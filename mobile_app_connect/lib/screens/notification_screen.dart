@@ -17,6 +17,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   Timer? _timer;
+  bool _showAll = false; // Track whether to show all notifications or just 5
 
   @override
   void initState() {
@@ -46,6 +47,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
           _notifications = notifications;
           _isLoading = false;
           _errorMessage = null;
+          // Reset to show only 5 notifications when refreshing
+          if (!silent) {
+            _showAll = false;
+          }
         });
       }
     } catch (e) {
@@ -123,10 +128,73 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   : RefreshIndicator(
                       onRefresh: () => _fetchNotifications(),
                       child: ListView.separated(
-                        itemCount: _notifications.length,
-                        separatorBuilder: (context, index) =>
-                            const Divider(height: 1),
+                        itemCount: _showAll
+                            ? _notifications.length +
+                                1 // +1 for "Show Less" button
+                            : (_notifications.length > 5
+                                ? 6 // 5 notifications + "View More" button
+                                : _notifications.length),
+                        separatorBuilder: (context, index) {
+                          // Don't show divider after the last item (button)
+                          final displayCount = _showAll
+                              ? _notifications.length
+                              : (_notifications.length > 5
+                                  ? 5
+                                  : _notifications.length);
+                          if (index >= displayCount - 1) {
+                            return const SizedBox.shrink();
+                          }
+                          return const Divider(height: 1);
+                        },
                         itemBuilder: (context, index) {
+                          // Determine how many notifications to actually display
+                          final displayCount = _showAll
+                              ? _notifications.length
+                              : (_notifications.length > 5
+                                  ? 5
+                                  : _notifications.length);
+
+                          // If this is beyond the notification items, show the button
+                          if (index >= displayCount) {
+                            return Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Center(
+                                child: _showAll
+                                    ? TextButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            _showAll = false;
+                                          });
+                                        },
+                                        icon: const Icon(Icons.expand_less),
+                                        label: const Text('Show Less'),
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 24, vertical: 12),
+                                          backgroundColor: Colors.blue.shade50,
+                                          foregroundColor: Colors.blue.shade800,
+                                        ),
+                                      )
+                                    : ElevatedButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            _showAll = true;
+                                          });
+                                        },
+                                        icon: const Icon(Icons.expand_more),
+                                        label: Text(
+                                            'View More (${_notifications.length - 5} more)'),
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 24, vertical: 12),
+                                          backgroundColor: Colors.blue.shade800,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                              ),
+                            );
+                          }
+
                           final notification = _notifications[index];
                           // Handling 'description' from backend which maps to 'message' in requirements
                           final message = notification['description'] ??

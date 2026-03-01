@@ -921,16 +921,27 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
       const senderId = adminUser ? adminUser.id : 1;
 
       const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 2); // 2 days from now
+      expiryDate.setDate(expiryDate.getDate() + 7); // 7 days from now
       expiryDate.setUTCHours(23, 59, 59, 999);
+
+      // Create notification with appropriate message based on status
+      const notificationData = status === "approved" 
+        ? {
+            title: "Bus Service Request Approved",
+            description: `Your bus service request has been approved! A bus fee invoice of ₹${request.busStop.feeAmount} has been generated. Please proceed to the Fees section to complete the payment.`,
+            priority: "IMPORTANT" as NotificationPriority,
+          }
+        : {
+            title: "Bus Service Request Rejected",
+            description: "Your request for bus service has been rejected. Please contact the admin for more details.",
+            priority: "NORMAL" as NotificationPriority,
+          };
 
       await tx.notification.create({
         data: {
-          title: `Bus Request ${status === "approved" ? "Approved" : "Rejected"}`,
-          description: `Your request for bus service has been ${status}.`,
+          ...notificationData,
           targetType: "STUDENT",
           targetValue: request.studentId.toString(),
-          priority: "NORMAL",
           status: "published",
           expiryDate: expiryDate,
           senderId: senderId,
@@ -980,6 +991,39 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
           busId: busRequest.busId,
           busStopId: busRequest.busStopId,
         },
+        include: {
+          bus: { select: { busName: true, busNumber: true } },
+          busStop: { select: { stopName: true } },
+        },
+      });
+
+      // 3. Create activation notification
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+
+      const notificationExpiry = new Date();
+      notificationExpiry.setDate(notificationExpiry.getDate() + 30); // Notification visible for 30 days
+      notificationExpiry.setUTCHours(23, 59, 59, 999);
+
+      // Format semester display
+      const currentSemester = updatedStudent.currentSemester;
+      const semesterText = currentSemester ? `Semester ${currentSemester}` : 'this academic period';
+      const busInfo = updatedStudent.bus?.busName 
+        ? `${updatedStudent.bus.busName}${updatedStudent.bus.busNumber ? ' (' + updatedStudent.bus.busNumber + ')' : ''}`
+        : 'the assigned bus';
+      const stopInfo = updatedStudent.busStop?.stopName || 'your stop';
+
+      await tx.notification.create({
+        data: {
+          title: "Bus Service Activated",
+          description: `Your bus service has been successfully activated! You can now use ${busInfo} from ${stopInfo} until the end of ${semesterText}. Have a safe journey!`,
+          targetType: "STUDENT",
+          targetValue: invoice.studentId.toString(),
+          priority: "IMPORTANT",
+          status: "published",
+          expiryDate: notificationExpiry,
+          senderId: senderId,
+        }
       });
 
       return { invoice, updatedStudent };

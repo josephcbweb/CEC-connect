@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../components/app_drawer.dart';
@@ -16,20 +17,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _apiService = ApiService();
   late Future<Map<String, dynamic>> _studentProfile;
   bool _hasUnreadNotifications = false;
+  Timer? _notificationCheckTimer;
 
   @override
   void initState() {
     super.initState();
     _studentProfile = _apiService.getStudentProfile(widget.userId);
     _checkNotifications();
+
+    // Poll for new notifications every 30 seconds
+    _notificationCheckTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (timer) => _checkNotifications(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _notificationCheckTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkNotifications() async {
     try {
       final notifications = await _apiService.getNotifications();
       if (mounted) {
+        // Check if there are any unread notifications
+        final hasUnread = notifications.any(
+          (notification) =>
+              notification['status']?.toString().toLowerCase() == 'unread',
+        );
         setState(() {
-          _hasUnreadNotifications = notifications.isNotEmpty;
+          _hasUnreadNotifications = hasUnread;
         });
       }
     } catch (e) {
@@ -58,12 +77,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications_none_rounded),
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  // Clear the badge immediately when tapping
+                  setState(() {
+                    _hasUnreadNotifications = false;
+                  });
+
+                  // Open notification screen
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) => const NotificationScreen()),
-                  ).then((_) => _checkNotifications());
+                  );
+
+                  // Re-check notifications when returning
+                  _checkNotifications();
                 },
               ),
               if (_hasUnreadNotifications)
@@ -73,9 +101,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Container(
                     width: 10,
                     height: 10,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: Colors.red,
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withOpacity(0.5),
+                          blurRadius: 4,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                   ),
                 ),

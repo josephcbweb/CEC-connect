@@ -143,7 +143,7 @@ class AppDrawer extends StatelessWidget {
   Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+      padding: const EdgeInsets.fromLTRB(16, 50, 24, 24),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -155,6 +155,27 @@ class AppDrawer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Close drawer button
+          Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => Navigator.pop(context),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    Icons.menu,
+                    size: 24,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // App logo
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
