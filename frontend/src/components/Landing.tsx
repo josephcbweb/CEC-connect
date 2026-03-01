@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { Link } from "react-router-dom";
 import Logo from "../assets/logo.png";
 import axios from "axios";
@@ -25,6 +26,7 @@ interface Department {
 }
 
 export const Landing: React.FC = () => {
+  usePageTitle();
   const sectionRefs = useRef<SectionRefs>({});
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [departments, setDepartments] = useState<Department[]>([]);

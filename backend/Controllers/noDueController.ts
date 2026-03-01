@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { verifyToken } from "../utils/jwt";
+import type { AuthenticatedRequest } from "../utils/types";
+import { logAudit } from "../utils/auditLogger";
 import {
   ApprovalStatus,
   CourseType,
@@ -34,7 +36,9 @@ export const registerSemester = async (
     }
 
     if (student.status === "graduated") {
-      res.status(400).json({ message: "Cannot generate dues for graduated students" });
+      res
+        .status(400)
+        .json({ message: "Cannot generate dues for graduated students" });
       return;
     }
 
@@ -220,6 +224,15 @@ export const registerSemester = async (
       },
     );
 
+    await logAudit({
+      req,
+      action: "REGISTER_SEMESTER",
+      module: "due",
+      entityType: "NoDueRequest",
+      entityId: result?.id,
+      details: { studentId, courseIds, targetSemester, hostelService },
+    });
+
     res
       .status(201)
       .json({ message: "Semester registration successful", request: result });
@@ -233,7 +246,7 @@ export const registerSemester = async (
 
 // 3.2 GET /api/staff/approvals
 export const getPendingApprovals = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> => {
   try {
@@ -244,26 +257,57 @@ export const getPendingApprovals = async (
       type,
       program,
       departmentId,
-      userId: queryUserId,
       page = 1,
       limit = 10,
     } = req.query;
 
-    // Authorization Check: If userId is provided, check if they are limited to specific courses
-    const userId = queryUserId ? Number(queryUserId) : null;
-    let isSubjectStaff = false;
+    // Get the authenticated user's ID from JWT
+    const authUser = req.user as { userId?: number } | undefined;
+    const userId = authUser?.userId ?? null;
+
+    if (!userId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    // Check if the user is an admin
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        courses: true,
+        userRoles: { include: { role: true } },
+      },
+    });
+
+    if (!dbUser) {
+      res.status(401).json({ message: "User not found" });
+      return;
+    }
+
+    const isAdmin = dbUser.userRoles.some(
+      (ur) =>
+        ur.role.name.toLowerCase() === "admin" ||
+        ur.role.name.toLowerCase() === "super admin",
+    );
+
+    // For non-admin users, determine what they can see
     let allowedCourseIds: number[] = [];
+    let allowedServiceDeptIds: number[] = [];
+    const isSubjectStaff =
+      !isAdmin && dbUser.courses && dbUser.courses.length > 0;
 
-    if (userId) {
-      const staffUser = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { courses: true },
-      });
-
-      if (staffUser && staffUser.courses && staffUser.courses.length > 0) {
-        isSubjectStaff = true;
-        allowedCourseIds = staffUser.courses.map((c) => c.id);
+    if (!isAdmin) {
+      // Get courses the user is linked to
+      if (dbUser.courses && dbUser.courses.length > 0) {
+        allowedCourseIds = dbUser.courses.map((c) => c.id);
       }
+
+      // Get service departments the user is assigned to
+      const assignedServiceDepts = await prisma.serviceDepartment.findMany({
+        where: { assignedUserId: userId },
+        select: { id: true },
+      });
+      allowedServiceDeptIds = assignedServiceDepts.map((sd) => sd.id);
     }
 
     const whereClause: any = {
@@ -314,9 +358,34 @@ export const getPendingApprovals = async (
       };
     }
 
-    // Apply Subject Staff limitation common filter
-    if (isSubjectStaff) {
-      whereClause.courseId = { in: allowedCourseIds };
+    // Apply user-based filtering for non-admin users
+    if (!isAdmin) {
+      // Non-admin users can only see dues for their linked courses or assigned service departments
+      const orConditions: any[] = [];
+      if (allowedCourseIds.length > 0) {
+        orConditions.push({ courseId: { in: allowedCourseIds } });
+      }
+      if (allowedServiceDeptIds.length > 0) {
+        orConditions.push({
+          serviceDepartmentId: { in: allowedServiceDeptIds },
+        });
+      }
+
+      if (orConditions.length > 0) {
+        whereClause.OR = orConditions;
+      } else {
+        // User has no linked courses or service departments — return empty results
+        res.json({
+          data: [],
+          pagination: {
+            total: 0,
+            page: Number(page),
+            limit: Number(limit),
+            totalPages: 0,
+          },
+        });
+        return;
+      }
     }
 
     // Filter by status
@@ -410,18 +479,70 @@ export const getPendingApprovals = async (
 };
 
 // Helper to clear a due
-export const clearDue = async (req: Request, res: Response): Promise<void> => {
+export const clearDue = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params; // noDueId
-    const { userId } = req.body;
-
-    console.log("clearDue called with id:", id, "userId:", userId);
+    const authUser = req.user as { userId?: number } | undefined;
+    const userId = authUser?.userId;
 
     if (!userId) {
-      console.log("userId missing, sending 400");
-      res.status(400).json({ message: "User ID is required" });
+      res.status(401).json({ message: "Authentication required" });
       return;
     }
+
+    // Verify the user is authorized to clear this due
+    const noDueEntry = await prisma.noDue.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        course: true,
+        serviceDepartment: true,
+      },
+    });
+
+    if (!noDueEntry) {
+      res.status(404).json({ message: "Due not found" });
+      return;
+    }
+
+    // Check if user is admin
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        courses: true,
+        userRoles: { include: { role: true } },
+      },
+    });
+
+    const isAdmin = dbUser?.userRoles.some(
+      (ur) =>
+        ur.role.name.toLowerCase() === "admin" ||
+        ur.role.name.toLowerCase() === "super admin",
+    );
+
+    if (!isAdmin) {
+      // Verify user owns this due's course or service department
+      let authorized = false;
+
+      if (noDueEntry.courseId && dbUser?.courses) {
+        authorized = dbUser.courses.some((c) => c.id === noDueEntry.courseId);
+      }
+
+      if (noDueEntry.serviceDepartmentId && noDueEntry.serviceDepartment) {
+        authorized = noDueEntry.serviceDepartment.assignedUserId === userId;
+      }
+
+      if (!authorized) {
+        res
+          .status(403)
+          .json({ message: "You are not authorized to clear this due" });
+        return;
+      }
+    }
+
+    console.log("clearDue called with id:", id, "userId:", userId);
 
     const updatedNoDue = await prisma.noDue.update({
       where: { id: parseInt(id) },
@@ -436,20 +557,22 @@ export const clearDue = async (req: Request, res: Response): Promise<void> => {
       },
       include: {
         request: {
-          include: { student: true }
+          include: { student: true },
         },
         course: true,
         department: true,
-        serviceDepartment: true
-      }
+        serviceDepartment: true,
+      },
     });
 
     // Send notification to student
     if (updatedNoDue.request?.student) {
       let entityName = "Academic Due";
       if (updatedNoDue.course) entityName = updatedNoDue.course.name;
-      else if (updatedNoDue.serviceDepartment) entityName = updatedNoDue.serviceDepartment.name;
-      else if (updatedNoDue.department) entityName = `${updatedNoDue.department.name} Clearance`;
+      else if (updatedNoDue.serviceDepartment)
+        entityName = updatedNoDue.serviceDepartment.name;
+      else if (updatedNoDue.department)
+        entityName = `${updatedNoDue.department.name} Clearance`;
 
       await prisma.notification.create({
         data: {
@@ -459,8 +582,8 @@ export const clearDue = async (req: Request, res: Response): Promise<void> => {
           targetValue: updatedNoDue.request.student.id.toString(),
           status: "published",
           priority: "NORMAL",
-          senderId: Number(userId)
-        }
+          senderId: Number(userId),
+        },
       });
     }
 
@@ -483,6 +606,24 @@ export const clearDue = async (req: Request, res: Response): Promise<void> => {
         data: { status: RequestStatus.approved },
       });
     }
+
+    await logAudit({
+      req,
+      action: "CLEAR_DUE",
+      module: "due",
+      entityType: "NoDue",
+      entityId: id,
+      userId,
+      details: {
+        requestId: updatedNoDue.requestId,
+        studentId: updatedNoDue.request?.student?.id,
+        studentName: updatedNoDue.request?.student?.name,
+        dueType:
+          updatedNoDue.course?.name ||
+          updatedNoDue.serviceDepartment?.name ||
+          "Academic",
+      },
+    });
 
     res.json({ message: "Due cleared", noDue: updatedNoDue });
   } catch (error: any) {
@@ -573,6 +714,10 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
       return;
     }
 
+    console.log(
+      `[Bulk Initiate] targetSemester: ${targetSemester}, targetProgram: ${targetProgram}`,
+    );
+
     // 1. Find eligible students
     const students = await prisma.student.findMany({
       where: {
@@ -581,6 +726,7 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
         status: StudentStatus.approved,
       },
     });
+    console.log(`[Bulk Initiate] Found ${students.length} eligible students`);
 
     // 2. Find default due configs for this semester + program
     const configs = await prisma.dueConfiguration.findMany({
@@ -591,6 +737,7 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
       },
       include: { serviceDepartment: true },
     });
+    console.log(`[Bulk Initiate] Found ${configs.length} default due configs`);
 
     let count = 0;
     for (const student of students) {
@@ -608,31 +755,13 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
         continue; // Already initiated with dues
       }
 
-      let requestId: number;
-      if (existing) {
-        requestId = existing.id;
-        count++;
-      } else {
-        // Create new request
-        const request = await prisma.noDueRequest.create({
-          data: {
-            studentId: student.id,
-            targetSemester: targetSemester,
-            reason: "Semester Registration (Bulk)",
-            status: "pending",
-          },
-        });
-        requestId = request.id;
-        count++;
-      }
-
       const duesToCreate: any[] = [];
 
+      // Figure out if we need to create any dues beforehand
       // 4. Default Due entries
       for (const config of configs) {
         if (config.serviceDepartmentId) {
           duesToCreate.push({
-            requestId,
             serviceDepartmentId: config.serviceDepartmentId,
             status: NoDueStatus.pending,
           });
@@ -648,21 +777,63 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
             isActive: true,
           },
         });
+        console.log(
+          `[Bulk Initiate] Found ${courses.length} courses for student ${student.id}, dept ${student.departmentId}`,
+        );
 
         for (const course of courses) {
           duesToCreate.push({
-            requestId,
             courseId: course.id,
             departmentId: course.departmentId,
             status: NoDueStatus.pending,
             comments: `Course: ${course.name}`,
           });
         }
+      } else {
+        console.log(
+          `[Bulk Initiate] Student ${student.id} has no departmentId`,
+        );
       }
 
-      if (duesToCreate.length > 0) {
-        await prisma.noDue.createMany({ data: duesToCreate });
+      // Skip creating a request entirely if there's no Due configs and no Courses mapped!
+      if (duesToCreate.length === 0) {
+        console.warn(
+          `[Bulk Initiate] WARNING: No dues found for student ${student.id} (no configs, no courses). Skipping!`,
+        );
+        continue; // Skip without incrementing count!
       }
+
+      let requestId: number;
+      if (existing) {
+        requestId = existing.id;
+        console.log(
+          `[Bulk Initiate] Re-using existing request ID: ${requestId} for student ${student.id}`,
+        );
+      } else {
+        // Create new request
+        const request = await prisma.noDueRequest.create({
+          data: {
+            studentId: student.id,
+            targetSemester: targetSemester,
+            reason: "Semester Registration (Bulk)",
+            status: "pending",
+          },
+        });
+        requestId = request.id;
+        console.log(
+          `[Bulk Initiate] Created new request ID: ${requestId} for student ${student.id}`,
+        );
+      }
+
+      count++;
+
+      // Mapped out requestId
+      const finalDuesToCreate = duesToCreate.map((d) => ({ ...d, requestId }));
+
+      console.log(
+        `[Bulk Initiate] Creating ${finalDuesToCreate.length} dues for student ${student.id}`,
+      );
+      await prisma.noDue.createMany({ data: finalDuesToCreate });
 
       // 6. Queue email
       if (student.email) {
@@ -679,7 +850,26 @@ export const bulkInitiateNoDue = async (req: Request, res: Response) => {
       }
     }
 
-    res.json({ message: `Initiated for ${count} students` });
+    if (count === 0 && students.length > 0) {
+      return res.status(400).json({
+        message:
+          "Failed to initiate: No 'Default Dues' configured in Settings, and no Courses found for this semester. No dues to assign.",
+      });
+    }
+
+    await logAudit({
+      req,
+      action: "BULK_INITIATE_NODUE",
+      module: "due",
+      entityType: "NoDueRequest",
+      details: {
+        semester: targetSemester,
+        program: targetProgram,
+        studentsInitiated: count,
+      },
+    });
+
+    res.json({ message: `Successfully initiated dues for ${count} students` });
   } catch (error) {
     console.error("Error bulk initiating:", error);
     res.status(500).json({ message: "Failed to initiate bulk no due" });
@@ -733,11 +923,13 @@ export const bulkInitiateCheck = async (req: Request, res: Response) => {
 
 // 3.8 POST /api/staff/bulk-clear
 export const bulkClearDues = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> => {
   try {
-    const { dueIds, userId } = req.body; // Expecting array of due IDs
+    const { dueIds } = req.body; // Expecting array of due IDs
+    const authUser = req.user as { userId?: number } | undefined;
+    const userId = authUser?.userId;
 
     if (!dueIds || !Array.isArray(dueIds) || dueIds.length === 0) {
       res.status(400).json({ message: "No due IDs provided" });
@@ -745,8 +937,53 @@ export const bulkClearDues = async (
     }
 
     if (!userId) {
-      res.status(400).json({ message: "User ID is required" });
+      res.status(401).json({ message: "Authentication required" });
       return;
+    }
+
+    // Check if user is admin
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        courses: true,
+        userRoles: { include: { role: true } },
+      },
+    });
+
+    const isAdmin = dbUser?.userRoles.some(
+      (ur) =>
+        ur.role.name.toLowerCase() === "admin" ||
+        ur.role.name.toLowerCase() === "super admin",
+    );
+
+    // For non-admin users, verify they own all the dues they're trying to clear
+    if (!isAdmin) {
+      const duesToVerify = await prisma.noDue.findMany({
+        where: { id: { in: dueIds } },
+        include: {
+          course: true,
+          serviceDepartment: true,
+        },
+      });
+
+      const userCourseIds = new Set(dbUser?.courses?.map((c) => c.id) || []);
+
+      for (const due of duesToVerify) {
+        let authorized = false;
+        if (due.courseId) {
+          authorized = userCourseIds.has(due.courseId);
+        }
+        if (due.serviceDepartmentId && due.serviceDepartment) {
+          authorized = due.serviceDepartment.assignedUserId === userId;
+        }
+        if (!authorized) {
+          res.status(403).json({
+            message:
+              "You are not authorized to clear one or more of these dues",
+          });
+          return;
+        }
+      }
     }
 
     // Fetch details of all dues being cleared to notify students
@@ -757,12 +994,12 @@ export const bulkClearDues = async (
       },
       include: {
         request: {
-          include: { student: true }
+          include: { student: true },
         },
         course: true,
         department: true,
-        serviceDepartment: true
-      }
+        serviceDepartment: true,
+      },
     });
 
     // Update all provided dues to cleared
@@ -778,13 +1015,14 @@ export const bulkClearDues = async (
 
     // Send notifications to students
     const studentNotificationsMap = new Map<number, string[]>();
-    duesToClear.forEach(due => {
+    duesToClear.forEach((due) => {
       if (due.request?.student) {
         const studentId = due.request.student.id;
         let entityName = "Academic Due";
         if (due.course) entityName = due.course.name;
         else if (due.serviceDepartment) entityName = due.serviceDepartment.name;
-        else if (due.department) entityName = `${due.department.name} Clearance`;
+        else if (due.department)
+          entityName = `${due.department.name} Clearance`;
 
         if (!studentNotificationsMap.has(studentId)) {
           studentNotificationsMap.set(studentId, []);
@@ -794,7 +1032,10 @@ export const bulkClearDues = async (
     });
 
     // Create notifications for each student
-    for (const [studentId, clearedEntities] of studentNotificationsMap.entries()) {
+    for (const [
+      studentId,
+      clearedEntities,
+    ] of studentNotificationsMap.entries()) {
       const entitiesList = clearedEntities.join(", ");
       await prisma.notification.create({
         data: {
@@ -804,8 +1045,8 @@ export const bulkClearDues = async (
           targetValue: studentId.toString(),
           status: "published",
           priority: "NORMAL",
-          senderId: Number(userId)
-        }
+          senderId: Number(userId),
+        },
       });
     }
 
@@ -845,6 +1086,15 @@ export const bulkClearDues = async (
         });
       }
     }
+
+    await logAudit({
+      req,
+      action: "BULK_CLEAR_DUES",
+      module: "due",
+      entityType: "NoDue",
+      userId,
+      details: { dueIds, count: dueIds.length },
+    });
 
     res.json({ message: `Successfully cleared ${dueIds.length} dues` });
   } catch (error: any) {

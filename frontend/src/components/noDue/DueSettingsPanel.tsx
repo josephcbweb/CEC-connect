@@ -32,15 +32,23 @@ const DueSettingsPanel = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProgram, setSelectedProgram] = useState("BTECH");
-  const [selectedSemesterForAdd, setSelectedSemesterForAdd] = useState<number | null>(null);
+  const [selectedSemesterForAdd, setSelectedSemesterForAdd] = useState<
+    number | null
+  >(null);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newDueData, setNewDueData] = useState({ name: "", assignedUserId: "" });
+  const [newDueData, setNewDueData] = useState({
+    name: "",
+    assignedUserId: "",
+  });
   const [creatingDue, setCreatingDue] = useState(false);
   const [deletingDeptId, setDeletingDeptId] = useState<number | null>(null);
   const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
-  const [editDeptData, setEditDeptData] = useState({ name: "", assignedUserId: "" });
+  const [editDeptData, setEditDeptData] = useState({
+    name: "",
+    assignedUserId: "",
+  });
   const [updatingDept, setUpdatingDept] = useState(false);
 
   useEffect(() => {
@@ -53,11 +61,12 @@ const DueSettingsPanel = () => {
     setLoading(false);
   };
 
-
   const fetchDepartments = async () => {
     try {
+      const token = localStorage.getItem("authToken");
       const res = await fetch(
         `http://localhost:3000/settings/service-departments?program=${selectedProgram}`,
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.ok) setDepartments(await res.json());
     } catch (error) {
@@ -67,7 +76,10 @@ const DueSettingsPanel = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("http://localhost:3000/settings/users");
+      const token = localStorage.getItem("authToken");
+      const res = await fetch("http://localhost:3000/settings/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) setUsers(await res.json());
     } catch (error) {
       console.error("Failed to fetch users", error);
@@ -79,6 +91,11 @@ const DueSettingsPanel = () => {
     try {
       const res = await fetch(
         `http://localhost:3000/settings/due-configs?program=${selectedProgram}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
+        },
       );
       if (res.ok) {
         const data = await res.json();
@@ -96,7 +113,10 @@ const DueSettingsPanel = () => {
     try {
       const res = await fetch("http://localhost:3000/settings/due-configs", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
         body: JSON.stringify({
           semester,
           serviceDepartmentId: deptId,
@@ -119,6 +139,9 @@ const DueSettingsPanel = () => {
     try {
       await fetch(`http://localhost:3000/settings/due-configs/${id}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
       });
       await fetchConfigs();
     } catch (error) {
@@ -136,7 +159,10 @@ const DueSettingsPanel = () => {
         "http://localhost:3000/settings/service-departments",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
           body: JSON.stringify({
             name: newDueData.name,
             program: selectedProgram,
@@ -166,7 +192,10 @@ const DueSettingsPanel = () => {
         `http://localhost:3000/settings/service-departments/${id}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
           body: JSON.stringify({
             name: editDeptData.name,
             program: selectedProgram,
@@ -203,6 +232,9 @@ const DueSettingsPanel = () => {
         `http://localhost:3000/settings/service-departments/${id}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
         },
       );
       if (res.ok) {
@@ -239,10 +271,11 @@ const DueSettingsPanel = () => {
           <button
             key={prog}
             onClick={() => setSelectedProgram(prog)}
-            className={`px-6 py-3 font-medium text-sm transition-all relative ${selectedProgram === prog
-              ? "text-emerald-600"
-              : "text-slate-500 hover:text-slate-700"
-              }`}
+            className={`px-6 py-3 font-medium text-sm transition-all relative ${
+              selectedProgram === prog
+                ? "text-emerald-600"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
           >
             {prog === "BTECH" ? "B.Tech" : prog === "MTECH" ? "M.Tech" : "MCA"}
             {selectedProgram === prog && (
@@ -325,10 +358,11 @@ const DueSettingsPanel = () => {
           {departments.map((dept) => (
             <div
               key={dept.id}
-              className={`flex flex-col p-4 bg-slate-50 border rounded-xl transition-all ${editingDeptId === dept.id
-                ? "border-emerald-400 shadow-md ring-2 ring-emerald-500/20"
-                : "border-slate-200 hover:border-emerald-200 group"
-                }`}
+              className={`flex flex-col p-4 bg-slate-50 border rounded-xl transition-all ${
+                editingDeptId === dept.id
+                  ? "border-emerald-400 shadow-md ring-2 ring-emerald-500/20"
+                  : "border-slate-200 hover:border-emerald-200 group"
+              }`}
             >
               {editingDeptId === dept.id ? (
                 <div className="space-y-3">
@@ -382,7 +416,9 @@ const DueSettingsPanel = () => {
               ) : (
                 <div className="flex items-center justify-between w-full">
                   <div className="flex flex-col">
-                    <span className="text-slate-900 font-medium">{dept.name}</span>
+                    <span className="text-slate-900 font-medium">
+                      {dept.name}
+                    </span>
                     <span className="text-xs text-slate-500">
                       {dept.assignedUser
                         ? `Assigned to: ${dept.assignedUser.username}`

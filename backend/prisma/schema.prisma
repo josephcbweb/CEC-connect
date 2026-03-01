@@ -16,18 +16,18 @@ model User {
   lastLogin             DateTime?           @map("last_login")
   createdAt             DateTime            @default(now()) @map("created_at")
   updatedAt             DateTime            @updatedAt @map("updated_at")
-  advisedClass          Class?              @relation("ClassAdvisor")
   advisorDetails        AdvisorDetails?
   auditLogs             AuditLog[]
+  advisedClass          Class?              @relation("ClassAdvisor")
   courses               Course[]
   hodDetails            HodDetails?
   approvals             NoDueApproval[]
   receivedNotifications Notification[]      @relation("ReceivedNotifications")
   sentNotifications     Notification[]      @relation("SentNotifications")
   principalDetails      PrincipalDetails?
+  assignedDueTypes      ServiceDepartment[] @relation("AssignedDueTypes")
   students              Student[]
   userRoles             UserRole[]
-  assignedDueTypes      ServiceDepartment[] @relation("AssignedDueTypes")
 
   @@map("users")
 }
@@ -89,16 +89,12 @@ model Student {
   blood_group                         String?
   student_phone_number                String          @unique
   permanent_address                   String
-  permanent_pincode                   String?
   contact_address                     String
-  contact_pincode                     String?
   state_of_residence                  String
   aadhaar_number                      String          @unique
   fatherName                          String?
-  father_occupation                   String? // Added
   father_phone_number                 String?
   motherName                          String?
-  mother_occupation                   String? // Added
   mother_phone_number                 String?
   parent_email                        String?
   annual_family_income                Decimal?
@@ -115,13 +111,12 @@ model Student {
   admission_date                      DateTime?
   admission_type                      AdmissionType   @default(regular)
   category                            String?
-  caste                               String? // Added caste field
+  caste                               String?
   allotted_branch                     String
   is_fee_concession_eligible          Boolean         @default(false)
   last_institution                    String
   tc_number                           String?
   tc_date                             DateTime?
-  tc_issued_by                        String? // Added tc_issued_by
   qualifying_exam_name                String
   qualifying_exam_register_no         String
   percentage                          Float?
@@ -147,20 +142,25 @@ model Student {
   passout_year                        Int?
   classId                             Int?            @map("class_id")
   hostelId                            Int?            @map("hostel_id")
-  is_bus_pass_suspended               Boolean         @default(false)
+  contact_pincode                     String?
+  permanent_pincode                   String?
+  father_occupation                   String?
+  mother_occupation                   String?
+  tc_issued_by                        String?
   bus_pass_suspended_until            DateTime?
-  hostel                              Hostel?         @relation(fields: [hostelId], references: [id])
-  hostelHistory                       HostelHistory[]
-  class                               Class?          @relation(fields: [classId], references: [id])
+  is_bus_pass_suspended               Boolean         @default(false)
+  busRequests                         BusRequest[]
   certificates                        Certificate[]
   feeDetails                          FeeDetails[]
+  hostelHistory                       HostelHistory[]
   invoices                            Invoice[]
   requests                            NoDueRequest[]
   users                               User?           @relation(fields: [advisorId], references: [id])
   bus                                 Bus?            @relation(fields: [busId], references: [id])
   busStop                             BusStop?        @relation(fields: [busStopId], references: [id])
-  busRequests                         BusRequest[]
+  class                               Class?          @relation(fields: [classId], references: [id])
   department                          Department?     @relation("StudentDepartment", fields: [departmentId], references: [id])
+  hostel                              Hostel?         @relation(fields: [hostelId], references: [id])
   preferredDepartment                 Department?     @relation("StudentPreferredDepartment", fields: [preferredDepartmentId], references: [id])
 
   @@map("students")
@@ -169,18 +169,18 @@ model Student {
 model Department {
   id                  Int               @id @default(autoincrement()) @map("department_id")
   name                String            @map("department_name")
-  program             Program           @default(BTECH)
   hodId               Int?              @unique @map("hod_id")
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
   department_code     String
   status              DepartmentStatus  @default(ACTIVE)
+  program             Program           @default(BTECH)
+  batchDepartments    BatchDepartment[]
   courses             Course[]
   hodDetails          HodDetails?
   noDues              NoDue[]
   students            Student[]         @relation("StudentDepartment")
   preferredByStudents Student[]         @relation("StudentPreferredDepartment")
-  batchDepartments    BatchDepartment[]
 
   @@unique([name, program])
   @@unique([department_code, program])
@@ -249,13 +249,13 @@ model ServiceDepartment {
   id             Int                @id @default(autoincrement()) @map("service_dept_id")
   name           String
   code           String
-  program        Program            @default(BTECH)
-  assignedUserId Int?               @map("assigned_user_id")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
-  assignedUser   User?              @relation("AssignedDueTypes", fields: [assignedUserId], references: [id])
+  assignedUserId Int?               @map("assigned_user_id")
+  program        Program            @default(BTECH)
   dueConfigs     DueConfiguration[]
   noDues         NoDue[]
+  assignedUser   User?              @relation("AssignedDueTypes", fields: [assignedUserId], references: [id])
 
   @@unique([name, program])
   @@unique([code, program])
@@ -265,11 +265,11 @@ model ServiceDepartment {
 model DueConfiguration {
   id                  Int                @id @default(autoincrement()) @map("config_id")
   semester            Int
-  program             Program            @default(BTECH)
   serviceDepartmentId Int?               @map("service_department_id")
   name                String?
   dueDate             DateTime?          @map("due_date")
   isActive            Boolean            @default(true) @map("is_active")
+  program             Program            @default(BTECH)
   serviceDepartment   ServiceDepartment? @relation(fields: [serviceDepartmentId], references: [id])
 
   @@unique([semester, program, serviceDepartmentId, name])
@@ -280,11 +280,11 @@ model NoDue {
   id                  Int                @id @default(autoincrement()) @map("no_due_id")
   requestId           Int                @map("request_id")
   departmentId        Int?               @map("department_id")
-  courseId            Int?               @map("course_id")
   status              NoDueStatus        @default(pending)
   comments            String?
   updatedAt           DateTime           @updatedAt @map("updated_at")
   serviceDepartmentId Int?               @map("service_department_id")
+  courseId            Int?               @map("course_id")
   approvals           NoDueApproval[]
   course              Course?            @relation(fields: [courseId], references: [id])
   department          Department?        @relation(fields: [departmentId], references: [id])
@@ -317,9 +317,9 @@ model Course {
   isActive     Boolean           @default(true) @map("is_active")
   category     CourseCategory?   @default(CORE)
   staffId      Int               @map("staff_id")
-  staff        User              @relation(fields: [staffId], references: [id])
   selections   CourseSelection[]
   department   Department        @relation(fields: [departmentId], references: [id])
+  staff        User              @relation(fields: [staffId], references: [id])
   noDues       NoDue[]
 
   @@map("courses")
@@ -337,13 +337,27 @@ model CourseSelection {
 }
 
 model FeeStructure {
-  id          Int       @id @default(autoincrement()) @map("fee_structure_id")
-  name        String    @unique @map("fee_name")
+  id          Int        @id @default(autoincrement()) @map("fee_structure_id")
+  name        String     @unique @map("fee_name")
   description String?
   amount      Decimal
+  dueDate     DateTime?  @map("due_date") @db.Date
+  fineEnabled Boolean    @default(false) @map("fine_enabled")
   invoices    Invoice[]
+  fineSlabs   FineSlab[]
 
   @@map("fee_structures")
+}
+
+model FineSlab {
+  id             Int          @id @default(autoincrement())
+  feeStructureId Int          @map("fee_structure_id")
+  startDay       Int          @map("start_day")
+  endDay         Int?         @map("end_day")
+  amountPerDay   Decimal      @map("amount_per_day")
+  feeStructure   FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+
+  @@map("fine_slabs")
 }
 
 model FeeDetails {
@@ -368,16 +382,18 @@ model Invoice {
   studentId      Int           @map("student_id")
   feeId          Int           @map("fee_id")
   amount         Decimal
+  baseAmount     Decimal?      @map("base_amount")
+  fineAmount     Decimal       @default(0) @map("fine_amount")
   issueDate      DateTime      @default(now()) @map("issue_date") @db.Date
   dueDate        DateTime      @map("due_date") @db.Date
   status         InvoiceStatus @default(unpaid)
   createdAt      DateTime      @default(now()) @map("created_at")
   feeStructureId Int?
+  semester       Int?          @map("semester")
   FeeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
   fee            FeeDetails    @relation(fields: [feeId], references: [id])
   student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   payments       Payment[]
-  semester       Int?          @map("semester")
 
   @@map("invoices")
 }
@@ -399,14 +415,14 @@ model Notification {
   id          Int                    @id @default(autoincrement()) @map("notification_id")
   senderId    Int                    @map("sender_id")
   receiverId  Int?                   @map("receiver_id")
-  title       String                 @default("Notification")
   description String                 @map("message")
+  status      NotificationStatus     @default(draft)
+  createdAt   DateTime               @default(now()) @map("created_at")
+  expiryDate  DateTime?              @map("expiry_date")
+  priority    NotificationPriority   @default(NORMAL)
   targetType  NotificationTargetType @default(ALL)
   targetValue String?
-  priority    NotificationPriority   @default(NORMAL)
-  status      NotificationStatus     @default(draft)
-  expiryDate  DateTime?              @map("expiry_date")
-  createdAt   DateTime               @default(now()) @map("created_at")
+  title       String                 @default("Notification")
   updatedAt   DateTime               @default(now()) @updatedAt @map("updated_at")
   receiver    User?                  @relation("ReceivedNotifications", fields: [receiverId], references: [id])
   sender      User                   @relation("SentNotifications", fields: [senderId], references: [id])
@@ -415,13 +431,21 @@ model Notification {
 }
 
 model AuditLog {
-  id        Int      @id @default(autoincrement()) @map("log_id")
-  userId    Int      @map("user_id")
-  action    String
-  details   Json?
-  timestamp DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  id         Int      @id @default(autoincrement()) @map("log_id")
+  userId     Int?     @map("user_id")
+  action     String
+  module     String   @default("general") // fee, admission, due, due_settings
+  entityType String?  @map("entity_type") // FeeStructure, Invoice, Student, NoDueRequest, etc.
+  entityId   String?  @map("entity_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  timestamp  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
 
+  @@index([module])
+  @@index([userId])
+  @@index([timestamp])
   @@map("audit_log")
 }
 
@@ -435,56 +459,45 @@ model Setting {
 }
 
 model Certificate {
-  id             Int                       @id @default(autoincrement()) @map("certificate_id")
-  studentId      Int                       @map("student_id")
-  type           CertificateType
-  reason         String
-  status         CertificateStatus         @default(PENDING)
-  workflowStatus CertificateWorkflowStatus @default(SUBMITTED) @map("workflow_status")
-  requestedAt    DateTime                  @default(now()) @map("requested_at")
-  updatedAt      DateTime                  @updatedAt @map("updated_at")
-
-  // Approval tracking - store only IDs
-  advisorId       Int?      @map("advisor_id")
-  advisorActionAt DateTime? @map("advisor_action_at")
-  advisorRemarks  String?   @map("advisor_remarks")
-
-  hodId       Int?      @map("hod_id")
-  hodActionAt DateTime? @map("hod_action_at")
-  hodRemarks  String?   @map("hod_remarks")
-
-  officeId       Int?      @map("office_id")
-  officeActionAt DateTime? @map("office_action_at")
-  officeRemarks  String?   @map("office_remarks")
-
-  principalId       Int?      @map("principal_id")
-  principalActionAt DateTime? @map("principal_action_at")
-  principalRemarks  String?   @map("principal_remarks")
-
-  // Final status
-  approvedAt      DateTime? @map("approved_at")
-  rejectedAt      DateTime? @map("rejected_at")
-  rejectionReason String?
-  certificateUrl  String?   @map("certificate_url")
-
-  // Relations
-  student   Student               @relation(fields: [studentId], references: [id])
-  approvals CertificateApproval[]
+  id                Int                       @id @default(autoincrement()) @map("certificate_id")
+  studentId         Int                       @map("student_id")
+  type              CertificateType
+  reason            String
+  status            CertificateStatus         @default(PENDING)
+  requestedAt       DateTime                  @default(now()) @map("requested_at")
+  approvedAt        DateTime?                 @map("approved_at")
+  rejectedAt        DateTime?                 @map("rejected_at")
+  rejectionReason   String?
+  certificateUrl    String?                   @map("certificate_url")
+  advisorActionAt   DateTime?                 @map("advisor_action_at")
+  advisorId         Int?                      @map("advisor_id")
+  advisorRemarks    String?                   @map("advisor_remarks")
+  hodActionAt       DateTime?                 @map("hod_action_at")
+  hodId             Int?                      @map("hod_id")
+  hodRemarks        String?                   @map("hod_remarks")
+  officeActionAt    DateTime?                 @map("office_action_at")
+  officeId          Int?                      @map("office_id")
+  officeRemarks     String?                   @map("office_remarks")
+  principalActionAt DateTime?                 @map("principal_action_at")
+  principalId       Int?                      @map("principal_id")
+  principalRemarks  String?                   @map("principal_remarks")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  workflowStatus    CertificateWorkflowStatus @default(SUBMITTED) @map("workflow_status")
+  approvals         CertificateApproval[]
+  student           Student                   @relation(fields: [studentId], references: [id])
 
   @@map("certificates")
 }
 
 model CertificateApproval {
-  id            Int      @id @default(autoincrement()) @map("approval_id")
-  certificateId Int      @map("certificate_id")
-  approverId    Int      @map("approver_id")
-  role          String // "ADVISOR", "HOD", "OFFICE", "PRINCIPAL", "STUDENT"
-  action        String // "APPROVE", "REJECT", "FORWARD", "SUBMIT"
+  id            Int         @id @default(autoincrement()) @map("approval_id")
+  certificateId Int         @map("certificate_id")
+  approverId    Int         @map("approver_id")
+  role          String
+  action        String
   remarks       String?
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  // Relations
-  certificate Certificate @relation(fields: [certificateId], references: [id])
+  createdAt     DateTime    @default(now()) @map("created_at")
+  certificate   Certificate @relation(fields: [certificateId], references: [id])
 
   @@map("certificate_approvals")
 }
@@ -500,8 +513,8 @@ model Bus {
   isActive       Boolean      @default(true)
   registrationNo String?
   stops          BusStop[]
-  students       Student[]
   busRequests    BusRequest[]
+  students       Student[]
 }
 
 model BusStop {
@@ -510,8 +523,8 @@ model BusStop {
   stopName    String
   feeAmount   Int
   bus         Bus          @relation(fields: [busId], references: [id], onDelete: Cascade)
-  students    Student[]
   busRequests BusRequest[]
+  students    Student[]
 
   @@unique([busId, stopName])
 }
@@ -523,76 +536,62 @@ model BusRequest {
   busStopId Int           @map("bus_stop_id")
   status    RequestStatus @default(pending)
   createdAt DateTime      @default(now()) @map("created_at")
-  student   Student       @relation(fields: [studentId], references: [id])
   bus       Bus           @relation(fields: [busId], references: [id])
   busStop   BusStop       @relation(fields: [busStopId], references: [id])
+  student   Student       @relation(fields: [studentId], references: [id])
 
   @@map("bus_requests")
 }
 
 model Batch {
-  id        Int         @id @default(autoincrement()) @map("batch_id")
-  name      String      @unique // e.g., "2024-2028"
-  startYear Int         @map("start_year")
-  endYear   Int         @map("end_year")
-  status    BatchStatus @default(UPCOMING)
-  createdAt DateTime    @default(now()) @map("created_at")
-
-  // This allows the admin to select specific departments for this batch
+  id                Int                @id @default(autoincrement()) @map("batch_id")
+  name              String             @unique
+  startYear         Int                @map("start_year")
+  endYear           Int                @map("end_year")
+  status            BatchStatus        @default(UPCOMING)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  admissionWindow   AdmissionWindow?
   batchDepartments  BatchDepartment[]
   busFeeAssignments BusFeeAssignment[]
-  admissionWindow   AdmissionWindow?
 
   @@map("batches")
 }
 
 model BatchDepartment {
-  id           Int @id @default(autoincrement()) @map("batch_dept_id")
-  batchId      Int @map("batch_id")
-  departmentId Int @map("department_id")
-
-  batch      Batch      @relation(fields: [batchId], references: [id])
-  department Department @relation(fields: [departmentId], references: [id])
-
-  // Classes within this department for this specific batch (e.g., CSA, CSB)
-  classes Class[]
+  id           Int        @id @default(autoincrement()) @map("batch_dept_id")
+  batchId      Int        @map("batch_id")
+  departmentId Int        @map("department_id")
+  batch        Batch      @relation(fields: [batchId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
+  classes      Class[]
 
   @@unique([batchId, departmentId])
   @@map("batch_departments")
 }
 
 model Class {
-  id   Int    @id @default(autoincrement()) @map("class_id")
-  name String // e.g., "A", "B"
-
+  id                Int             @id @default(autoincrement()) @map("class_id")
+  name              String
   batchDepartmentId Int             @map("batch_dept_id")
+  advisorId         Int?            @unique @map("advisor_id")
+  advisor           User?           @relation("ClassAdvisor", fields: [advisorId], references: [id])
   batchDepartment   BatchDepartment @relation(fields: [batchDepartmentId], references: [id])
-
-  // Directly linking to User (Faculty) as Advisor
-  advisorId Int?  @unique @map("advisor_id")
-  advisor   User? @relation("ClassAdvisor", fields: [advisorId], references: [id])
-
-  students Student[]
+  students          Student[]
 
   @@unique([batchDepartmentId, name])
   @@map("classes")
 }
 
 model Hostel {
-  id          Int      @id @default(autoincrement()) @map("hostel_id")
-  name        String   @unique // e.g., "MH-1", "GH-2"
-  wardenName  String   @map("warden_name")
-  wardenPhone String   @map("warden_phone")
-  monthlyRent Decimal  @default(0) @map("monthly_rent")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relationships
-  students Student[]
-  history  HostelHistory[]
-
-  // Potential for future fee integration
-  // hostelFees  HostelFeeStructure[] 
+  id          Int             @id @default(autoincrement()) @map("hostel_id")
+  name        String          @unique
+  wardenName  String          @map("warden_name")
+  wardenPhone String          @map("warden_phone")
+  monthlyRent Decimal         @default(0) @map("monthly_rent")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  history     HostelHistory[]
+  students    Student[]
 
   @@map("hostels")
 }
@@ -602,29 +601,49 @@ model HostelHistory {
   studentId   Int       @map("student_id")
   hostelId    Int       @map("hostel_id")
   checkInDate DateTime  @default(now()) @map("check_in_date")
-  vacatedDate DateTime? @map("vacated_date") // Nullable until they leave
-  status      String    @default("ACTIVE") // "ACTIVE" or "VACATED"
-
-  student Student @relation(fields: [studentId], references: [id])
-  hostel  Hostel  @relation(fields: [hostelId], references: [id])
+  vacatedDate DateTime? @map("vacated_date")
+  status      String    @default("ACTIVE")
+  hostel      Hostel    @relation(fields: [hostelId], references: [id])
+  student     Student   @relation(fields: [studentId], references: [id])
 
   @@map("hostel_history")
 }
 
 model BusFeeAssignment {
-  id        Int      @id @default(autoincrement()) @map("assignment_id")
-  batchId   Int      @map("batch_id")
-  semester  Int
-  dueDate   DateTime @map("due_date")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
+  id         Int          @id @default(autoincrement()) @map("assignment_id")
+  batchId    Int          @map("batch_id")
+  semester   Int
+  dueDate    DateTime     @map("due_date")
+  createdAt  DateTime     @default(now()) @map("created_at")
   batch      Batch        @relation(fields: [batchId], references: [id])
   feeDetails FeeDetails[]
 
-  // Constraint: Ensures Admin cannot assign fees for the same semester/batch twice
   @@unique([batchId, semester])
   @@map("bus_fee_assignments")
+}
+
+model PromotionHistory {
+  id                 Int      @id @default(autoincrement()) @map("promotion_id")
+  promotedAt         DateTime @default(now()) @map("promoted_at")
+  semesterType       String   @map("semester_type")
+  affectedStudentIds Int[]    @map("affected_student_ids")
+  details            Json
+  adminId            Int?     @map("admin_id")
+
+  @@map("promotion_history")
+}
+
+model EmailQueue {
+  id          Int         @id @default(autoincrement())
+  to          String
+  subject     String
+  content     String
+  description String?
+  status      EmailStatus @default(PENDING)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@map("email_queue")
 }
 
 enum BatchStatus {
@@ -653,7 +672,6 @@ enum CertificateStatus {
   GENERATED
 }
 
-// Add this enum to your schema.prisma file
 enum CertificateWorkflowStatus {
   SUBMITTED
   WITH_ADVISOR
@@ -768,30 +786,6 @@ enum CourseCategory {
   CORE
   ELECTIVE
   HONOURS
-}
-
-model PromotionHistory {
-  id                 Int      @id @default(autoincrement()) @map("promotion_id")
-  promotedAt         DateTime @default(now()) @map("promoted_at")
-  semesterType       String   @map("semester_type")
-  affectedStudentIds Int[]    @map("affected_student_ids")
-  details            Json
-  adminId            Int?     @map("admin_id")
-
-  @@map("promotion_history")
-}
-
-model EmailQueue {
-  id          Int         @id @default(autoincrement())
-  to          String
-  subject     String
-  content     String
-  description String?
-  status      EmailStatus @default(PENDING)
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-
-  @@map("email_queue")
 }
 
 enum EmailStatus {

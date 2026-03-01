@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import MobileGuard from "./components/MobileGuard";
 import Admin_Login from "./components/Admin_Login";
 import Student_Login from "./components/Student_Login";
 import AdminWrapper from "./components/AdminWrapper";
@@ -28,10 +29,12 @@ import BatchRegistry from "./components/admin/batches/BatchRegistry";
 import BatchDetail from "./components/admin/batches/BatchDetail";
 import NotificationManager from "./components/admin/notifications/NotificationManager";
 import HostelPage from "./components/hostel/HostelPage";
+import AnalyticsPage from "./components/analytics/AnalyticsPage";
+import AuditLogPage from "./components/audit/AuditLogPage";
 
 const App = () => {
   return (
-    <div>
+    <MobileGuard>
       <Routes>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/signup" element={<Admin_Login />} />
@@ -57,6 +60,8 @@ const App = () => {
             element={<NotificationManager />}
           />
           <Route path="/admin/hostel" element={<HostelPage />} />
+          <Route path="/admin/analytics" element={<AnalyticsPage />} />
+          <Route path="/admin/audit-logs" element={<AuditLogPage />} />
         </Route>
         <Route path="/" element={<Landing />}></Route>
         <Route path="/student" element={<StudentLayout />}>
@@ -69,7 +74,7 @@ const App = () => {
           <Route path="profile/:id" element={<StudentProfile />} />
         </Route>
       </Routes>
-    </div>
+    </MobileGuard>
   );
 };
 

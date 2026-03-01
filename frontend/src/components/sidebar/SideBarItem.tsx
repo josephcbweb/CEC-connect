@@ -24,8 +24,8 @@ const SidebarItem: React.FC<SidebarItemProps & { collapsed: boolean }> = ({
       <li
         onClick={onClick}
         className={`
-        relative flex items-center py-3 px-4 my-1 h-12
-        font-medium rounded-lg cursor-pointer
+        relative flex items-center py-2 px-3 my-0.5 h-10
+        font-medium rounded-lg cursor-pointer text-sm
         transition-colors group
         ${
           active

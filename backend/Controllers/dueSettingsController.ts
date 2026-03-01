@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import { logAudit } from "../utils/auditLogger";
 
 // GET /api/settings/due-configs
 export const getDueConfigs = async (req: Request, res: Response) => {
@@ -16,7 +17,9 @@ export const getDueConfigs = async (req: Request, res: Response) => {
     });
     res.json(configs);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch configs", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch configs", error: error.message });
   }
 };
 
@@ -53,6 +56,15 @@ export const createDueConfig = async (req: Request, res: Response) => {
         dueDate: dueDate ? new Date(dueDate) : null,
       },
     });
+    await logAudit({
+      req,
+      action: "CREATE_DUE_CONFIG",
+      module: "due_settings",
+      entityType: "DueConfiguration",
+      entityId: config.id,
+      details: { semester, serviceDepartmentId, name, dueDate, program },
+    });
+
     res.status(201).json(config);
   } catch (error: any) {
     console.error("Error creating due config:", error);
@@ -67,6 +79,14 @@ export const deleteDueConfig = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     await prisma.dueConfiguration.delete({ where: { id: Number(id) } });
+    await logAudit({
+      req,
+      action: "DELETE_DUE_CONFIG",
+      module: "due_settings",
+      entityType: "DueConfiguration",
+      entityId: id,
+    });
+
     res.json({ message: "Config deleted" });
   } catch (error: any) {
     res
@@ -88,7 +108,9 @@ export const getServiceDepartments = async (req: Request, res: Response) => {
     });
     res.json(depts);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch departments", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch departments", error: error.message });
   }
 };
 
@@ -104,9 +126,20 @@ export const createServiceDepartment = async (req: Request, res: Response) => {
         assignedUserId: assignedUserId ? Number(assignedUserId) : null,
       },
     });
+    await logAudit({
+      req,
+      action: "CREATE_SERVICE_DEPARTMENT",
+      module: "due_settings",
+      entityType: "ServiceDepartment",
+      entityId: dept.id,
+      details: { name, code, program, assignedUserId },
+    });
+
     res.status(201).json(dept);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to create department", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to create department", error: error.message });
   }
 };
 
@@ -128,13 +161,28 @@ export const updateServiceDepartment = async (req: Request, res: Response) => {
       },
     });
 
+    await logAudit({
+      req,
+      action: "UPDATE_SERVICE_DEPARTMENT",
+      module: "due_settings",
+      entityType: "ServiceDepartment",
+      entityId: id,
+      details: { name, program, assignedUserId },
+    });
+
     res.json(dept);
   } catch (error: any) {
-    if (error.code === 'P2002') {
-      res.status(400).json({ message: "A fee type with this name already exists for this program." });
+    if (error.code === "P2002") {
+      res
+        .status(400)
+        .json({
+          message: "A fee type with this name already exists for this program.",
+        });
       return;
     }
-    res.status(500).json({ message: "Failed to update department", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to update department", error: error.message });
   }
 };
 
@@ -145,6 +193,14 @@ export const deleteServiceDepartment = async (req: Request, res: Response) => {
     // Check if used in any configs or dues
     // Prisma will throw error if foreign key constraint fails, which is good.
     await prisma.serviceDepartment.delete({ where: { id: Number(id) } });
+    await logAudit({
+      req,
+      action: "DELETE_SERVICE_DEPARTMENT",
+      module: "due_settings",
+      entityType: "ServiceDepartment",
+      entityId: id,
+    });
+
     res.json({ message: "Department deleted" });
   } catch (error: any) {
     res.status(500).json({
@@ -164,6 +220,8 @@ export const getAllUsers = async (req: Request, res: Response) => {
     });
     res.json(users);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch users", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch users", error: error.message });
   }
 };

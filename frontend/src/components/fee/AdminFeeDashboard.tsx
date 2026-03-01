@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import StudentFeeTable from "./StudentFeeTable";
 import FeeStructuresPanel from "./FeeStructuresPanel";
 import FilterBar from "./FilterBar";
@@ -7,6 +8,7 @@ import AssignFeeModal from "./AssignFeeModal";
 import StudentDetailsModal from "./StudentDetailsModal";
 import type { Student, StudentFee, SortConfig } from "../../types";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "../../hooks/usePermissions";
 
 interface FilterConfig {
   department: string;
@@ -28,6 +30,7 @@ const getUniqueValues = <T, K extends keyof T>(
 };
 
 const AdminFeesDashboard: React.FC = () => {
+  usePageTitle("Fee Management");
   const [students, setStudents] = useState<StudentFee[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showFeeStructures, setShowFeeStructures] = useState<boolean>(false);
@@ -46,7 +49,15 @@ const AdminFeesDashboard: React.FC = () => {
     admission_type: "",
   });
   const navigate = useNavigate();
+  const { hasPermission, hasAnyPermission } = usePermissions();
   const token = localStorage.getItem("authToken");
+
+  const canManageFeeStructures = hasAnyPermission([
+    "fee:create_structure",
+    "fee:update_structure",
+    "fee:delete_structure",
+  ]);
+  const canAssignFee = hasPermission("fee:assign");
 
   if (!token) {
     navigate("/signup");
@@ -72,10 +83,10 @@ const AdminFeesDashboard: React.FC = () => {
       const studentData: Student[] = await response.json();
 
       const studentsWithFees: StudentFee[] = studentData.map((student) => {
-        const activeInvoices = student.invoices?.filter(inv => !inv.fee?.archived) || [];
+        const activeInvoices =
+          student.invoices?.filter((inv) => !inv.fee?.archived) || [];
         const totalDue =
-          activeInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0) ||
-          0;
+          activeInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
         const totalPaid =
           activeInvoices
             ?.filter((inv) => inv.status === "paid")
@@ -120,7 +131,7 @@ const AdminFeesDashboard: React.FC = () => {
       }
 
       // Dropdown filters
-      if (filters.department && student.department.name !== filters.department)
+      if (filters.department && student.department?.name !== filters.department)
         return false;
       if (filters.branch && student.allotted_branch !== filters.branch)
         return false;
@@ -298,8 +309,9 @@ const AdminFeesDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">
       <div
-        className={`transition-transform duration-500 ease-in-out ${showFeeStructures ? "-translate-x-full" : "translate-x-0"
-          }`}
+        className={`transition-transform duration-500 ease-in-out ${
+          showFeeStructures ? "-translate-x-full" : "translate-x-0"
+        }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-8">
@@ -311,25 +323,27 @@ const AdminFeesDashboard: React.FC = () => {
                 Dashboard for assigning and tracking student fee payments.
               </p>
             </div>
-            <button
-              onClick={() => setShowFeeStructures(true)}
-              className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-medium flex items-center space-x-2"
-            >
-              <span>Manage Fee Structures</span>
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {canManageFeeStructures && (
+              <button
+                onClick={() => setShowFeeStructures(true)}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-medium flex items-center space-x-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
+                <span>Manage Fee Structures</span>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            )}
           </div>
 
           <StatsCards students={filteredStudents} />
@@ -340,7 +354,7 @@ const AdminFeesDashboard: React.FC = () => {
             onClearFilters={clearFilters}
           />
 
-          {selectedStudents.length > 0 && (
+          {selectedStudents.length > 0 && canAssignFee && (
             <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 my-6 flex items-center justify-between shadow-sm">
               <span className="font-medium text-teal-800">
                 {selectedStudents.length} student(s) selected.
@@ -370,8 +384,9 @@ const AdminFeesDashboard: React.FC = () => {
       </div>
 
       <div
-        className={`fixed inset-0 bg-white z-50 transition-transform duration-500 ease-in-out ${showFeeStructures ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed inset-0 bg-white z-50 transition-transform duration-500 ease-in-out ${
+          showFeeStructures ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <FeeStructuresPanel onClose={() => setShowFeeStructures(false)} />
       </div>

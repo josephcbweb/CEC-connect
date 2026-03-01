@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageTitle } from "../../../hooks/usePageTitle";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutGrid,
@@ -36,6 +37,7 @@ interface Batch {
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const BatchRegistry = () => {
+  usePageTitle("Manage Classes");
   const navigate = useNavigate();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);

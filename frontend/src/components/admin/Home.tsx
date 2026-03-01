@@ -1,317 +1,116 @@
 import React, { useState, useEffect } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts";
-import type { Student, Invoice } from "../../types"; // Assuming types are in a shared location
+import { Clock, Sun, Sunset, Moon, ShieldCheck } from "lucide-react";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import cecLogo from "../../assets/cec png.png";
 
-// --- Helper Types for Analytics ---
-interface AnalyticsData {
-  totalStudents: number;
-  totalDepartments: number;
-  totalRevenue: number;
-  totalPending: number;
-  studentsByProgram: { name: string; value: number }[];
-  monthlyCollections: { month: string; collected: number; pending: number }[];
-  admissionTrend: { year: string; count: number }[];
-  recentInvoices: Invoice[];
-}
+// --- Helpers ---
+const getGreeting = (hour: number) => {
+  if (hour < 12) return { text: "Good Morning", Icon: Sun };
+  if (hour < 17) return { text: "Good Afternoon", Icon: Sunset };
+  return { text: "Good Evening", Icon: Moon };
+};
 
-const AnalyticsDashboard: React.FC = () => {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+const formatTime = (date: Date) =>
+  date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
 
+const formatDate = (date: Date) =>
+  date.toLocaleDateString("en-IN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+// --- Component ---
+const Home: React.FC = () => {
+  usePageTitle("Dashboard");
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [userName, setUserName] = useState("User");
+  const [userRole, setUserRole] = useState("");
+
+  // Update clock every second
   useEffect(() => {
-    const fetchAnalyticsData = async () => {
-      try {
-        setLoading(true);
-        const [studentsRes, deptsRes] = await Promise.all([
-          fetch("http://localhost:3000/students/all?include=department,invoices"),
-          fetch("http://localhost:3000/api/departments")
-        ]);
-
-        if (!studentsRes.ok || !deptsRes.ok) {
-          throw new Error(
-            "Failed to fetch data from the server."
-          );
-        }
-
-        const students: Student[] = await studentsRes.json();
-        const departments: any[] = await deptsRes.json();
-
-        // --- Create a flat list of all invoices from the students data ---
-        const allInvoices: Invoice[] = students.flatMap(
-          (s) => s.invoices || []
-        );
-
-        // --- Process Data for Analytics ---
-        const totalStudents = students.length;
-        const totalDepartments = departments.length;
-
-        // Count students in each program
-        const programCounts = students.reduce((acc, student) => {
-          const prog = student.program || "Unknown";
-          acc[prog] = (acc[prog] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-
-        const studentsByProgram = Object.entries(programCounts).map(
-          ([name, value]) => ({ name, value })
-        );
-
-        // FIX: Ensure all calculations use parseFloat to handle decimal-to-string conversion from Prisma.
-        const totalRevenue = allInvoices
-          .filter((inv) => inv.status === "paid")
-          .reduce((sum, inv) => sum + parseFloat(inv.amount as any), 0);
-
-        const totalPending = allInvoices
-          .filter((inv) => inv.status !== "paid")
-          .reduce((sum, inv) => sum + parseFloat(inv.amount as any), 0);
-
-        const monthlyCollections = allInvoices.reduce((acc, inv) => {
-          const date = new Date(inv.issueDate);
-          const month = date.toLocaleString("default", {
-            month: "short",
-            year: "2-digit",
-          });
-          if (!acc[month]) {
-            acc[month] = { month, collected: 0, pending: 0 };
-          }
-          if (inv.status === "paid") {
-            acc[month].collected += parseFloat(inv.amount as any);
-          } else {
-            acc[month].pending += parseFloat(inv.amount as any);
-          }
-          return acc;
-        }, {} as Record<string, { month: string; collected: number; pending: number }>);
-
-        const admissionTrend = students.reduce((acc, student) => {
-          const year = new Date(student.admission_date || student.createdAt)
-            .getFullYear()
-            .toString();
-          acc[year] = (acc[year] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-
-        setData({
-          totalStudents,
-          totalDepartments,
-          totalRevenue,
-          totalPending,
-          studentsByProgram,
-          monthlyCollections: Object.values(monthlyCollections).sort(
-            (a, b) => new Date(a.month).getTime() - new Date(b.month).getTime()
-          ),
-          admissionTrend: Object.entries(admissionTrend)
-            .map(([year, count]) => ({ year, count }))
-            .sort((a, b) => a.year.localeCompare(b.year)),
-          recentInvoices: allInvoices
-            .sort(
-              (a, b) =>
-                new Date(b.issueDate).getTime() -
-                new Date(a.issueDate).getTime()
-            )
-            .slice(0, 5),
-        });
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "An unknown error occurred."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAnalyticsData();
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  // --- Render Logic ---
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen w-full">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-teal-600"></div>
-      </div>
-    );
-  }
+  // Get user info from localStorage
+  useEffect(() => {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+      try {
+        const user = JSON.parse(userString);
+        if (user.name) setUserName(user.name);
+        if (user.role && Array.isArray(user.role)) {
+          setUserRole(
+            user.role
+              .map((r: string) => r.charAt(0).toUpperCase() + r.slice(1))
+              .join(", "),
+          );
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }, []);
 
-  if (error || !data) {
-    return (
-      <div className="p-8 bg-red-50 text-red-700 rounded-lg w-full">
-        <h2 className="text-xl font-bold">Failed to load Dashboard</h2>
-        <p>{error || "Analytics data is unavailable."}</p>
-      </div>
-    );
-  }
+  const { text: greeting, Icon: GreetingIcon } = getGreeting(
+    currentTime.getHours(),
+  );
 
   return (
-    <div className="p-6 md:p-8 w-full">
-      <h1 className="text-3xl font-bold text-slate-800">Analytics Dashboard</h1>
-      <p className="mt-2 text-gray-600">
-        Overview of college finances and student demographics.
-      </p>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
-        <StatCard
-          title="Total Students"
-          value={data.totalStudents.toLocaleString()}
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-2rem)] w-full bg-white p-6">
+      <div className="w-full max-w-md text-center space-y-8">
+        {/* Logo */}
+        <img
+          src={cecLogo}
+          alt="CEC Logo"
+          className="w-20 h-20 mx-auto object-contain opacity-80"
         />
-        <StatCard
-          title="Total Departments"
-          value={data.totalDepartments.toLocaleString()}
-        />
-        <StatCard
-          title="Total Revenue"
-          value={formatCurrency(data.totalRevenue)}
-          color="text-green-600"
-        />
-        <StatCard
-          title="Pending Dues"
-          value={formatCurrency(data.totalPending)}
-          color="text-red-600"
-        />
-      </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-8">
-        <div className="lg:col-span-3 bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="font-semibold text-lg mb-4">Monthly Fee Collection</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.monthlyCollections}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={(val) => `₹${(val as number) / 1000}k`} />
-              <Tooltip formatter={(value) => formatCurrency(value as number)} />
-              <Legend />
-              <Bar dataKey="collected" fill="#14B8A6" name="Collected" />
-              <Bar dataKey="pending" fill="#F43F5E" name="Pending" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="font-semibold text-lg mb-4">
-            Student Distribution by Program
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={data.studentsByProgram}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                fill="#8884d8"
-                label
-              >
-                {data.studentsByProgram.map((_, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={PIE_COLORS[index % PIE_COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+        {/* College Name */}
+        <p className="text-xs font-medium tracking-[0.2em] uppercase text-slate-400">
+          College of Engineering Cherthala
+        </p>
 
-      {/* Admission Trend & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="font-semibold text-lg mb-4">Yearly Admission Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data.admissionTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="year" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="count"
-                name="New Students"
-                stroke="#3AA9AB"
-                strokeWidth={2}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="font-semibold text-lg mb-4">Recent Invoices</h3>
-          <div className="space-y-3">
-            {data.recentInvoices.map((inv) => (
-              <div
-                key={inv.id}
-                className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-gray-50"
-              >
-                <div>
-                  <p className="font-medium text-gray-800">Invoice #{inv.id}</p>
-                  <p className="text-gray-500">Student ID: {inv.studentId}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">{formatCurrency(inv.amount)}</p>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs ${inv.status === "paid"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                      }`}
-                  >
-                    {inv.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+        {/* Greeting */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-center gap-2 text-slate-700">
+            <GreetingIcon className="w-5 h-5 text-teal-500" />
+            <h1 className="text-2xl font-semibold">{greeting},</h1>
           </div>
+          <p className="text-xl font-medium text-slate-900">{userName}</p>
+          {userRole && (
+            <span className="inline-block px-3 py-0.5 bg-slate-100 text-slate-500 rounded-full text-xs font-medium">
+              {userRole}
+            </span>
+          )}
+        </div>
+
+        {/* Clock */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-center gap-2 text-slate-600">
+            <Clock className="w-4 h-4 text-slate-400" />
+            <span className="text-lg font-mono font-semibold tracking-wider">
+              {formatTime(currentTime)}
+            </span>
+          </div>
+          <p className="text-slate-400 text-sm">{formatDate(currentTime)}</p>
+        </div>
+
+        {/* Monitoring Notice */}
+        <div className="flex items-center justify-center gap-1.5 text-slate-400 text-xs pt-6">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>All activities are monitored and logged.</span>
         </div>
       </div>
     </div>
   );
 };
 
-// --- Sub-components for Cleaner Code ---
-const StatCard: React.FC<{
-  title: string;
-  value: string | number;
-  color?: string;
-}> = ({ title, value, color = "text-gray-900" }) => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <p className="text-sm font-medium text-gray-600">{title}</p>
-    <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
-  </div>
-);
-
-// --- Utils ---
-const formatCurrency = (amount: number | string) => {
-  const num = typeof amount === "string" ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(num);
-};
-const PIE_COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#A234B5",
-  "#FF6384",
-];
-
-export default AnalyticsDashboard;
+export default Home;

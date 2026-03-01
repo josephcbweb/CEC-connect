@@ -83,7 +83,10 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
             Invoice History
           </h2>
         </div>
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto overflow-y-visible"
+          style={{ overflowY: "visible" }}
+        >
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -118,16 +121,139 @@ export const FeeDetailsContent: React.FC<{ studentData: StudentWithFees }> = ({
                       #{invoice.id}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800">
-                      {invoice.FeeStructure?.name || "N/A"}
+                      <div>{invoice.FeeStructure?.name || "N/A"}</div>
+                      {invoice.FeeStructure?.fineEnabled &&
+                        invoice.status !== "paid" && (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              Late fine applicable
+                            </span>
+                          </div>
+                        )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800">
                       {formatDate(invoice.dueDate)}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {formatCurrency(invoice.amount)}
+                      <div>{formatCurrency(invoice.amount)}</div>
+                      {Number(invoice.fineAmount) > 0 && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                            <svg
+                              className="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                              />
+                            </svg>
+                            Fine: {formatCurrency(invoice.fineAmount)}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {getStatusBadge(invoice.status)}
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(invoice.status)}
+                        {invoice.FeeStructure?.fineEnabled && (
+                          <div className="group relative">
+                            <span className="cursor-help text-amber-500 hover:text-amber-600">
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                            </span>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg p-3 hidden group-hover:block z-[100] shadow-2xl ring-1 ring-white/10">
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-0 border-4 border-transparent border-b-gray-900"></div>
+                              <p className="font-semibold mb-2">
+                                Fine Information
+                              </p>
+                              {invoice.FeeStructure?.fineSlabs &&
+                                invoice.FeeStructure.fineSlabs.length > 0 && (
+                                  <div className="mb-2">
+                                    <p className="text-gray-400 mb-1">
+                                      Fine rules (after due date):
+                                    </p>
+                                    {invoice.FeeStructure.fineSlabs.map(
+                                      (slab, i) => (
+                                        <div
+                                          key={i}
+                                          className="flex justify-between text-gray-300"
+                                        >
+                                          <span>
+                                            Day {slab.startDay}
+                                            {slab.endDay
+                                              ? `–${slab.endDay}`
+                                              : "+"}
+                                            :
+                                          </span>
+                                          <span>
+                                            {formatCurrency(slab.amountPerDay)}
+                                            /day
+                                          </span>
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                )}
+                              {Number(invoice.fineAmount) > 0 && (
+                                <div className="border-t border-gray-600 pt-1.5 space-y-1">
+                                  <div className="flex justify-between">
+                                    <span>Base Fee:</span>
+                                    <span>
+                                      {formatCurrency(invoice.baseAmount ?? 0)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-red-300">
+                                    <span>Accumulated Fine:</span>
+                                    <span>
+                                      +{formatCurrency(invoice.fineAmount)}
+                                    </span>
+                                  </div>
+                                  <div className="border-t border-gray-600 pt-1 flex justify-between font-semibold">
+                                    <span>Total:</span>
+                                    <span>
+                                      {formatCurrency(invoice.amount)}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                              {Number(invoice.fineAmount) === 0 && (
+                                <p className="text-gray-400 italic">
+                                  No fine charged yet.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800">
                       {invoice.semester ? invoice.semester : "-"}

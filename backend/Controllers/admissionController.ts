@@ -7,6 +7,7 @@ import {
   RequestStatus,
 } from "../generated/prisma/enums";
 import { sendAdmissionConfirmation } from "../services/mailService";
+import { logAudit } from "../utils/auditLogger";
 
 // Get all admissions with filtering and pagination
 export const getAdmissions = async (req: Request, res: Response) => {
@@ -98,14 +99,17 @@ export const getAdmissions = async (req: Request, res: Response) => {
 // Get admission statistics
 export const getStats = async (req: Request, res: Response) => {
   try {
-    const [total, pending, approved, rejected, waitlisted, unassignedApproved] = await Promise.all([
-      prisma.student.count(),
-      prisma.student.count({ where: { status: StudentStatus.pending } }),
-      prisma.student.count({ where: { status: StudentStatus.approved } }),
-      prisma.student.count({ where: { status: StudentStatus.rejected } }),
-      prisma.student.count({ where: { status: StudentStatus.waitlisted } }),
-      prisma.student.count({ where: { status: StudentStatus.approved, classId: null } }),
-    ]);
+    const [total, pending, approved, rejected, waitlisted, unassignedApproved] =
+      await Promise.all([
+        prisma.student.count(),
+        prisma.student.count({ where: { status: StudentStatus.pending } }),
+        prisma.student.count({ where: { status: StudentStatus.approved } }),
+        prisma.student.count({ where: { status: StudentStatus.rejected } }),
+        prisma.student.count({ where: { status: StudentStatus.waitlisted } }),
+        prisma.student.count({
+          where: { status: StudentStatus.approved, classId: null },
+        }),
+      ]);
 
     // Program-wise stats
     const btechCount = await prisma.student.count({
@@ -206,16 +210,30 @@ const generateAdmissionNumber = async (departmentId: number) => {
   const lowerPrefix = `cec${String(year).slice(-2)}${deptCode}`;
   const upperPrefix = `CEC${String(year).slice(-2)}${deptCode.toUpperCase()}`;
 
-  const count = await prisma.student.count({
+  // Find the highest existing admission number with this prefix
+  const existing = await prisma.student.findMany({
     where: {
       OR: [
         { admission_number: { startsWith: lowerPrefix } },
         { admission_number: { startsWith: upperPrefix } },
       ],
     },
+    select: { admission_number: true },
+    orderBy: { admission_number: "desc" },
+    take: 1,
   });
 
-  return `${upperPrefix}${String(count + 1).padStart(3, "0")}`;
+  let nextNum = 1;
+  if (existing.length > 0 && existing[0].admission_number) {
+    // Extract the numeric suffix from the last admission number
+    const lastNum = existing[0].admission_number.slice(upperPrefix.length);
+    const parsed = parseInt(lastNum, 10);
+    if (!isNaN(parsed)) {
+      nextNum = parsed + 1;
+    }
+  }
+
+  return `${upperPrefix}${String(nextNum).padStart(3, "0")}`;
 };
 
 // Update admission status
@@ -259,14 +277,27 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
       }
 
       try {
-        const admissionNumber = await generateAdmissionNumber(deptId);
-        updateData.admission_number = admissionNumber;
+        const maxRetries = 3;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            const admissionNumber = await generateAdmissionNumber(deptId);
+            updateData.admission_number = admissionNumber;
 
-        // If not already assigned to a department, assign them to the preferred one
-        if (!student.departmentId) {
-          updateData.departmentId = deptId;
+            // If not already assigned to a department, assign them to the preferred one
+            if (!student.departmentId) {
+              updateData.departmentId = deptId;
+            }
+            break; // Success
+          } catch (retryErr: any) {
+            if (retryErr.code === "P2002" && attempt < maxRetries - 1) {
+              console.warn(
+                `Admission number conflict, retrying (attempt ${attempt + 2}/${maxRetries})...`,
+              );
+              continue;
+            }
+            throw retryErr;
+          }
         }
-
       } catch (err: any) {
         return res.status(500).json({
           success: false,
@@ -280,7 +311,18 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
       data: updateData,
     });
 
-    // TODO: Send notification to student about status change
+    await logAudit({
+      req,
+      action: "UPDATE_ADMISSION_STATUS",
+      module: "admission",
+      entityType: "Student",
+      entityId: studentId,
+      details: {
+        status,
+        comments,
+        admissionNumber: updateData.admission_number,
+      },
+    });
 
     res.json({
       success: true,
@@ -307,15 +349,29 @@ export const deleteAdmissionEntry = async (req: Request, res: Response) => {
     });
 
     if (!student) {
-      return res.status(404).json({ success: false, error: "Admission entry not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Admission entry not found" });
     }
 
     if (student.status !== "pending") {
-      return res.status(400).json({ success: false, error: "Only pending applications can be deleted" });
+      return res.status(400).json({
+        success: false,
+        error: "Only pending applications can be deleted",
+      });
     }
 
     await prisma.student.delete({
       where: { id: studentId },
+    });
+
+    await logAudit({
+      req,
+      action: "DELETE_ADMISSION_ENTRY",
+      module: "admission",
+      entityType: "Student",
+      entityId: studentId,
+      details: { name: student.name, status: student.status },
     });
 
     res.json({
@@ -324,7 +380,9 @@ export const deleteAdmissionEntry = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Error deleting admission entry:", error);
-    res.status(500).json({ success: false, error: "Failed to delete admission entry" });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to delete admission entry" });
   }
 };
 
@@ -332,7 +390,13 @@ export const deleteAdmissionEntry = async (req: Request, res: Response) => {
 export const getAdmissionWindows = async (req: Request, res: Response) => {
   try {
     const windows = await prisma.admissionWindow.findMany({
-      include: { batch: true }, // Crucial for displaying batch name in frontend
+      include: {
+        batch: {
+          include: {
+            batchDepartments: true,
+          },
+        },
+      }, // Crucial for displaying batch name in frontend
       orderBy: { program: "asc" },
     });
 
@@ -371,10 +435,18 @@ export const getAdmissionWindows = async (req: Request, res: Response) => {
 export const updateAdmissionWindow = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { isOpen, startDate, endDate, description } = req.body;
+    const {
+      isOpen,
+      startDate,
+      endDate,
+      description,
+      batchName,
+      departmentIds,
+    } = req.body;
 
     const current = await prisma.admissionWindow.findUnique({
       where: { id: parseInt(id) },
+      include: { batch: true },
     });
     if (!current)
       return res
@@ -388,7 +460,10 @@ export const updateAdmissionWindow = async (req: Request, res: Response) => {
     today.setHours(0, 0, 0, 0);
 
     // If start date is being changed, it cannot be in the past
-    if (startDate && new Date(newStart).getTime() !== new Date(current.startDate).getTime()) {
+    if (
+      startDate &&
+      new Date(newStart).getTime() !== new Date(current.startDate).getTime()
+    ) {
       if (new Date(newStart) < today) {
         return res.status(400).json({
           success: false,
@@ -422,22 +497,85 @@ export const updateAdmissionWindow = async (req: Request, res: Response) => {
         ? isOpen && now >= ns && now <= ne
         : current.isOpen && now >= ns && now <= ne;
 
-    const updatedWindow = await prisma.admissionWindow.update({
-      where: { id: parseInt(id) },
-      data: {
+    // Use transaction to update both window and batch if needed
+    const updatedWindow = await prisma.$transaction(async (tx) => {
+      // Update batch name if provided and different
+      if (batchName && current.batch && batchName !== current.batch.name) {
+        // Check if new batch name already exists
+        const existingBatch = await tx.batch.findUnique({
+          where: { name: batchName },
+        });
+
+        if (existingBatch && existingBatch.id !== current.batchId) {
+          throw new Error(`Batch name "${batchName}" is already in use.`);
+        }
+
+        await tx.batch.update({
+          where: { id: current.batchId },
+          data: { name: batchName },
+        });
+      }
+
+      // Add new departments if provided
+      if (
+        departmentIds &&
+        Array.isArray(departmentIds) &&
+        departmentIds.length > 0 &&
+        current.batchId
+      ) {
+        const existingBatchDepts = await tx.batchDepartment.findMany({
+          where: { batchId: current.batchId },
+        });
+
+        const existingDeptIds = existingBatchDepts.map((bd) => bd.departmentId);
+        const newDeptIds = departmentIds
+          .map((id) => Number(id))
+          .filter((id) => !existingDeptIds.includes(id));
+
+        if (newDeptIds.length > 0) {
+          await tx.batchDepartment.createMany({
+            data: newDeptIds.map((deptId) => ({
+              batchId: current.batchId,
+              departmentId: deptId,
+            })),
+          });
+        }
+      }
+
+      // Update the window
+      return await tx.admissionWindow.update({
+        where: { id: parseInt(id) },
+        data: {
+          isOpen: validatedIsOpen,
+          startDate: newStart,
+          endDate: newEnd,
+          description,
+        },
+        include: { batch: true },
+      });
+    });
+
+    await logAudit({
+      req,
+      action: "UPDATE_ADMISSION_WINDOW",
+      module: "admission",
+      entityType: "AdmissionWindow",
+      entityId: id,
+      details: {
         isOpen: validatedIsOpen,
         startDate: newStart,
         endDate: newEnd,
-        description,
+        batchName,
       },
     });
 
     res.json({ success: true, data: updatedWindow });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating admission window:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to update admission window" });
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to update admission window",
+    });
   }
 };
 
@@ -477,6 +615,14 @@ export const deleteAdmissionWindow = async (req: Request, res: Response) => {
         timeout: 20000, // Allow 20s for the work to finish
       },
     );
+
+    await logAudit({
+      req,
+      action: "DELETE_ADMISSION_WINDOW",
+      module: "admission",
+      entityType: "AdmissionWindow",
+      entityId: id,
+    });
 
     res.json({
       success: true,
@@ -543,9 +689,9 @@ export const createAdmissionWindow = async (req: Request, res: Response) => {
     // 3. Ensure departments exist for this program
     const departmentsForProgram = await prisma.department.findMany({
       where: {
-        id: { in: departmentIds.map(id => Number(id)) },
+        id: { in: departmentIds.map((id) => Number(id)) },
         program: program as Program,
-      }
+      },
     });
 
     if (departmentsForProgram.length === 0) {
@@ -570,20 +716,57 @@ export const createAdmissionWindow = async (req: Request, res: Response) => {
           );
         }
 
-        // Create the Batch and link Departments
-        const newBatch = await tx.batch.create({
-          data: {
-            name: batchName,
-            startYear: Number(startYear),
-            endYear: Number(endYear),
-            status: "UPCOMING",
-            batchDepartments: {
-              create: departmentIds.map((deptId: number) => ({
-                departmentId: Number(deptId),
-              })),
-            },
-          },
+        // Check if batch already exists
+        let batch = await tx.batch.findUnique({
+          where: { name: batchName },
+          include: { batchDepartments: true },
         });
+
+        if (!batch) {
+          // Create the Batch and link Departments
+          batch = await tx.batch.create({
+            data: {
+              name: batchName,
+              startYear: Number(startYear),
+              endYear: Number(endYear),
+              status: "UPCOMING",
+              batchDepartments: {
+                create: departmentIds.map((deptId: number) => ({
+                  departmentId: Number(deptId),
+                })),
+              },
+            },
+            include: { batchDepartments: true },
+          });
+        } else {
+          // Batch exists, check if it already has an admission window
+          const existingBatchWindow = await tx.admissionWindow.findUnique({
+            where: { batchId: batch.id },
+          });
+
+          if (existingBatchWindow) {
+            throw new Error(
+              `Batch "${batchName}" is already linked to an admission window for ${existingBatchWindow.program}. Please use a different batch name.`,
+            );
+          }
+
+          // Add missing departments to the existing batch
+          const existingDeptIds = batch.batchDepartments.map(
+            (bd) => bd.departmentId,
+          );
+          const newDeptIds = departmentIds
+            .map((id) => Number(id))
+            .filter((id) => !existingDeptIds.includes(id));
+
+          if (newDeptIds.length > 0) {
+            await tx.batchDepartment.createMany({
+              data: newDeptIds.map((deptId) => ({
+                batchId: batch!.id,
+                departmentId: deptId,
+              })),
+            });
+          }
+        }
 
         // Create the Admission Window
         const newWindow = await tx.admissionWindow.create({
@@ -593,11 +776,11 @@ export const createAdmissionWindow = async (req: Request, res: Response) => {
             endDate: new Date(endDate),
             description,
             isOpen: isOpen ?? true,
-            batchId: newBatch.id, // Ensure this link is present
+            batchId: batch.id, // Ensure this link is present
           },
         });
 
-        return { newBatch, newWindow };
+        return { newBatch: batch, newWindow };
       },
       {
         // P2028 FIX: Give the engine more time to acquire a connection and finish
@@ -605,6 +788,15 @@ export const createAdmissionWindow = async (req: Request, res: Response) => {
         timeout: 20000, // default is 5s, increased to 20s
       },
     );
+
+    await logAudit({
+      req,
+      action: "CREATE_ADMISSION_WINDOW",
+      module: "admission",
+      entityType: "AdmissionWindow",
+      entityId: result.newWindow.id,
+      details: { program, batchName, startDate, endDate, departmentIds },
+    });
 
     res.status(201).json({
       success: true,
@@ -820,12 +1012,12 @@ export const autoAssignBatch = async (req: Request, res: Response) => {
             department: true,
             classes: {
               include: {
-                _count: { select: { students: true } }
-              }
-            }
-          }
-        }
-      }
+                _count: { select: { students: true } },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!batch) {
@@ -833,7 +1025,10 @@ export const autoAssignBatch = async (req: Request, res: Response) => {
     }
 
     if (!batch.admissionWindow) {
-      return res.status(400).json({ success: false, error: "Batch has no associated Admission Window" });
+      return res.status(400).json({
+        success: false,
+        error: "Batch has no associated Admission Window",
+      });
     }
 
     const program = batch.admissionWindow.program;
@@ -844,16 +1039,20 @@ export const autoAssignBatch = async (req: Request, res: Response) => {
         program: program,
         status: "approved",
         classId: null,
-      }
+      },
     });
 
     if (unassignedStudents.length === 0) {
-      return res.status(400).json({ success: false, error: "No unassigned approved students found for this batch's program." });
+      return res.status(400).json({
+        success: false,
+        error:
+          "No unassigned approved students found for this batch's program.",
+      });
     }
 
     // 3. Group students by their preferred department
     const studentsByDepartment: Record<number, typeof unassignedStudents> = {};
-    unassignedStudents.forEach(student => {
+    unassignedStudents.forEach((student) => {
       if (!student.preferredDepartmentId) return; // Skip if no preference, they must be assigned manually
       if (!studentsByDepartment[student.preferredDepartmentId]) {
         studentsByDepartment[student.preferredDepartmentId] = [];
@@ -861,7 +1060,11 @@ export const autoAssignBatch = async (req: Request, res: Response) => {
       studentsByDepartment[student.preferredDepartmentId].push(student);
     });
 
-    const assignments: { studentId: number; classId: number; departmentId: number }[] = [];
+    const assignments: {
+      studentId: number;
+      classId: number;
+      departmentId: number;
+    }[] = [];
     let totalAssigned = 0;
     const missingClassesDepts: string[] = [];
 
@@ -878,7 +1081,9 @@ export const autoAssignBatch = async (req: Request, res: Response) => {
       }
 
       // Sort classes by current student count to ensure even distribution
-      const sortedClasses = batchDept.classes.sort((a, b) => a._count.students - b._count.students);
+      const sortedClasses = batchDept.classes.sort(
+        (a, b) => a._count.students - b._count.students,
+      );
       const numClasses = sortedClasses.length;
 
       studentsForDept.forEach((student, index) => {
@@ -886,7 +1091,7 @@ export const autoAssignBatch = async (req: Request, res: Response) => {
         assignments.push({
           studentId: student.id,
           classId: targetClass.id,
-          departmentId: deptId
+          departmentId: deptId,
         });
 
         // Temporarily increment the count for further balancing in memory (though our simple mod loop handles it mostly well)
@@ -905,14 +1110,14 @@ export const autoAssignBatch = async (req: Request, res: Response) => {
               classId: assignment.classId,
               departmentId: assignment.departmentId,
             },
-          })
-        )
+          }),
+        ),
       );
     }
 
     let message = `Successfully assigned ${totalAssigned} students.`;
     if (missingClassesDepts.length > 0) {
-      message += ` However, some students were not assigned because the following departments have no classes defined: ${missingClassesDepts.join(', ')}.`;
+      message += ` However, some students were not assigned because the following departments have no classes defined: ${missingClassesDepts.join(", ")}.`;
     }
 
     res.json({
@@ -921,7 +1126,6 @@ export const autoAssignBatch = async (req: Request, res: Response) => {
       assignedCount: totalAssigned,
       totalUnassigned: unassignedStudents.length,
     });
-
   } catch (error) {
     console.error("Error auto-assigning batch:", error);
     res.status(500).json({
@@ -1027,7 +1231,8 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
 
         // Education Info
         last_institution: formData.qualifyingSchool || "Not Specified",
-        qualifying_exam_name: formData.qualifyingExam || formData.bachelorDegree || "Not Specified",
+        qualifying_exam_name:
+          formData.qualifyingExam || formData.bachelorDegree || "Not Specified",
         qualifying_exam_register_no: formData.qualifyingExamRegisterNo || null,
         physics_score: formData.physicsScore
           ? parseFloat(formData.physicsScore)
@@ -1098,14 +1303,15 @@ export const submitAdmissionForm = async (req: Request, res: Response) => {
       },
     });
 
-
     // Send confirmation email (fire and forget)
     if (newStudent.email) {
       sendAdmissionConfirmation(
         newStudent.email,
         newStudent.name,
-        admissionNumber
-      ).catch((err: any) => console.error("Failed to send confirmation email:", err));
+        admissionNumber,
+      ).catch((err: any) =>
+        console.error("Failed to send confirmation email:", err),
+      );
     }
 
     res.status(201).json({
@@ -1185,7 +1391,9 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
       for (const id of ids) {
         try {
           const studentId = parseInt(id);
-          const student = await prisma.student.findUnique({ where: { id: studentId } });
+          const student = await prisma.student.findUnique({
+            where: { id: studentId },
+          });
 
           if (!student) {
             errors.push(`Student ID ${id} not found`);
@@ -1194,25 +1402,40 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
 
           const deptId = student.departmentId || student.preferredDepartmentId;
           if (!deptId) {
-            errors.push(`Student ID ${id} ( ${student.name} ) has no department assigned`);
+            errors.push(
+              `Student ID ${id} ( ${student.name} ) has no department assigned`,
+            );
             continue;
           }
 
-          // Generate number
-          const admissionNumber = await generateAdmissionNumber(deptId);
-
-          // Update
-          const updated = await prisma.student.update({
-            where: { id: studentId },
-            data: {
-              status: StudentStatus.approved,
-              admission_number: admissionNumber,
-              departmentId: !student.departmentId ? deptId : undefined, // Assign dept if needed
-              updatedAt: new Date()
+          // Generate number and update with retry for unique constraint conflicts
+          let updated;
+          const maxRetries = 3;
+          for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+              const admissionNumber = await generateAdmissionNumber(deptId);
+              updated = await prisma.student.update({
+                where: { id: studentId },
+                data: {
+                  status: StudentStatus.approved,
+                  admission_number: admissionNumber,
+                  departmentId: !student.departmentId ? deptId : undefined,
+                  updatedAt: new Date(),
+                },
+              });
+              break; // Success — exit retry loop
+            } catch (retryErr: any) {
+              if (retryErr.code === "P2002" && attempt < maxRetries - 1) {
+                // Unique constraint violation — retry with a fresh number
+                console.warn(
+                  `Admission number conflict for student ${id}, retrying (attempt ${attempt + 2}/${maxRetries})...`,
+                );
+                continue;
+              }
+              throw retryErr; // Not a duplicate or out of retries
             }
-          });
+          }
           results.push(updated);
-
         } catch (err: any) {
           console.error(`Error approving student ${id}:`, err);
           errors.push(`Failed to approve student ${id}: ${err.message}`);
@@ -1220,15 +1443,18 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
       }
 
       if (errors.length > 0 && results.length === 0) {
-        return res.status(400).json({ success: false, error: "Failed to approve students", details: errors });
+        return res.status(400).json({
+          success: false,
+          error: "Failed to approve students",
+          details: errors,
+        });
       }
 
       return res.json({
         success: true,
-        message: `${results.length} applications approved successfully. ${errors.length > 0 ? `${errors.length} failed.` : ''}`,
-        errors: errors.length > 0 ? errors : undefined
+        message: `${results.length} applications approved successfully. ${errors.length > 0 ? `${errors.length} failed.` : ""}`,
+        errors: errors.length > 0 ? errors : undefined,
       });
-
     } else {
       // Normal bulk update for other statuses
       await prisma.student.updateMany({
@@ -1241,12 +1467,19 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
         },
       });
 
+      await logAudit({
+        req,
+        action: "BULK_UPDATE_ADMISSION_STATUS",
+        module: "admission",
+        entityType: "Student",
+        details: { ids, status, count: ids.length },
+      });
+
       res.json({
         success: true,
         message: `${ids.length} applications updated successfully`,
       });
     }
-
   } catch (error) {
     console.error("Error bulk updating status:", error);
     res
@@ -1476,6 +1709,15 @@ export const assignStudentToClass = async (req: Request, res: Response) => {
       },
     });
 
+    await logAudit({
+      req,
+      action: "ASSIGN_STUDENT_TO_CLASS",
+      module: "admission",
+      entityType: "Student",
+      entityId: studentId,
+      details: { classId, className: classInfo.name },
+    });
+
     res.json({
       success: true,
       message: `Student assigned to ${classInfo.name} successfully`,
@@ -1581,6 +1823,18 @@ export const autoAssignStudentsToClasses = async (
       ),
     );
 
+    await logAudit({
+      req,
+      action: "AUTO_ASSIGN_STUDENTS_TO_CLASSES",
+      module: "admission",
+      entityType: "Student",
+      details: {
+        batchDepartmentId,
+        department: batchDepartment.department.name,
+        studentCount: studentIds.length,
+      },
+    });
+
     res.json({
       success: true,
       message: `${studentIds.length} students assigned to ${batchDepartment.department.name} classes successfully`,
@@ -1644,6 +1898,18 @@ export const bulkAssignToClass = async (req: Request, res: Response) => {
       },
     });
 
+    await logAudit({
+      req,
+      action: "BULK_ASSIGN_TO_CLASS",
+      module: "admission",
+      entityType: "Student",
+      details: {
+        classId,
+        className: classInfo.name,
+        studentCount: studentIds.length,
+      },
+    });
+
     res.json({
       success: true,
       message: `${studentIds.length} students assigned to ${classInfo.name} successfully`,
@@ -1670,6 +1936,14 @@ export const deleteStaleAdmissions = async (req: Request, res: Response) => {
           ],
         },
       },
+    });
+
+    await logAudit({
+      req,
+      action: "DELETE_STALE_ADMISSIONS",
+      module: "admission",
+      entityType: "Student",
+      details: { deletedCount: result.count },
     });
 
     res.json({

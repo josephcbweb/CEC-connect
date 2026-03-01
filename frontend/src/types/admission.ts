@@ -103,6 +103,11 @@ export interface Batch {
   status: string;
   createdAt: string;
   updatedAt: string;
+  batchDepartments?: {
+    id: number;
+    batchId: number;
+    departmentId: number;
+  }[];
 }
 
 export interface AdmissionFormData {

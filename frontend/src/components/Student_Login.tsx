@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import Logo from "../assets/logo.png";
@@ -30,6 +31,7 @@ const MessageAlert = ({ message, type }: MessageAlertProps) => {
 
 // Main Student Login Component
 const StudentLogin = () => {
+  usePageTitle("Student Login");
   // State updated to use 'email' to match backend requirements
   const [inputValue, setInputValue] = useState({
     email: "",
