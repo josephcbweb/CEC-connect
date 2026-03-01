@@ -113,7 +113,50 @@ const BusServiceManager = () => {
 
   if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-[#009689] w-12 h-12" /></div>;
 
-  // ─── CASE E: Suspended (bus_service: true AND hasOverdueBusFee: true) ───
+  // ─── CASE F: Suspended by Admin (is_bus_pass_suspended: true) ───
+  if (student?.is_bus_pass_suspended && student?.bus_pass_suspended_until && new Date(student.bus_pass_suspended_until) > new Date()) {
+    const { busName, busNumber, stopName } = student.busDetails || {};
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-50 border-2 border-red-200 rounded-3xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-red-600 p-6 text-white flex items-center gap-4">
+            <div className="bg-red-500/30 w-14 h-14 rounded-full flex items-center justify-center">
+              <ShieldAlert className="w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Pass Suspended</h1>
+              <p className="opacity-90 text-sm">Action Required</p>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-8 space-y-6">
+            <div className="bg-white rounded-2xl p-6 border border-red-100 flex items-start gap-4">
+              <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-gray-800 text-lg">Suspended By Administration</h3>
+                <p className="text-gray-600 mt-1">
+                  Your bus pass for <strong>{busName || "Unknown"}</strong> ({busNumber || "Unknown"}) at <strong>{stopName || "Unknown"}</strong> has been
+                  suspended by the administration until <strong>{new Date(student.bus_pass_suspended_until).toLocaleDateString()}</strong>.
+                </p>
+                <p className="text-gray-600 mt-2">
+                  Please contact the college administration office for more details or to resolve any pending actions.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-100/50 rounded-xl p-4 flex items-center gap-3 text-red-700 text-sm font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+              Status: SUSPENDED — Contact Administration
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── CASE E: Suspended due to Due Fees (bus_service: true AND hasOverdueBusFee: true) ───
   if (student?.bus_service && student?.hasOverdueBusFee) {
     const { busName, busNumber, stopName } = student.busDetails || {};
     return (

@@ -254,6 +254,8 @@ export const fetchBusStudents = async (req: Request, res: Response) => {
         name: true,
         currentSemester: true,
         student_phone_number: true,
+        is_bus_pass_suspended: true,
+        bus_pass_suspended_until: true,
         bus: {
           select: {
             busName: true,
@@ -273,6 +275,8 @@ export const fetchBusStudents = async (req: Request, res: Response) => {
       name: s.name,
       semester: s.currentSemester,
       phoneNumber: s.student_phone_number,
+      is_bus_pass_suspended: s.is_bus_pass_suspended,
+      bus_pass_suspended_until: s.bus_pass_suspended_until,
       busName: s.bus?.busName ?? "No Bus Assigned",
       departmentCode: s.department?.department_code || "N/A",
     }));
@@ -310,6 +314,65 @@ export const removeStudentFromBus = async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to remove student from bus" });
+  }
+};
+
+// ─── Suspend a student's bus pass ───
+export const suspendStudentPass = async (req: Request, res: Response) => {
+  try {
+    const studentId = Number(req.params.studentId);
+    const { days } = req.body;
+
+    if (isNaN(studentId)) {
+      return res.status(400).json({ error: "Invalid student ID" });
+    }
+
+    if (!days || isNaN(Number(days)) || Number(days) <= 0) {
+      return res.status(400).json({ error: "Valid number of days is required" });
+    }
+
+    const suspendedUntil = new Date();
+    suspendedUntil.setDate(suspendedUntil.getDate() + Number(days));
+
+    await prisma.student.update({
+      where: { id: studentId },
+      data: {
+        is_bus_pass_suspended: true,
+        bus_pass_suspended_until: suspendedUntil,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Student bus pass suspended successfully",
+      suspendedUntil
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to suspend student bus pass" });
+  }
+};
+
+// ─── Reactivate a student's bus pass ───
+export const reactivateStudentPass = async (req: Request, res: Response) => {
+  try {
+    const studentId = Number(req.params.studentId);
+
+    if (isNaN(studentId)) {
+      return res.status(400).json({ error: "Invalid student ID" });
+    }
+
+    await prisma.student.update({
+      where: { id: studentId },
+      data: {
+        is_bus_pass_suspended: false,
+        bus_pass_suspended_until: null,
+      },
+    });
+
+    return res.status(200).json({ message: "Student bus pass reactivated successfully" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to reactivate student bus pass" });
   }
 };
 

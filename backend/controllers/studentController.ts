@@ -177,11 +177,11 @@ export const getStudentProfile = async (req: Request, res: Response) => {
           id: pendingBusRequest.id,
           busName: pendingBusRequest.bus.busName,
           stopName: pendingBusRequest.busStop.stopName,
-          feeAmount: pendingBusRequest.busStop.feeAmount,
-          status: pendingBusRequest.status,
         }
         : null,
       hasOverdueBusFee,
+      is_bus_pass_suspended: student.is_bus_pass_suspended,
+      bus_pass_suspended_until: student.bus_pass_suspended_until,
     };
     console.log(formattedStudent);
     return res.status(200).json(formattedStudent);
