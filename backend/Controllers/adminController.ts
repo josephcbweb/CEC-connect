@@ -96,15 +96,17 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
     // NEW: Fetch all available departments directly from the DB
     // This ensures we get all departments for ALL programs, not just the currently filtered students
     const allDepartments = await prisma.department.findMany({
-      select: { name: true },
+      select: { 
+        name: true, 
+        department_code: true 
+      },
       orderBy: { name: "asc" }
     });
-    const uniqueDepartments = allDepartments.map((dept: any) => dept.name);
 
     res.json({
       students: enriched,
       programs: uniquePrograms,
-      departments: uniqueDepartments, // Send the dynamic list to the frontend
+      departments: allDepartments, // Send the complete department info with codes
     });
   } catch (error) {
     console.error("Error fetching students:", error);
