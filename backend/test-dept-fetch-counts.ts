@@ -1,0 +1,1 @@
+import { prisma } from './lib/prisma'; async function test() { try { const depts = await prisma.department.findMany({ include: { _count: { select: { students: true } } } }); console.log(JSON.stringify(depts, null, 2)); } catch (e) { console.error('ERROR:', e); } finally { await prisma.$disconnect(); } } test();

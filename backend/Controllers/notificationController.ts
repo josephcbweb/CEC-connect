@@ -90,26 +90,12 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
 
     const currentSemester = `S${student.currentSemester}`;
     const deptCode = student.department?.department_code;
+    const program = student.department?.program;
 
-    // Fetch relevant notifications
-    const notifications = await prisma.notification.findMany({
+    // Fetch all published notifications first, then filter
+    const allNotifications = await prisma.notification.findMany({
       where: {
         status: NotificationStatus.published,
-        OR: [
-          { targetType: NotificationTargetType.ALL },
-          {
-            targetType: NotificationTargetType.SEMESTER,
-            targetValue: currentSemester
-          },
-          {
-            targetType: NotificationTargetType.DEPARTMENT,
-            targetValue: deptCode
-          },
-          {
-            targetType: NotificationTargetType.STUDENT,
-            targetValue: studentId.toString()
-          }
-        ],
         AND: [
           {
             OR: [
@@ -120,6 +106,61 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
         ]
       },
       orderBy: { createdAt: "desc" }
+    });
+
+    // Filter notifications based on target type
+    const notifications = allNotifications.filter(notification => {
+      // ALL - matches everyone
+      if (notification.targetType === NotificationTargetType.ALL) {
+        return true;
+      }
+
+      // SEMESTER - matches current semester
+      if (notification.targetType === NotificationTargetType.SEMESTER) {
+        return notification.targetValue === currentSemester;
+      }
+
+      // DEPARTMENT - matches department code
+      if (notification.targetType === NotificationTargetType.DEPARTMENT) {
+        return notification.targetValue === deptCode;
+      }
+
+      // STUDENT - matches specific student
+      if (notification.targetType === NotificationTargetType.STUDENT) {
+        return notification.targetValue === studentId.toString();
+      }
+
+      // PROGRAM - matches program
+      if (notification.targetType === 'PROGRAM') {
+        return notification.targetValue === program;
+      }
+
+      // CLASS - matches combination of program, department, and semester
+      if (notification.targetType === 'CLASS' && notification.targetValue) {
+        try {
+          const classFilter = JSON.parse(notification.targetValue);
+          let matches = true;
+
+          if (classFilter.program && classFilter.program !== program) {
+            matches = false;
+          }
+
+          if (classFilter.department_code && classFilter.department_code !== deptCode) {
+            matches = false;
+          }
+
+          if (classFilter.semester && classFilter.semester !== student.currentSemester) {
+            matches = false;
+          }
+
+          return matches;
+        } catch (e) {
+          console.error('Error parsing CLASS targetValue:', e);
+          return false;
+        }
+      }
+
+      return false;
     });
 
     // Custom sort: URGENT > IMPORTANT > NORMAL, then by createdAt desc

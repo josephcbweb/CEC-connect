@@ -98,9 +98,9 @@ class AppDrawer extends StatelessWidget {
                 const SizedBox(height: 4),
                 _buildDrawerItem(
                   context,
-                  title: 'Registration',
-                  icon: Icons.app_registration_rounded,
-                  selectedIcon: Icons.app_registration,
+                  title: 'No Due Status',
+                  icon: Icons.checklist_outlined,
+                  selectedIcon: Icons.checklist,
                   route: 'registration',
                   onTap: () => _navigateTo(
                     context,

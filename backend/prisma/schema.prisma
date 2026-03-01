@@ -749,6 +749,8 @@ enum NotificationTargetType {
   SEMESTER
   DEPARTMENT
   STUDENT
+  PROGRAM
+  CLASS
 }
 
 enum StudentStatus {

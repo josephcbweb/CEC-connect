@@ -4,9 +4,12 @@ export interface Notification {
   description: string;
   targetType: "ALL" | "SEMESTER" | "DEPARTMENT" | "STUDENT";
   targetValue?: string;
+  program?: string;
+  departmentId?: number;
+  semester?: number;
   priority: "NORMAL" | "IMPORTANT" | "URGENT";
   status: "draft" | "published" | "archived" | "read" | "unread";
-  expiryDate?: string;
+  dueDate?: string;
   createdAt: string;
   sender?: {
       username: string;

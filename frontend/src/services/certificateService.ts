@@ -6,7 +6,7 @@ const API_BASE = "http://localhost:3000";
 
 // Get auth token from localStorage
 const getAuthHeader = () => {
-  const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+  const token = localStorage.getItem("studentAuthToken") || localStorage.getItem("authToken") || localStorage.getItem("token");
   return {
     Authorization: `Bearer ${token}`,
   };
