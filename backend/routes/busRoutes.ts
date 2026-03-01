@@ -20,7 +20,9 @@ import {
   updateBusRequestStatus,
   verifyBusPayment,
   getBusInvoices,
-} from "../controllers/busController";
+  suspendStudentPass,
+  reactivateStudentPass
+} from "../Controllers/busController";
 
 const router = express.Router();
 
