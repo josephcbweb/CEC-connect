@@ -1,9 +1,24 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
-import { NotificationTargetType, NotificationPriority, NotificationStatus } from "../generated/prisma/enums";
+import { NotificationTargetType, NotificationPriority, NotificationStatus, Program } from "../generated/prisma/enums";
 // import { RequestStatus } from "@prisma/client";
 
 const BUS_FEE_KEY = "BUS_FEE_ENABLED";
+
+// Helper: Defines universally what an "active" (non-graduated) student is based on program length
+const activeBusStudentFilter = {
+  OR: [
+    { program: Program.BTECH, currentSemester: { lte: 8 } },
+    { program: Program.MTECH, currentSemester: { lte: 4 } },
+    { program: Program.MCA, currentSemester: { lte: 4 } },
+  ]
+};
+
+const getMaxSemesterForProgram = (program: string): number => {
+  if (program === "BTECH") return 8;
+  if (program === "MTECH" || program === "MCA") return 4;
+  return 99; // Fallback for unknown programs
+};
 
 export const fetchBus = async (req: Request, res: Response) => {
   try {
@@ -152,6 +167,37 @@ export const getBusDetails = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateBusDriver = async (req: Request, res: Response) => {
+  try {
+    const busId = Number(req.params.busId);
+    const { driverName, driverPhone } = req.body;
+
+    if (isNaN(busId)) {
+      return res.status(400).json({ message: "Invalid bus ID" });
+    }
+
+    if (!driverName || !driverPhone) {
+      return res.status(400).json({ message: "Driver name and phone are required" });
+    }
+
+    const updatedBus = await prisma.bus.update({
+      where: { id: busId },
+      data: {
+        driverName,
+        driverPhone,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Driver details updated successfully",
+      bus: updatedBus,
+    });
+  } catch (error) {
+    console.error("Error updating bus driver:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -376,15 +422,17 @@ export const reactivateStudentPass = async (req: Request, res: Response) => {
   }
 };
 
-// ─── Helper: Identify unique batches from bus-service students for a given semester ───
-async function identifyBatchesForSemester(semester: number, tx?: any) {
+// ─── Helper: Identify unique batches from bus-service students for a given program and semester ───
+async function identifyBatchesForSemester(semester: number, program: any, tx?: any) {
   const db = tx || prisma;
   const students = await db.student.findMany({
     where: {
       bus_service: true,
       currentSemester: semester,
+      program: program,
       classId: { not: null },
       busStopId: { not: null },
+      ...activeBusStudentFilter
     },
     select: {
       id: true,
@@ -415,33 +463,51 @@ async function identifyBatchesForSemester(semester: number, tx?: any) {
 // ─── 1. GET /active-semesters ───
 export const getActiveBusSemesters = async (req: Request, res: Response) => {
   try {
-    const semesters = await prisma.student.groupBy({
-      by: ["currentSemester"],
-      where: { bus_service: true },
-      orderBy: { currentSemester: "asc" },
+    const activeGroups = await prisma.student.groupBy({
+      by: ["program", "currentSemester"],
+      where: {
+        bus_service: true,
+        ...activeBusStudentFilter
+      },
+      orderBy: [{ program: "asc" }, { currentSemester: "asc" }],
     });
-    res.json(semesters.map((s) => s.currentSemester));
+
+    // Map to explicit `{ program, semester }` combinations
+    const formatted = activeGroups.map(group => ({
+      program: group.program,
+      semester: group.currentSemester
+    }));
+
+    res.json(formatted);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch active semesters" });
   }
 };
 
-// ─── 2. GET /preview-bulk-fees?semester=X ───
+// ─── 2. GET /preview-bulk-fees?semester=X&program=Y ───
 // Returns student-level counts: eligible, alreadyBilled, netNew + batch breakdown
 export const previewBulkBusFees = async (req: Request, res: Response) => {
   const semester = parseInt(req.query.semester as string);
-  if (isNaN(semester)) {
-    return res.status(400).json({ error: "Valid semester is required" });
+  const program = req.query.program as any;
+
+  if (isNaN(semester) || !program) {
+    return res.status(400).json({ error: "Valid semester and program are required" });
+  }
+
+  if (semester > getMaxSemesterForProgram(program)) {
+    return res.status(400).json({ error: `${program} students graduate after semester ${getMaxSemesterForProgram(program)}` });
   }
 
   try {
-    // 1. All eligible bus-service students for this semester
+    // 1. All eligible bus-service students for this program + semester
     const allEligible = await prisma.student.findMany({
       where: {
         bus_service: true,
         currentSemester: semester,
+        program: program,
         busStopId: { not: null },
         classId: { not: null },
+        ...activeBusStudentFilter
       },
       select: { id: true },
     });
@@ -466,7 +532,7 @@ export const previewBulkBusFees = async (req: Request, res: Response) => {
     const netNew = eligible - alreadyBilled;
 
     // 3. Batch breakdown for display
-    const batches = await identifyBatchesForSemester(semester);
+    const batches = await identifyBatchesForSemester(semester, program);
     const batchDetails = [];
 
     for (const batch of batches) {
@@ -474,8 +540,10 @@ export const previewBulkBusFees = async (req: Request, res: Response) => {
         where: {
           bus_service: true,
           currentSemester: semester,
+          program: program,
           busStopId: { not: null },
           class: { batchDepartment: { batchId: batch.id } },
+          ...activeBusStudentFilter
         },
         select: { id: true },
       });
@@ -502,29 +570,35 @@ export const previewBulkBusFees = async (req: Request, res: Response) => {
 // ─── 3. POST /assign-bulk-fees ───
 // Student-level dedup: skips individual students who already have a Bus Fee for this semester
 export const assignBulkBusFees = async (req: Request, res: Response) => {
-  const { semester, dueDate } = req.body;
+  const { semester, program, dueDate } = req.body;
   const targetSemester = parseInt(semester);
 
-  if (isNaN(targetSemester) || !dueDate) {
-    return res.status(400).json({ error: "semester and dueDate are required" });
+  if (isNaN(targetSemester) || !program || !dueDate) {
+    return res.status(400).json({ error: "semester, program, and dueDate are required" });
+  }
+
+  if (targetSemester > getMaxSemesterForProgram(program)) {
+    return res.status(400).json({ error: `Cannot assign fees. ${program} students graduate after semester ${getMaxSemesterForProgram(program)}` });
   }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
       // 1. Identify batches
-      const batches = await identifyBatchesForSemester(targetSemester, tx);
+      const batches = await identifyBatchesForSemester(targetSemester, program, tx);
 
       if (batches.length === 0) {
-        throw new Error("No batches found with bus-service students for this semester.");
+        throw new Error("No batches found with bus-service students for this program/semester.");
       }
 
-      // 2. Get ALL eligible students across all batches
+      // 2. Get ALL eligible students across all batches for this program
       const allStudents = await tx.student.findMany({
         where: {
           bus_service: true,
           currentSemester: targetSemester,
+          program: program,
           busStopId: { not: null },
           classId: { not: null },
+          ...activeBusStudentFilter
         },
         select: { id: true },
       });
@@ -545,7 +619,7 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
       let totalStudentsBilled = 0;
       let totalSkipped = 0;
       const processedBatchNames: string[] = [];
-      const feeName = `Bus Fee - Sem ${targetSemester}`;
+      const feeName = `Bus Fee - Sem ${targetSemester} (${program})`;
       const dueDateObj = new Date(dueDate);
 
       // Get an admin user for the notification sender
@@ -580,6 +654,7 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
             currentSemester: targetSemester,
             busStopId: { not: null },
             class: { batchDepartment: { batchId: batch.id } },
+            ...activeBusStudentFilter
           },
           include: { busStop: true },
         });
@@ -662,17 +737,23 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
 // ─── 4. GET /semester-status?semester=X ───
 // Unified view: merges student data with bus-fee invoice status for a semester
 export const getSemesterBillingStatus = async (req: Request, res: Response) => {
-  const semester = parseInt(req.query.semester as string);
-  if (isNaN(semester)) {
-    return res.status(400).json({ error: "Valid semester is required" });
+  const semesterParam = req.query.semester as string;
+  const isAllSemesters = !semesterParam || semesterParam === "all";
+  const semester = parseInt(semesterParam);
+
+  if (!isAllSemesters && isNaN(semester)) {
+    return res.status(400).json({ error: "Valid semester is required or 'all'" });
   }
 
   try {
-    // 1. Fetch all bus-service students for this semester with joins
+    // 1. Fetch all bus-service students for this semester+program with joins
+    // If isAllSemesters is true, we don't filter by currentSemester
     const students = await prisma.student.findMany({
       where: {
         bus_service: true,
-        currentSemester: semester,
+        ...(isAllSemesters ? {} : { currentSemester: semester }),
+        ...(req.query.program ? { program: req.query.program as any } : {}),
+        ...activeBusStudentFilter
       },
       select: {
         id: true,
@@ -694,33 +775,36 @@ export const getSemesterBillingStatus = async (req: Request, res: Response) => {
       orderBy: { name: "asc" },
     });
 
-    // 2. Get all bus-fee invoices for these students in this semester
+    // 2. Get all active bus-fee FeeDetails for these students in this semester (or all semesters)
+    // We fetch FeeDetails as the primary source of truth, and include the nested Invoice
     const studentIds = students.map((s) => s.id);
-    const invoices = await prisma.invoice.findMany({
+    const feeDetails = await prisma.feeDetails.findMany({
       where: {
         studentId: { in: studentIds },
-        fee: {
-          feeType: { contains: "Bus Fee" },
-          semester,
-          archived: false,
-        },
+        feeType: { contains: "Bus Fee" },
+        ...(isAllSemesters ? {} : { semester }),
+        archived: false,
       },
-      select: {
-        id: true,
-        studentId: true,
-        amount: true,
-        status: true,
-        dueDate: true,
-        createdAt: true,
+      include: {
+        invoices: {
+          orderBy: { createdAt: "desc" },
+          take: 1, // Only get the latest invoice per fee detail
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            dueDate: true,
+          }
+        }
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // 3. Map: studentId → latest invoice
-    const invoiceMap = new Map<number, (typeof invoices)[0]>();
-    for (const inv of invoices) {
-      if (!invoiceMap.has(inv.studentId)) {
-        invoiceMap.set(inv.studentId, inv); // latest first (ordered by createdAt desc)
+    // 3. Map: studentId → latest FeeDetails record
+    const feeMap = new Map<number, (typeof feeDetails)[0]>();
+    for (const fee of feeDetails) {
+      if (!feeMap.has(fee.studentId)) {
+        feeMap.set(fee.studentId, fee); // latest first (ordered by createdAt desc)
       }
     }
 
@@ -729,16 +813,25 @@ export const getSemesterBillingStatus = async (req: Request, res: Response) => {
     today.setHours(0, 0, 0, 0);
 
     const result = students.map((student) => {
-      const invoice = invoiceMap.get(student.id);
-      let status: "not_billed" | "unpaid" | "paid" | "overdue" = "not_billed";
+      const feeRecord = feeMap.get(student.id);
+      const invoice = feeRecord?.invoices?.[0]; // Get the associated nested invoice
 
-      if (invoice) {
-        if (invoice.status === "paid") {
-          status = "paid";
-        } else if (invoice.status === "unpaid") {
-          status = today > new Date(invoice.dueDate) ? "overdue" : "unpaid";
+      let status: "not_billed" | "unpaid" | "paid" | "overdue" | "setup_incomplete" = "not_billed";
+
+      if (!student.busStop || !student.class) {
+        status = "setup_incomplete";
+      } else if (feeRecord) {
+        if (invoice) {
+          if (invoice.status === "paid") {
+            status = "paid";
+          } else if (invoice.status === "unpaid") {
+            status = today > new Date(invoice.dueDate) ? "overdue" : "unpaid";
+          } else {
+            status = invoice.status as any;
+          }
         } else {
-          status = invoice.status as any;
+          // If a FeeDetails exists but somehow no invoice is present (edge case)
+          status = "unpaid";
         }
       }
 
@@ -756,12 +849,13 @@ export const getSemesterBillingStatus = async (req: Request, res: Response) => {
       };
     });
 
-    // 5. Counts
+    // 5. Counts (Note: setup_incomplete is safely excluded from notBilled count!)
     const counts = {
       total: result.length,
       notBilled: result.filter((r) => r.status === "not_billed").length,
       unpaid: result.filter((r) => r.status === "unpaid" || r.status === "overdue").length,
       paid: result.filter((r) => r.status === "paid").length,
+      setupIncomplete: result.filter((r) => r.status === "setup_incomplete").length,
     };
 
     res.json({ students: result, counts });
@@ -956,20 +1050,24 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
         data: { status: status as any },
       });
 
-      // 3. If approved, Create an UNPAID Invoice with dynamic semester
+      // 3. If approved, Create an UNPAID Invoice with dynamic semester and 5-day due date
       if (status === "approved") {
+        const strictDueDate = new Date();
+        strictDueDate.setDate(strictDueDate.getDate() + 5);
+        strictDueDate.setUTCHours(23, 59, 59, 999);
+
         await tx.feeDetails.create({
           data: {
             studentId: request.studentId,
             feeType: "Bus Fee - Enrollment",
             amount: request.busStop.feeAmount,
-            dueDate: new Date(),
+            dueDate: strictDueDate,
             semester: request.student?.currentSemester ?? 1,
             invoices: {
               create: {
                 studentId: request.studentId,
                 amount: request.busStop.feeAmount,
-                dueDate: new Date(),
+                dueDate: strictDueDate,
                 status: "unpaid",
                 feeStructureId: 3,
                 semester: request.student?.currentSemester ?? 1,
@@ -1100,5 +1198,72 @@ export const getBusInvoices = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching bus invoices:", error);
     return res.status(500).json({ message: "Failed to fetch invoices" });
+  }
+};
+
+// ─── Bus Fine Settings ───
+export const getBusFineSettings = async (req: Request, res: Response) => {
+  try {
+    // Assuming Bus Fee maps to FeeStructure id 3 based on existing logic
+    const feeStructure = await prisma.feeStructure.findUnique({
+      where: { id: 3 },
+      include: {
+        fineSlabs: {
+          orderBy: { startDay: "asc" },
+        },
+      },
+    });
+
+    if (!feeStructure) {
+      return res.status(404).json({ error: "Bus fee structure not found." });
+    }
+
+    res.status(200).json(feeStructure);
+  } catch (error) {
+    console.error("Error fetching bus fine settings:", error);
+    res.status(500).json({ error: "Failed to fetch fine settings." });
+  }
+};
+
+export const updateBusFineSettings = async (req: Request, res: Response) => {
+  try {
+    const { fineEnabled, fineSlabs } = req.body;
+
+    // FeeStructure ID 3 for Bus Fee
+    const feeId = 3;
+
+    const updatedSettings = await prisma.$transaction(async (tx) => {
+      // Update the main structure toggle
+      await tx.feeStructure.update({
+        where: { id: feeId },
+        data: {
+          fineEnabled: fineEnabled ?? false,
+        },
+      });
+
+      // Erase existing slabs and recreate if fine enabled and slabs exist
+      await tx.fineSlab.deleteMany({ where: { feeStructureId: feeId } });
+
+      if (fineEnabled && fineSlabs && fineSlabs.length > 0) {
+        await tx.fineSlab.createMany({
+          data: fineSlabs.map((slab: any) => ({
+            feeStructureId: feeId,
+            startDay: Number(slab.startDay),
+            endDay: slab.endDay ? Number(slab.endDay) : null,
+            amountPerDay: parseFloat(slab.amountPerDay),
+          })),
+        });
+      }
+
+      return tx.feeStructure.findUnique({
+        where: { id: feeId },
+        include: { fineSlabs: { orderBy: { startDay: "asc" } } },
+      });
+    });
+
+    res.status(200).json(updatedSettings);
+  } catch (error: any) {
+    console.error("Error updating bus fine settings:", error);
+    res.status(500).json({ error: "Failed to update fine settings." });
   }
 };
