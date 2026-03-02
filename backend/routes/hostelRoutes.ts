@@ -11,6 +11,8 @@ import {
     generateMonthlyInvoices,
     vacateStudent,
     getStudentHostelLedger,
+    getHostelFineSettings,
+    updateHostelFineSettings
 } from "../controllers/hostelController";
 
 const router = express.Router();
@@ -41,5 +43,9 @@ router.patch('/vacate/:studentId', vacateStudent);
 
 // Get ledger for a student
 router.get('/ledger/:studentId', getStudentHostelLedger);
+
+// Fine Settings for Hostel
+router.get('/fine-settings', getHostelFineSettings);
+router.post('/fine-settings', updateHostelFineSettings);
 
 export default router;

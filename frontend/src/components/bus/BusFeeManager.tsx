@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   Users,
-  Calendar,
   Loader2,
   Search,
   CheckCircle,
@@ -12,9 +11,11 @@ import {
   CircleDot,
   FileText,
   ChevronDown,
+  Settings,
 } from "lucide-react";
 import axios from "axios";
 import AssignBusFeeModal from "./AssignBusFeeModal";
+import BusFineSettingsModal from "./BusFineSettingsModal";
 
 interface StudentRow {
   studentId: number;
@@ -61,40 +62,78 @@ const statusConfig = {
     text: "text-green-700",
     dot: "bg-green-500",
   },
+  setup_incomplete: {
+    label: "Missing Setup",
+    bg: "bg-red-50 border border-red-100",
+    text: "text-red-700",
+    dot: "bg-red-500",
+  }
 };
 
+interface ActiveGroup {
+  program: string;
+  semester: number;
+}
+
 const BusFeeManager = () => {
-  const [semesters, setSemesters] = useState<number[]>([]);
-  const [selectedSemester, setSelectedSemester] = useState<string>("");
+  const [activeGroups, setActiveGroups] = useState<ActiveGroup[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState<string>("all");
+  const [selectedSemester, setSelectedSemester] = useState<string>("all");
+  const [availableSemesters, setAvailableSemesters] = useState<number[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [counts, setCounts] = useState<Counts>({ total: 0, notBilled: 0, unpaid: 0, paid: 0 });
   const [loading, setLoading] = useState(false);
-  const [semLoading, setSemLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Confirmation modal states
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [targetStudent, setTargetStudent] = useState<StudentRow | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Load semesters on mount
+  // Load active groups on mount
   useEffect(() => {
-    setSemLoading(true);
     axios
       .get("http://localhost:3000/bus/active-semesters")
-      .then((res) => setSemesters(res.data))
-      .catch((err) => console.error(err))
-      .finally(() => setSemLoading(false));
+      .then((res) => {
+        setActiveGroups(res.data);
+      })
+      .catch((err) => console.error(err));
   }, []);
 
+  // Update available semesters when program changes
+  useEffect(() => {
+    if (selectedProgram === "all") {
+      // Get unique semesters across all programs
+      const uniqueSems = Array.from(new Set(activeGroups.map(g => g.semester))).sort((a, b) => a - b);
+      setAvailableSemesters(uniqueSems);
+    } else {
+      const sems = activeGroups
+        .filter(g => g.program === selectedProgram)
+        .map(g => g.semester)
+        .sort((a, b) => a - b);
+      setAvailableSemesters(sems);
+
+      // Auto-select first available semester if current selection is invalid
+      if (selectedSemester !== "all" && !sems.includes(parseInt(selectedSemester))) {
+        setSelectedSemester(sems.length > 0 ? sems[0].toString() : "all");
+      }
+    }
+  }, [selectedProgram, activeGroups]);
+
   // Fetch semester status
-  const fetchSemesterStatus = async (sem: string) => {
+  const fetchSemesterStatus = async (program: string, sem: string) => {
     if (!sem) return;
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:3000/bus/semester-status?semester=${sem}`);
+      let url = `http://localhost:3000/bus/semester-status?semester=${sem}`;
+      if (program !== "all") {
+        url += `&program=${program}`;
+      }
+
+      const res = await axios.get(url);
       setStudents(res.data.students);
       setCounts(res.data.counts);
     } catch (error) {
@@ -106,9 +145,9 @@ const BusFeeManager = () => {
 
   useEffect(() => {
     if (selectedSemester) {
-      fetchSemesterStatus(selectedSemester);
+      fetchSemesterStatus(selectedProgram, selectedSemester);
     }
-  }, [selectedSemester]);
+  }, [selectedProgram, selectedSemester]);
 
   const handleVerifyPaymentClick = (student: StudentRow) => {
     setTargetStudent(student);
@@ -124,7 +163,7 @@ const BusFeeManager = () => {
         { status: "paid" }
       );
       if (response.status === 200) {
-        await fetchSemesterStatus(selectedSemester);
+        await fetchSemesterStatus(selectedProgram, selectedSemester);
         setIsConfirmModalOpen(false);
       }
     } catch (error: any) {
@@ -144,46 +183,6 @@ const BusFeeManager = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // ── Empty state (no semester selected) ──
-  if (!selectedSemester) {
-    return (
-      <div className="p-6 animate-in fade-in duration-500">
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-800">Bus Fee Manager</h3>
-          <p className="text-sm text-gray-500 mt-1">Select a semester to view billing status</p>
-        </div>
-
-        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-100 rounded-3xl">
-          {semLoading ? (
-            <div className="flex items-center gap-3 text-gray-400">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Loading semesters...</span>
-            </div>
-          ) : (
-            <>
-              <div className="p-4 bg-violet-50 rounded-2xl mb-6">
-                <Calendar className="w-8 h-8 text-[#4134bd]" />
-              </div>
-              <p className="text-gray-400 mb-6 text-center max-w-xs">
-                Choose a semester to see bus billing status for all students
-              </p>
-              <select
-                value={selectedSemester}
-                onChange={(e) => setSelectedSemester(e.target.value)}
-                className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 font-medium focus:ring-2 focus:ring-[#4134bd] focus:border-transparent outline-none appearance-none min-w-[200px] text-center"
-              >
-                <option value="">Select Semester</option>
-                {semesters.map((sem) => (
-                  <option key={sem} value={sem}>Semester {sem}</option>
-                ))}
-              </select>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   // ── Main view ──
   return (
     <div className="p-6 animate-in fade-in duration-500">
@@ -194,34 +193,67 @@ const BusFeeManager = () => {
             <h3 className="text-xl font-bold text-gray-800">Bus Fee Manager</h3>
             <p className="text-sm text-gray-500">Semester-wide billing overview</p>
           </div>
-          <div className="relative">
-            <select
-              value={selectedSemester}
-              onChange={(e) => {
-                setSelectedSemester(e.target.value);
-                setSearchTerm("");
-                setStatusFilter("all");
-              }}
-              className="pl-4 pr-8 py-2 bg-violet-50 border border-violet-100 rounded-xl text-[#4134bd] font-bold text-sm focus:ring-2 focus:ring-[#4134bd] outline-none appearance-none cursor-pointer"
-            >
-              {semesters.map((sem) => (
-                <option key={sem} value={sem}>Sem {sem}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4134bd] pointer-events-none" />
+          <div className="flex gap-2">
+            {/* Program Dropdown */}
+            <div className="relative">
+              <select
+                value={selectedProgram}
+                onChange={(e) => {
+                  setSelectedProgram(e.target.value);
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                }}
+                className="pl-4 pr-8 py-2 bg-violet-50 border border-violet-100 rounded-xl text-[#4134bd] font-bold text-sm focus:ring-2 focus:ring-[#4134bd] outline-none appearance-none cursor-pointer"
+              >
+                <option value="all">All Programs</option>
+                {Array.from(new Set(activeGroups.map(g => g.program))).map((prog) => (
+                  <option key={prog} value={prog}>{prog}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4134bd] pointer-events-none" />
+            </div>
+
+            {/* Semester Dropdown */}
+            <div className="relative">
+              <select
+                value={selectedSemester}
+                onChange={(e) => {
+                  setSelectedSemester(e.target.value);
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                }}
+                className="pl-4 pr-8 py-2 bg-violet-50 border border-violet-100 rounded-xl text-[#4134bd] font-bold text-sm focus:ring-2 focus:ring-[#4134bd] outline-none appearance-none cursor-pointer min-w-[130px]"
+              >
+                <option value="all">All Semesters</option>
+                {availableSemesters.map((sem) => (
+                  <option key={sem} value={sem}>Semester {sem}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4134bd] pointer-events-none" />
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={() => setIsAssignModalOpen(true)}
-          disabled={counts.notBilled === 0}
-          className="flex items-center gap-2 py-2.5 px-6 bg-[#4134bd] text-white font-semibold rounded-xl hover:bg-[#3529a3] hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
-        >
-          <Zap className="w-4 h-4" />
-          {counts.notBilled > 0
-            ? `Run Bulk Billing (${counts.notBilled})`
-            : "All Students Billed"}
-        </button>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="flex items-center gap-2 py-2.5 px-4 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Settings</span>
+          </button>
+          <button
+            onClick={() => setIsAssignModalOpen(true)}
+            disabled={counts.notBilled === 0 || selectedSemester === "all" || selectedProgram === "all"}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 py-2.5 px-6 bg-[#4134bd] text-white font-semibold rounded-xl hover:bg-[#3529a3] hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+            title={(selectedSemester === "all" || selectedProgram === "all") ? "Select a specific program and semester to assign bulk fees" : ""}
+          >
+            <Zap className="w-4 h-4" />
+            {counts.notBilled > 0
+              ? `Run Bulk Billing (${counts.notBilled})`
+              : "All Students Billed"}
+          </button>
+        </div>
       </div>
 
       {/* Smart Summary Stats */}
@@ -326,23 +358,33 @@ const BusFeeManager = () => {
                   filteredStudents.map((row) => {
                     const cfg = statusConfig[row.status];
                     return (
-                      <tr key={row.studentId} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={row.studentId} className={`hover:bg-gray-50/50 transition-colors ${row.status === 'setup_incomplete' ? 'opacity-70' : ''}`}>
                         <td className="py-3.5 pl-6">
                           <p className="font-semibold text-gray-800 text-sm">{row.name}</p>
                           <p className="text-xs text-gray-400 mt-0.5">{row.admissionNumber}</p>
                         </td>
                         <td className="py-3.5">
-                          <span className="text-xs font-bold bg-violet-50 text-[#4134bd] px-2.5 py-1 rounded-lg">
-                            {row.batchName}
-                          </span>
+                          {row.status === 'setup_incomplete' && !row.batchName ? (
+                            <span className="text-[10px] font-bold text-red-500 uppercase flex items-center gap-1"><AlertCircle className="w-3 h-3" /> No Class</span>
+                          ) : (
+                            <span className="text-xs font-bold bg-violet-50 text-[#4134bd] px-2.5 py-1 rounded-lg">
+                              {row.batchName}
+                            </span>
+                          )}
                         </td>
-                        <td className="py-3.5 text-sm text-gray-600">{row.stopName}</td>
+                        <td className="py-3.5 text-sm text-gray-600">
+                          {row.status === 'setup_incomplete' && (!row.stopName || row.stopName === 'N/A') ? (
+                            <span className="text-[10px] font-bold text-red-500 uppercase flex items-center gap-1"><AlertCircle className="w-3 h-3" /> No Stop</span>
+                          ) : (
+                            row.stopName
+                          )}
+                        </td>
                         <td className="py-3.5 font-mono font-bold text-sm text-gray-800">
                           ₹{Number(row.feeAmount).toLocaleString()}
                         </td>
                         <td className="py-3.5">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${cfg.bg} ${cfg.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`}></span>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold ${cfg.bg} ${cfg.text}`}>
+                            {row.status !== 'setup_incomplete' && <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`}></span>}
                             {cfg.label}
                           </span>
                         </td>
@@ -382,10 +424,20 @@ const BusFeeManager = () => {
       </div>
 
       {/* Assign Modal */}
-      <AssignBusFeeModal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        onSuccess={() => fetchSemesterStatus(selectedSemester)}
+      {selectedProgram !== "all" && selectedSemester !== "all" && (
+        <AssignBusFeeModal
+          isOpen={isAssignModalOpen}
+          program={selectedProgram}
+          semester={selectedSemester}
+          onClose={() => setIsAssignModalOpen(false)}
+          onSuccess={() => fetchSemesterStatus(selectedProgram, selectedSemester)}
+        />
+      )}
+
+      {/* Settings Modal */}
+      <BusFineSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
 
       {/* Confirm Payment Modal */}

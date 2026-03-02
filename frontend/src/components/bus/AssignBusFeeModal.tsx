@@ -4,6 +4,8 @@ import axios from 'axios';
 
 interface AssignBusFeeModalProps {
   isOpen: boolean;
+  program: string;
+  semester: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -23,11 +25,9 @@ interface PreviewData {
   batches: BatchDetail[];
 }
 
-const AssignBusFeeModal = ({ isOpen, onClose, onSuccess }: AssignBusFeeModalProps) => {
-  const [semesters, setSemesters] = useState<number[]>([]);
+const AssignBusFeeModal = ({ isOpen, program, semester, onClose, onSuccess }: AssignBusFeeModalProps) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [semester, setSemester] = useState<string>('');
   const [dueDate, setDueDate] = useState('');
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -36,41 +36,35 @@ const AssignBusFeeModal = ({ isOpen, onClose, onSuccess }: AssignBusFeeModalProp
   // Fetch active semesters when modal opens
   useEffect(() => {
     if (isOpen) {
-      setLoading(true);
-      axios.get('http://localhost:3000/bus/active-semesters')
-        .then(res => setSemesters(res.data))
-        .catch(err => console.error(err))
-        .finally(() => setLoading(false));
-
       // Reset state
-      setSemester('');
       setDueDate('');
       setPreview(null);
       setResult(null);
     }
   }, [isOpen]);
 
-  // Fetch preview when semester changes
+  // Fetch preview when dependent props change
   useEffect(() => {
-    if (!semester) {
+    if (!isOpen || !semester || !program || semester === "all" || program === "all") {
       setPreview(null);
       return;
     }
     setPreviewLoading(true);
-    axios.get(`http://localhost:3000/bus/preview-bulk-fees?semester=${semester}`)
+    axios.get(`http://localhost:3000/bus/preview-bulk-fees?semester=${semester}&program=${program}`)
       .then(res => setPreview(res.data))
       .catch(err => console.error(err))
       .finally(() => setPreviewLoading(false));
-  }, [semester]);
+  }, [isOpen, semester, program]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!semester || !dueDate || !preview || preview.netNew === 0) return;
+    if (!semester || !program || !dueDate || !preview || preview.netNew === 0) return;
 
     setSubmitting(true);
     try {
       const res = await axios.post('http://localhost:3000/bus/assign-bulk-fees', {
         semester: parseInt(semester),
+        program: program,
         dueDate,
       });
       setResult(res.data);
@@ -146,30 +140,10 @@ const AssignBusFeeModal = ({ isOpen, onClose, onSuccess }: AssignBusFeeModalProp
           ) : (
             /* ━━━ Form View ━━━ */
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              {/* Semester Selection */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-gray-400" /> Select Semester
-                </label>
-                {loading ? (
-                  <div className="flex items-center gap-2 text-gray-400 text-sm p-3">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Loading semesters...
-                  </div>
-                ) : (
-                  <select
-                    required
-                    value={semester}
-                    onChange={(e) => setSemester(e.target.value)}
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4134bd] focus:border-transparent outline-none appearance-none bg-gray-50"
-                  >
-                    <option value="">Choose a semester</option>
-                    {semesters.map((sem) => (
-                      <option key={sem} value={sem}>
-                        Semester {sem}
-                      </option>
-                    ))}
-                  </select>
-                )}
+              {/* Read Only Context Header */}
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex justify-between items-center text-sm font-semibold text-gray-700">
+                <span className="flex items-center gap-2"><Users className="w-4 h-4 text-violet-500" />Target Audience</span>
+                <span className="bg-white border rounded px-3 py-1 text-violet-700 shadow-sm">{program} — Semester {semester}</span>
               </div>
 
               {/* Due Date */}
@@ -267,7 +241,7 @@ const AssignBusFeeModal = ({ isOpen, onClose, onSuccess }: AssignBusFeeModalProp
                         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-start gap-3">
                           <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                           <p className="text-sm text-amber-700 font-medium">
-                            All students for Semester {semester} are already up to date. No new invoices to generate.
+                            All {program} students in Semester {semester} are already up to date. No new invoices to generate.
                           </p>
                         </div>
                       )}

@@ -31,7 +31,10 @@ const Sidebar = () => {
 
       if (roles.includes("admin") || roles.includes("super admin")) {
         setUserRole("Admin");
-      } else if (roles.includes("library_staff") || roles.includes("librarian")) {
+      } else if (
+        roles.includes("library_staff") ||
+        roles.includes("librarian")
+      ) {
         setUserRole("Librarian");
       } else if (
         roles.includes("staff") ||
@@ -75,16 +78,19 @@ const Sidebar = () => {
   return (
     <aside className="h-screen sticky top-0">
       <nav
-        className={`h-full flex flex-col shadow-lg transition-all duration-300 ease-in-out ${collapsed ? "w-20" : "w-64"
-          }`}
+        className={`h-full flex flex-col shadow-lg transition-all duration-300 ease-in-out ${
+          collapsed ? "w-20" : "w-64"
+        }`}
       >
         <div
-          className={`p-4 pb-2 flex items-center ${collapsed ? "justify-center" : "justify-between"
-            }`}
+          className={`p-4 pb-2 flex items-center ${
+            collapsed ? "justify-center" : "justify-between"
+          }`}
         >
           <span
-            className={`overflow-hidden transition-all font-bold text-2xl text-gray-800 ${collapsed ? "w-0" : "w-32"
-              }`}
+            className={`overflow-hidden transition-all font-bold text-2xl text-gray-800 ${
+              collapsed ? "w-0" : "w-32"
+            }`}
           >
             ACADS
           </span>
@@ -120,7 +126,22 @@ const Sidebar = () => {
             icon={LogOut}
             text="Logout"
             collapsed={collapsed}
-            onClick={() => {
+            onClick={async () => {
+              const token = localStorage.getItem("authToken");
+              if (token) {
+                try {
+                  await fetch("http://localhost:3000/auth/logout", {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ type: "admin" }),
+                  });
+                } catch (e) {
+                  console.error("Logout request failed:", e);
+                }
+              }
               localStorage.removeItem("authToken");
               localStorage.removeItem("user");
               navigate("/signup");

@@ -41,6 +41,51 @@ const BusStudentList = () => {
     }
   };
 
+  const handleSuspendStudent = async (studentId: number, days: number) => {
+    try {
+      const res = await fetch(`http://localhost:3000/bus/suspendStudentPass/${studentId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.id === studentId
+              ? { ...s, is_bus_pass_suspended: true, bus_pass_suspended_until: data.suspendedUntil }
+              : s
+          )
+        );
+      } else {
+        console.error("Failed to suspend student pass");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReactivateStudent = async (studentId: number) => {
+    try {
+      const res = await fetch(`http://localhost:3000/bus/reactivateStudentPass/${studentId}`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.id === studentId
+              ? { ...s, is_bus_pass_suspended: false, bus_pass_suspended_until: null }
+              : s
+          )
+        );
+      } else {
+        console.error("Failed to reactivate student pass");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const filteredStudents = students.filter((student) => {
     const matchesSearch = student.name
       .toLowerCase()
@@ -133,6 +178,8 @@ const BusStudentList = () => {
               key={student.id}
               student={student}
               onRemove={handleRemoveStudent}
+              onSuspend={handleSuspendStudent}
+              onReactivate={handleReactivateStudent}
             />
           ))}
         </div>

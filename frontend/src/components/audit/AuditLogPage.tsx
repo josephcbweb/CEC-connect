@@ -49,21 +49,26 @@ interface AuditStats {
 }
 
 const MODULE_COLORS: Record<string, { bg: string; text: string; dot: string }> =
-  {
-    fee: {
-      bg: "bg-emerald-50",
-      text: "text-emerald-700",
-      dot: "bg-emerald-500",
-    },
-    admission: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
-    due: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
-    due_settings: {
-      bg: "bg-purple-50",
-      text: "text-purple-700",
-      dot: "bg-purple-500",
-    },
-    general: { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-500" },
-  };
+{
+  fee: {
+    bg: "bg-emerald-50",
+    text: "text-emerald-700",
+    dot: "bg-emerald-500",
+  },
+  admission: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
+  due: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+  due_settings: {
+    bg: "bg-purple-50",
+    text: "text-purple-700",
+    dot: "bg-purple-500",
+  },
+  bus: {
+    bg: "bg-violet-50",
+    text: "text-violet-700",
+    dot: "bg-violet-500",
+  },
+  general: { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-500" },
+};
 
 const ACTION_LABELS: Record<string, string> = {
   CREATE_FEE_STRUCTURE: "Created Fee Structure",
@@ -86,10 +91,22 @@ const ACTION_LABELS: Record<string, string> = {
   BULK_INITIATE_NODUE: "Bulk Initiated No Due",
   BULK_CLEAR_DUES: "Bulk Cleared Dues",
   CREATE_DUE_CONFIG: "Created Due Configuration",
-  DELETE_DUE_CONFIG: "Deleted Due Configuration",
   CREATE_SERVICE_DEPARTMENT: "Created Service Department",
   UPDATE_SERVICE_DEPARTMENT: "Updated Service Department",
   DELETE_SERVICE_DEPARTMENT: "Deleted Service Department",
+  CREATE_BUS: "Created Bus",
+  UPDATE_BUS_DRIVER: "Updated Bus Driver",
+  ADD_BUS_STOPS: "Added Bus Stops",
+  DELETE_BUS_STOP: "Deleted Bus Stop",
+  REMOVE_STUDENT_FROM_BUS: "Removed Student from Bus",
+  SUSPEND_STUDENT_BUS_PASS: "Suspended Bus Pass",
+  REACTIVATE_STUDENT_BUS_PASS: "Reactivated Bus Pass",
+  ASSIGN_BULK_BUS_FEES: "Assigned Bulk Bus Fees",
+  UPDATE_BUS_FEE_PAYMENT_STATUS: "Updated Bus Fee Payment Status",
+  ARCHIVE_BUS_FEE_BATCH: "Archived Bus Fee Batch",
+  UPDATE_BUS_REQUEST_STATUS: "Updated Bus Request Status",
+  VERIFY_BUS_PAYMENT: "Verified Bus Payment",
+  UPDATE_BUS_FINE_SETTINGS: "Updated Bus Fine Settings",
 };
 
 function parseUserAgent(ua: string | null): string {
@@ -322,16 +339,16 @@ const AuditLogPage: React.FC = () => {
               <option value="admission">Admission</option>
               <option value="due">Due Management</option>
               <option value="due_settings">Due Settings</option>
+              <option value="bus">Bus Management</option>
             </select>
 
             {/* Toggle more filters */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                showFilters || hasActiveFilters
-                  ? "border-teal-300 bg-teal-50 text-teal-700"
-                  : "border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
+              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${showFilters || hasActiveFilters
+                ? "border-teal-300 bg-teal-50 text-teal-700"
+                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
             >
               <Filter className="h-4 w-4" />
               Filters

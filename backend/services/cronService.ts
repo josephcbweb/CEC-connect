@@ -178,7 +178,149 @@ export const initCronJobs = () => {
     }
   });
 
+  // --- Daily Bus Non-Payment Auto-Expulsion ---
+  // Runs every day at 12:10 AM
+  cron.schedule("10 0 * * *", async () => {
+    console.log("[CRON] Running Bus Service Auto-Expulsion check...");
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Find all students currently assigned to a bus who have unpaid bus fees 
+      // whose primary due date is already passed.
+      const overdueStudents = await prisma.student.findMany({
+        where: {
+          bus_service: true,
+          invoices: {
+            some: {
+              status: InvoiceStatus.unpaid,
+              dueDate: { lt: today },
+              fee: { feeType: { contains: "Bus Fee", mode: "insensitive" } }
+            }
+          }
+        },
+        include: {
+          invoices: {
+            where: {
+              status: InvoiceStatus.unpaid,
+              dueDate: { lt: today },
+              fee: { feeType: { contains: "Bus Fee", mode: "insensitive" } }
+            },
+            include: {
+              fee: true,
+              FeeStructure: {
+                include: { fineSlabs: true }
+              }
+            }
+          }
+        }
+      });
+
+      if (overdueStudents.length === 0) {
+        console.log("[CRON] No overdue bus students to evaluate for expulsion.");
+        return;
+      }
+
+      let expelledCount = 0;
+
+      for (const student of overdueStudents) {
+        // Find if ANY of their overdue invoices have passed the ABSOLUTE maximum fine period
+        for (const invoice of student.invoices) {
+          const slabs = invoice.FeeStructure?.fineSlabs || [];
+          let maxFineDays = 0;
+
+          if (slabs.length > 0) {
+            // Find the maximum declared endDay. If any slab is infinite (endDay = null), 
+            // we enforce a strict 30-day cutoff after the last identified startDay.
+            let hasInfiniteSlab = false;
+            let highestExplicitDay = 0;
+
+            for (const slab of slabs) {
+              if (slab.endDay === null) {
+                hasInfiniteSlab = true;
+                highestExplicitDay = Math.max(highestExplicitDay, slab.startDay);
+              } else {
+                highestExplicitDay = Math.max(highestExplicitDay, slab.endDay);
+              }
+            }
+
+            maxFineDays = hasInfiniteSlab ? highestExplicitDay + 30 : highestExplicitDay;
+          } else {
+            // Priority Fallback: If no fine slabs exist natively, give a 5-day grace period
+            maxFineDays = 5;
+          }
+
+          const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : new Date();
+          dueDate.setHours(0, 0, 0, 0);
+
+          const expirationDate = new Date(dueDate);
+          expirationDate.setDate(expirationDate.getDate() + maxFineDays);
+
+          // STRICT EXPULSION CONDITION
+          if (today > expirationDate) {
+            console.log(`[CRON] Expelling Student ${student.id} from Bus. Invoice ${invoice.id} expired on ${expirationDate}`);
+
+            await prisma.$transaction(async (tx) => {
+              // 1. Strip Bus Profile Rights
+              await tx.student.update({
+                where: { id: student.id },
+                data: {
+                  bus_service: false,
+                  busId: null,
+                  busStopId: null,
+                  is_bus_pass_suspended: false,
+                  bus_pass_suspended_until: null,
+                }
+              });
+
+              // 2. Erase actively pending or approved application histories so they hit a blank slate
+              await tx.busRequest.updateMany({
+                where: {
+                  studentId: student.id,
+                  status: { in: ["pending", "approved"] }
+                },
+                data: { status: "rejected" }
+              });
+
+              // 3. Cancel the violating invoice
+              await tx.invoice.update({
+                where: { id: invoice.id },
+                data: { status: "cancelled" }
+              });
+
+              // 4. Send Expiry Notification
+              const adminUser = await tx.user.findFirst();
+              const senderId = adminUser ? adminUser.id : 1;
+              const notifExpiry = new Date();
+              notifExpiry.setDate(notifExpiry.getDate() + 7);
+
+              await tx.notification.create({
+                data: {
+                  title: "Bus Service Terminated",
+                  description: "Your college bus pass has been permanently terminated due to extended non-payment of dues. You must submit a fresh application to ride the bus.",
+                  targetType: "STUDENT",
+                  targetValue: student.id.toString(),
+                  priority: "URGENT",
+                  status: "published",
+                  expiryDate: notifExpiry,
+                  senderId: senderId,
+                }
+              });
+            });
+
+            expelledCount++;
+            break; // Move to the next student
+          }
+        }
+      }
+
+      console.log(`[CRON] Auto-Expulsion complete. Evicted ${expelledCount} students from busses for persistent non-payment.`);
+    } catch (error) {
+      console.error("[CRON] Error during Auto-Expulsion calculation:", error);
+    }
+  });
+
   console.log(
-    "Cron scheduling initialized. Daily fine calculation scheduled for 12:05 AM.",
+    "Cron scheduling initialized. Daily bus auto-expulsion scheduled for 12:10 AM.",
   );
 };

@@ -87,6 +87,20 @@ const StudentDashboardPage: React.FC = () => {
         </div>
       )}
 
+      {studentData.is_bus_pass_suspended && studentData.bus_pass_suspended_until && new Date(studentData.bus_pass_suspended_until) > new Date() && (
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <BadgeAlert className="text-red-600 mt-0.5" size={20} />
+          <div>
+            <h3 className="font-semibold text-red-900">
+              Bus Pass Suspended
+            </h3>
+            <p className="text-red-700 text-sm mt-1">
+              Your bus pass is currently suspended until {new Date(studentData.bus_pass_suspended_until).toLocaleDateString()}. Please contact the administration for more info.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Notifications Section */}
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
