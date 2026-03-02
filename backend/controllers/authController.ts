@@ -48,9 +48,9 @@ class AuthController{
       const {email,password} = req.body;
       const token = await AuthService.loginStudent(email,password);
       return res.status(200).json({token});
-      }catch(error){
+      }catch(error: any){
         console.log(error);
-        res.status(400).json({message: 'login failed',error});
+        res.status(400).json({message: error.message || 'login failed',error});
       }
     };
 

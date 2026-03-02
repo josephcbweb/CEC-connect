@@ -176,6 +176,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
       program: student.program,
       department: student.department?.name || "Not Assigned",
       year: calculateYear(student.admission_date),
+      currentSemester: student.currentSemester,
 
       gender: student.gender,
       bloodGroup: student.blood_group,

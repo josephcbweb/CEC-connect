@@ -49,7 +49,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
         status: {
           notIn: ["graduated", "deleted"],
         },
-      }; 
+      };
     }
 
     const students = await prisma.student.findMany({
@@ -97,7 +97,7 @@ export const fetchAllStudents = async (req: Request, res: Response) => {
     // This ensures we get all departments for ALL programs, not just the currently filtered students
     const allDepartments = await prisma.department.findMany({
       select: { name: true },
-      orderBy: { name: "asc" }
+      orderBy: { name: "asc" },
     });
     const uniqueDepartments = allDepartments.map((dept: any) => dept.name);
 
@@ -286,7 +286,7 @@ export const getStudentDetails = async (req: Request, res: Response) => {
         guardianName: student.guardian_name,
         guardianAddress: student.local_guardian_address,
         guardianPhone: student.local_guardian_phone_number,
-        admittedCategory: student.admitted_category
+        admittedCategory: student.admitted_category,
       },
       academicDetails: {
         physics: student.physics_score,

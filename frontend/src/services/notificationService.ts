@@ -2,16 +2,25 @@ export interface Notification {
   id: number;
   title: string;
   description: string;
-  targetType: "ALL" | "SEMESTER" | "DEPARTMENT" | "STUDENT";
+  targetType:
+    | "ALL"
+    | "SEMESTER"
+    | "DEPARTMENT"
+    | "STUDENT"
+    | "PROGRAM"
+    | "CLASS";
   targetValue?: string;
+  program?: string;
+  departmentId?: number;
+  semester?: number;
   priority: "NORMAL" | "IMPORTANT" | "URGENT";
   status: "draft" | "published" | "archived" | "read" | "unread";
-  expiryDate?: string;
+  dueDate?: string;
   createdAt: string;
   sender?: {
-      username: string;
-      email: string;
-  }
+    username: string;
+    email: string;
+  };
 }
 
 const API_URL = "http://localhost:3000/api/notifications";
@@ -33,7 +42,9 @@ export const notificationService = {
     return res.json();
   },
 
-  create: async (data: Omit<Notification, "id" | "createdAt" | "sender">): Promise<Notification> => {
+  create: async (
+    data: Omit<Notification, "id" | "createdAt" | "sender">,
+  ): Promise<Notification> => {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: getHeaders(),
@@ -43,7 +54,10 @@ export const notificationService = {
     return res.json();
   },
 
-  update: async (id: number, data: Partial<Notification>): Promise<Notification> => {
+  update: async (
+    id: number,
+    data: Partial<Notification>,
+  ): Promise<Notification> => {
     const res = await fetch(`${API_URL}/${id}`, {
       method: "PUT",
       headers: getHeaders(),
@@ -64,11 +78,11 @@ export const notificationService = {
   getMyNotifications: async (): Promise<Notification[]> => {
     const token = localStorage.getItem("studentAuthToken");
     const res = await fetch(`${API_URL}/my-notifications`, {
-        headers: {
-            "Authorization": `Bearer ${token}`
-        }
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
     if (!res.ok) throw new Error("Failed to fetch student notifications");
     return res.json();
-  }
+  },
 };

@@ -21,6 +21,7 @@ import DepartmentDashboard from "./components/department/DepartmentDashboard";
 import StudentProfile from "./components/student/StudentProfile";
 import SemesterRegister from "./components/student/SemesterRegister";
 import BusManagement from "./components/bus/BusManagement";
+import ForgotPassword from "./components/ForgotPassword";
 import BusDetailsDashboard from "./components/bus/BusDetails";
 import BusRequest from "./components/student/BusRequestPage";
 import CourseManager from "./components/admin/courses/CourseManager";
@@ -39,6 +40,11 @@ const App = () => {
         <Route path="/" element={<Landing />}></Route>
         <Route path="/signup" element={<Admin_Login />} />
         <Route path="/studentlogin" element={<Student_Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route
+          path="/admin-forgot-password"
+          element={<ForgotPassword userType="admin" />}
+        />
         <Route path="/admin" element={<AdminWrapper />}>
           <Route index element={<Home />} />
           <Route path="students" element={<StudentsPage />} />

@@ -9,6 +9,7 @@ interface StudentRowProps {
   program: string;
   department: string;
   currentSemester?: number; // Optional to prevent breaking other usages, but good to have
+  isGraduated?: boolean; // Flag to show "Graduated" instead of semester
   isSelected: boolean;
   onSelect: (id: number) => void;
 }
@@ -19,6 +20,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
   program,
   department,
   currentSemester,
+  isGraduated = false,
   isSelected,
   onSelect,
 }) => {
@@ -27,7 +29,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
     // CRITICAL: Ensure NO horizontal padding (like px-4) is on this root div
     <div className="flex items-center py-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 text-sm">
       {/* Column 1: Name */}
-      <div className="flex items-center w-4/12 pl-4">
+      <div className="flex items-center w-3/12 pl-4">
         <input
           type="checkbox"
           checked={isSelected}
@@ -36,21 +38,31 @@ const StudentRow: React.FC<StudentRowProps> = ({
         />
 
         {/* The 'truncate' class will add "..." if the name is too long */}
-        <div className="flex flex-col">
-          <span className="font-medium text-gray-800 truncate">{name}</span>
-          {currentSemester && (
-            <span className="text-xs text-gray-500">S{currentSemester}</span>
-          )}
-        </div>
+        <span className="font-medium text-gray-800 truncate">{name}</span>
       </div>
 
       {/* Column 2: Program */}
-      <div className="w-3/12 px-2 text-gray-600 truncate">{program}</div>
+      <div className="w-2/12 px-2 text-gray-600 truncate">{program}</div>
 
       {/* Column 3: Department */}
       <div className="w-3/12 px-2 text-gray-600 truncate">{department}</div>
 
-      {/* Column 4: View Details Link */}
+      {/* Column 4: Semester */}
+      <div className="w-2/12 px-2 text-gray-600">
+        {isGraduated ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            Graduated
+          </span>
+        ) : currentSemester ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            S{currentSemester}
+          </span>
+        ) : (
+          <span className="text-gray-400">-</span>
+        )}
+      </div>
+
+      {/* Column 5: View Details Link */}
       <div className="w-2/12 pr-4 text-right">
         <button
           onClick={() => navigate(`/admin/studentDetails/${id}`)}

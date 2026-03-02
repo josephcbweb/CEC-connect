@@ -5,6 +5,7 @@ import {
   getStudentNotifications,
   updateNotification,
   deleteNotification,
+  registerToken,
 } from "../controllers/notificationController";
 import AuthMiddleware from "../middlewares/authMiddlewares";
 
@@ -22,5 +23,7 @@ router.get(
   AuthMiddleware.authenticate,
   getStudentNotifications,
 );
+
+router.post("/register-token", AuthMiddleware.authenticate, registerToken);
 
 export default router;

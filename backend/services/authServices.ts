@@ -84,6 +84,7 @@ class AuthService {
   static loginStudent = async (email: string, password: string) => {
     const user = await this.findStudentByEmail(email);
     if (!user) throw new Error("User not found");
+    if (user.status === "graduated") throw new Error("Graduated students are not allowed to login.");
     console.log(password);
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new Error("Invalid Password");

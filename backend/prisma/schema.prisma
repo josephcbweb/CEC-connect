@@ -14,6 +14,8 @@ model User {
   email                 String              @unique
   status                UserStatus          @default(active)
   lastLogin             DateTime?           @map("last_login")
+  reset_otp             String?
+  otp_expiry            DateTime?
   createdAt             DateTime            @default(now()) @map("created_at")
   updatedAt             DateTime            @updatedAt @map("updated_at")
   advisorDetails        AdvisorDetails?
@@ -28,6 +30,7 @@ model User {
   assignedDueTypes      ServiceDepartment[] @relation("AssignedDueTypes")
   students              Student[]
   userRoles             UserRole[]
+  deviceTokens          DeviceToken[]       @relation("UserDeviceTokens")
 
   @@map("users")
 }
@@ -75,11 +78,14 @@ model RolePermission {
 
 model Student {
   id                                  Int             @id @default(autoincrement()) @map("student_id")
+  deviceTokens                        DeviceToken[]   @relation("StudentDeviceTokens")
   advisorId                           Int?            @map("advisor_id")
   createdAt                           DateTime        @default(now()) @map("created_at")
   updatedAt                           DateTime        @updatedAt @map("updated_at")
   name                                String
   password                            String
+  reset_otp                           String?
+  otp_expiry                          DateTime?
   dateOfBirth                         DateTime?       @map("date_of_birth")
   email                               String?         @unique
   gender                              Gender
@@ -200,6 +206,22 @@ model AdmissionWindow {
   batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@map("admission_windows")
+}
+
+model DeviceToken {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  deviceType String?  @map("device_type")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  studentId Int?     @map("student_id")
+  student   Student? @relation("StudentDeviceTokens", fields: [studentId], references: [id])
+
+  userId Int?  @map("user_id")
+  user   User? @relation("UserDeviceTokens", fields: [userId], references: [id])
+
+  @@map("device_tokens")
 }
 
 model HodDetails {
@@ -753,6 +775,8 @@ enum NotificationTargetType {
   SEMESTER
   DEPARTMENT
   STUDENT
+  PROGRAM
+  CLASS
 }
 
 enum StudentStatus {

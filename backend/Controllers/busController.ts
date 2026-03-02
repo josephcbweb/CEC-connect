@@ -356,7 +356,9 @@ export const removeStudentFromBus = async (req: Request, res: Response) => {
       }),
     ]);
 
-    return res.status(200).json({ message: "Student removed from bus successfully" });
+    return res
+      .status(200)
+      .json({ message: "Student removed from bus successfully" });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to remove student from bus" });
@@ -525,7 +527,9 @@ export const previewBulkBusFees = async (req: Request, res: Response) => {
       select: { studentId: true },
       distinct: ["studentId"],
     });
-    const alreadyBilledIds = new Set(alreadyBilledRecords.map((r) => r.studentId));
+    const alreadyBilledIds = new Set(
+      alreadyBilledRecords.map((r) => r.studentId),
+    );
 
     const eligible = eligibleIds.length;
     const alreadyBilled = alreadyBilledIds.size;
@@ -549,7 +553,9 @@ export const previewBulkBusFees = async (req: Request, res: Response) => {
       });
 
       const totalInBatch = batchStudents.length;
-      const billedInBatch = batchStudents.filter((s) => alreadyBilledIds.has(s.id)).length;
+      const billedInBatch = batchStudents.filter((s) =>
+        alreadyBilledIds.has(s.id),
+      ).length;
 
       batchDetails.push({
         batchId: batch.id,
@@ -614,7 +620,9 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
         select: { studentId: true },
         distinct: ["studentId"],
       });
-      const alreadyBilledIds = new Set(existingFees.map((f: any) => f.studentId));
+      const alreadyBilledIds = new Set(
+        existingFees.map((f: any) => f.studentId),
+      );
 
       let totalStudentsBilled = 0;
       let totalSkipped = 0;
@@ -698,7 +706,9 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
             targetValue: student.id.toString(),
             priority: NotificationPriority.IMPORTANT,
             status: NotificationStatus.published,
-            expiryDate: new Date(new Date(dueDateObj).setUTCHours(23, 59, 59, 999)),
+            expiryDate: new Date(
+              new Date(dueDateObj).setUTCHours(23, 59, 59, 999),
+            ),
             senderId: senderId,
           });
 
@@ -710,7 +720,9 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
       }
 
       if (totalStudentsBilled === 0) {
-        throw new Error("All students for this semester are already up to date.");
+        throw new Error(
+          "All students for this semester are already up to date.",
+        );
       }
 
       if (notificationsData.length > 0) {
@@ -853,7 +865,9 @@ export const getSemesterBillingStatus = async (req: Request, res: Response) => {
     const counts = {
       total: result.length,
       notBilled: result.filter((r) => r.status === "not_billed").length,
-      unpaid: result.filter((r) => r.status === "unpaid" || r.status === "overdue").length,
+      unpaid: result.filter(
+        (r) => r.status === "unpaid" || r.status === "overdue",
+      ).length,
       paid: result.filter((r) => r.status === "paid").length,
       setupIncomplete: result.filter((r) => r.status === "setup_incomplete").length,
     };
@@ -1035,8 +1049,8 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
           student: {
             select: {
               currentSemester: true, // Dynamically get the semester
-            }
-          }
+            },
+          },
         },
       });
 
@@ -1082,26 +1096,40 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
       const senderId = adminUser ? adminUser.id : 1;
 
       const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 2); // 2 days from now
+      expiryDate.setDate(expiryDate.getDate() + 7); // 7 days from now
       expiryDate.setUTCHours(23, 59, 59, 999);
+
+      // Create notification with appropriate message based on status
+      const notificationData = status === "approved" 
+        ? {
+            title: "Bus Service Request Approved",
+            description: `Your bus service request has been approved! A bus fee invoice of ₹${request.busStop.feeAmount} has been generated. Please proceed to the Fees section to complete the payment.`,
+            priority: "IMPORTANT" as NotificationPriority,
+          }
+        : {
+            title: "Bus Service Request Rejected",
+            description: "Your request for bus service has been rejected. Please contact the admin for more details.",
+            priority: "NORMAL" as NotificationPriority,
+          };
 
       await tx.notification.create({
         data: {
-          title: `Bus Request ${status === "approved" ? "Approved" : "Rejected"}`,
-          description: `Your request for bus service has been ${status}.`,
+          ...notificationData,
           targetType: "STUDENT",
           targetValue: request.studentId.toString(),
-          priority: "NORMAL",
           status: "published",
           expiryDate: expiryDate,
           senderId: senderId,
-        }
+        },
       });
 
       return updatedRequest;
     });
 
-    res.json({ message: `Request ${status}. Fee assigned for Semester ${result.status === 'approved' ? 'current' : 'N/A'}.`, result });
+    res.json({
+      message: `Request ${status}. Fee assigned for Semester ${result.status === "approved" ? "current" : "N/A"}.`,
+      result,
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -1120,18 +1148,19 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
           student: true,
           // We need to find the original BusRequest to get the BusID and StopID
           // Since it's not directly linked, we search for an approved request for this student
-        }
+        },
       });
 
       const busRequest = await tx.busRequest.findFirst({
         where: {
           studentId: invoice.studentId,
-          status: "approved"
+          status: "approved",
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       });
 
-      if (!busRequest) throw new Error("No approved bus request found for this student.");
+      if (!busRequest)
+        throw new Error("No approved bus request found for this student.");
 
       // 2. NOW set bus_service to true and assign IDs
       const updatedStudent = await tx.student.update({
@@ -1141,6 +1170,39 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
           busId: busRequest.busId,
           busStopId: busRequest.busStopId,
         },
+        include: {
+          bus: { select: { busName: true, busNumber: true } },
+          busStop: { select: { stopName: true } },
+        },
+      });
+
+      // 3. Create activation notification
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+
+      const notificationExpiry = new Date();
+      notificationExpiry.setDate(notificationExpiry.getDate() + 30); // Notification visible for 30 days
+      notificationExpiry.setUTCHours(23, 59, 59, 999);
+
+      // Format semester display
+      const currentSemester = updatedStudent.currentSemester;
+      const semesterText = currentSemester ? `Semester ${currentSemester}` : 'this academic period';
+      const busInfo = updatedStudent.bus?.busName 
+        ? `${updatedStudent.bus.busName}${updatedStudent.bus.busNumber ? ' (' + updatedStudent.bus.busNumber + ')' : ''}`
+        : 'the assigned bus';
+      const stopInfo = updatedStudent.busStop?.stopName || 'your stop';
+
+      await tx.notification.create({
+        data: {
+          title: "Bus Service Activated",
+          description: `Your bus service has been successfully activated! You can now use ${busInfo} from ${stopInfo} until the end of ${semesterText}. Have a safe journey!`,
+          targetType: "STUDENT",
+          targetValue: invoice.studentId.toString(),
+          priority: "IMPORTANT",
+          status: "published",
+          expiryDate: notificationExpiry,
+          senderId: senderId,
+        }
       });
 
       return { invoice, updatedStudent };
@@ -1164,9 +1226,9 @@ export const getBusInvoices = async (req: Request, res: Response) => {
         fee: {
           feeType: {
             contains: "Bus Fee",
-            mode: 'insensitive' // Makes it search for "bus fee", "Bus Fee", etc.
-          }
-        }
+            mode: "insensitive", // Makes it search for "bus fee", "Bus Fee", etc.
+          },
+        },
       },
       include: {
         student: {
@@ -1175,23 +1237,23 @@ export const getBusInvoices = async (req: Request, res: Response) => {
             name: true,
             admission_number: true,
             department: {
-              select: { name: true }
+              select: { name: true },
             },
             // We need the bus stop to show the admin where the student is traveling
             busStop: {
-              select: { stopName: true, feeAmount: true }
-            }
-          }
+              select: { stopName: true, feeAmount: true },
+            },
+          },
         },
         fee: {
           select: {
             feeType: true,
-          }
-        }
+          },
+        },
       },
       orderBy: {
-        createdAt: 'desc'
-      }
+        createdAt: "desc",
+      },
     });
 
     return res.status(200).json(invoices);

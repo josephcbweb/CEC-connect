@@ -212,24 +212,14 @@ const Login = () => {
                   </div>
                 </div>
 
-                {/* Remember Me & Forgot Password */}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="remember"
-                      className="w-4 h-4 text-[#3AA9AB] border-gray-300 rounded focus:ring-[#3AA9AB]"
-                    />
-                    <label htmlFor="remember" className="text-sm text-gray-600">
-                      Remember me
-                    </label>
-                  </div>
-                  <a
-                    href="#"
-                    className="text-sm font-medium text-[#3AA9AB] hover:text-[#031D44] transition-colors duration-300"
+                {/* Forgot Password */}
+                <div className="flex justify-end items-center">
+                  <span
+                    onClick={() => navigate("/admin-forgot-password")}
+                    className="text-sm font-medium text-[#3AA9AB] hover:text-[#031D44] transition-colors duration-300 cursor-pointer"
                   >
                     Forgot password?
-                  </a>
+                  </span>
                 </div>
 
                 {/* Submit Button */}

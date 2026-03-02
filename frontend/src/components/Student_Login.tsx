@@ -97,6 +97,7 @@ const StudentLogin = () => {
       } else {
         // 3. Login failed: Display error message from the backend
         const errorMessage =
+          data.message ||
           "Login failed. Please verify your Student ID/Email and Password.";
         setMessage({ text: errorMessage, type: "error" });
       }
@@ -219,20 +220,10 @@ const StudentLogin = () => {
                   </div>
                 </div>
 
-                {/* Password Recovery & Remember Me */}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="remember"
-                      className="w-4 h-4 text-[#3AA9AB] border-gray-300 rounded focus:ring-[#3AA9AB]"
-                    />
-                    <label htmlFor="remember" className="text-sm text-gray-600">
-                      Remember me
-                    </label>
-                  </div>
+                {/* Password Recovery */}
+                <div className="flex justify-end items-center">
                   <a
-                    href="#"
+                    href="/forgot-password"
                     className="text-sm font-medium text-[#3AA9AB] hover:text-[#031D44] transition-colors duration-300"
                   >
                     Forgot password?

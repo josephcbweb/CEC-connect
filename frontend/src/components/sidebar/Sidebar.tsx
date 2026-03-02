@@ -29,14 +29,16 @@ const Sidebar = () => {
 
       setUserPermissions(permissions);
 
-      if (roles.includes("library_staff") || roles.includes("librarian")) {
-        setUserRole("Librarian");
-      } else if (roles.includes("admin") || roles.includes("super admin")) {
+      if (roles.includes("admin") || roles.includes("super admin")) {
         setUserRole("Admin");
+      } else if (roles.includes("library_staff") || roles.includes("librarian")) {
+        setUserRole("Librarian");
       } else if (
         roles.includes("staff") ||
         roles.includes("faculty") ||
-        roles.includes("accounts_staff")
+        roles.includes("accounts_staff") ||
+        roles.includes("hod") ||
+        roles.includes("staff_advisor")
       ) {
         setUserRole("Staff");
       } else {
@@ -73,19 +75,16 @@ const Sidebar = () => {
   return (
     <aside className="h-screen sticky top-0">
       <nav
-        className={`h-full flex flex-col shadow-lg transition-all duration-300 ease-in-out ${
-          collapsed ? "w-20" : "w-64"
-        }`}
+        className={`h-full flex flex-col shadow-lg transition-all duration-300 ease-in-out ${collapsed ? "w-20" : "w-64"
+          }`}
       >
         <div
-          className={`p-4 pb-2 flex items-center ${
-            collapsed ? "justify-center" : "justify-between"
-          }`}
+          className={`p-4 pb-2 flex items-center ${collapsed ? "justify-center" : "justify-between"
+            }`}
         >
           <span
-            className={`overflow-hidden transition-all font-bold text-2xl text-gray-800 ${
-              collapsed ? "w-0" : "w-32"
-            }`}
+            className={`overflow-hidden transition-all font-bold text-2xl text-gray-800 ${collapsed ? "w-0" : "w-32"
+              }`}
           >
             ACADS
           </span>

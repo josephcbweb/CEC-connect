@@ -5,6 +5,7 @@ import { PrismaClient } from "../generated/prisma/client";
 const connectionString = `${process.env.DATABASE_URL}`;
 
 const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
+// Explicitly type prisma or cast to any to avoid TSError if types are stale
+const prisma = new PrismaClient({ adapter }) as unknown as PrismaClient; // Force type recog
 
 export { prisma };
