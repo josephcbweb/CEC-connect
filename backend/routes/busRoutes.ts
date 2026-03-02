@@ -20,7 +20,12 @@ import {
   updateBusRequestStatus,
   verifyBusPayment,
   getBusInvoices,
-} from "../controllers/busController";
+  suspendStudentPass,
+  reactivateStudentPass,
+  getBusFineSettings,
+  updateBusFineSettings,
+  updateBusDriver
+} from "../Controllers/busController";
 
 const router = express.Router();
 
@@ -43,5 +48,10 @@ router.get("/requests", getBusRequests);
 router.patch("/requests/:requestId", updateBusRequestStatus); //for approving the bus request
 router.patch("/verify-payment/:invoiceId", verifyBusPayment);
 router.get("/invoices", getBusInvoices);
+router.post("/suspendStudentPass/:studentId", suspendStudentPass);
+router.post("/reactivateStudentPass/:studentId", reactivateStudentPass);
+router.get("/fine-settings", getBusFineSettings);
+router.put("/fine-settings", updateBusFineSettings);
+router.put("/updateDriver/:busId", updateBusDriver);
 
 export default router;

@@ -22,6 +22,8 @@ export interface Student {
   student_phone_number: string;
   createdAt: string;
   updatedAt: string;
+  is_bus_pass_suspended?: boolean;
+  bus_pass_suspended_until?: string | null;
   feeDetails?: FeeDetails[];
   invoices?: Invoice[];
 }

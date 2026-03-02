@@ -14,6 +14,7 @@ import StudentCertificatePage from "./components/certificate/StudentCertificateP
 import StudentLayout from "./components/StudentWrapper";
 import StudentDashboardPage from "./components/student/StudentDashboardPage";
 import StudentFeePage from "./components/student/StudentFeePage";
+import PaymentPage from "./components/student/PaymentPage";
 import StaffRolesPage from "./components/staff-roles/StaffRolesPage";
 import AdmissionsPage from "./components/admin/admissions/AdmissionsPage";
 import DepartmentDashboard from "./components/department/DepartmentDashboard";
@@ -73,6 +74,7 @@ const App = () => {
           <Route index element={<StudentDashboardPage />} />
           <Route path="register" element={<SemesterRegister />} />
           <Route path="fees" element={<StudentFeePage />} />
+          <Route path="payment" element={<PaymentPage />} />
           <Route path="certificates" element={<StudentCertificatePage />} />
           <Route path="busApplication" element={<BusRequest />} />
           <Route path="profile/:id" element={<StudentProfile />} />

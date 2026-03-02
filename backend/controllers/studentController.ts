@@ -100,7 +100,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Student not found" });
     }
     // Fetch pending or approved bus request (most recent first)
-    const pendingBusRequest = await prisma.busRequest.findFirst({
+    let pendingBusRequest: any = await prisma.busRequest.findFirst({
       where: {
         studentId: student.id,
         status: { in: ["pending", "approved"] },
@@ -111,6 +111,40 @@ export const getStudentProfile = async (req: Request, res: Response) => {
         busStop: true,
       },
     });
+
+    // Lazy Evaluate 5-Day Expiration for Approved Requests
+    let enrollmentDueDate: Date | null = null;
+    if (pendingBusRequest && pendingBusRequest.status === "approved") {
+      const enrollmentInvoice = await prisma.invoice.findFirst({
+        where: {
+          studentId: student.id,
+          status: "unpaid",
+          fee: { feeType: "Bus Fee - Enrollment" },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (enrollmentInvoice && enrollmentInvoice.dueDate) {
+        if (new Date() > enrollmentInvoice.dueDate) {
+          // EXPIRED: Student failed to pay within 5 days.
+          // 1. Cancel the Request
+          await prisma.busRequest.update({
+            where: { id: pendingBusRequest.id },
+            data: { status: "rejected" }
+          });
+          // 2. Cancel the Invoice
+          await prisma.invoice.update({
+            where: { id: enrollmentInvoice.id },
+            data: { status: "cancelled" }
+          });
+          // 3. Reset the payload so the frontend shows the application form again
+          pendingBusRequest = null;
+        } else {
+          // NOT EXPIRED: Pass the due date to the frontend
+          enrollmentDueDate = enrollmentInvoice.dueDate;
+        }
+      }
+    }
 
     // Compute hasOverdueBusFee: true if any unpaid invoice with "Bus Fee" in its feeType exists AND the dueDate has passed
     const today = new Date();
@@ -178,22 +212,25 @@ export const getStudentProfile = async (req: Request, res: Response) => {
       bus_service: student.bus_service,
       busDetails: student.bus
         ? {
-            busName: student.bus.busName,
-            busNumber: student.bus.busNumber,
-            stopName: student.busStop?.stopName,
-            feeAmount: student.busStop?.feeAmount,
-          }
+          busName: student.bus.busName,
+          busNumber: student.bus.busNumber,
+          stopName: student.busStop?.stopName,
+          feeAmount: student.busStop?.feeAmount,
+        }
         : null,
       pendingBusRequest: pendingBusRequest
         ? {
-            id: pendingBusRequest.id,
-            busName: pendingBusRequest.bus.busName,
-            stopName: pendingBusRequest.busStop.stopName,
-            feeAmount: pendingBusRequest.busStop.feeAmount,
-            status: pendingBusRequest.status,
-          }
+          id: pendingBusRequest.id,
+          busName: pendingBusRequest.bus.busName,
+          stopName: pendingBusRequest.busStop.stopName,
+          feeAmount: pendingBusRequest.busStop.feeAmount,
+          status: pendingBusRequest.status,
+          dueDate: enrollmentDueDate,
+        }
         : null,
       hasOverdueBusFee,
+      is_bus_pass_suspended: student.is_bus_pass_suspended,
+      bus_pass_suspended_until: student.bus_pass_suspended_until,
     };
     console.log(formattedStudent);
     return res.status(200).json(formattedStudent);
@@ -274,9 +311,40 @@ export const getAllBusRoutes = async (req: Request, res: Response) => {
           },
         },
       },
+      orderBy: { busName: "asc" }
     });
-    res.status(200).json(routes);
+
+    // Determine available seats for each bus dynamically
+    const enrichedRoutes = await Promise.all(routes.map(async (bus) => {
+      // 1. Active Riders (bus_service = true, not graduated/deleted)
+      const activeCount = await prisma.student.count({
+        where: {
+          busId: bus.id,
+          bus_service: true,
+          status: { notIn: ["graduated", "deleted"] }
+        }
+      });
+
+      // 2. Reserved Seats (Pending or Approved requests waiting for payment)
+      const reservedCount = await prisma.busRequest.count({
+        where: {
+          busId: bus.id,
+          status: { in: ["pending", "approved"] }
+        }
+      });
+
+      const availableSeats = Math.max(0, bus.totalSeats - (activeCount + reservedCount));
+
+      return {
+        ...bus,
+        availableSeats,
+        isFull: availableSeats <= 0
+      };
+    }));
+
+    res.status(200).json(enrichedRoutes);
   } catch (error) {
+    console.error("Error fetching bus routes:", error);
     res.status(500).json({ error: "Failed to fetch bus routes" });
   }
 };
@@ -293,14 +361,29 @@ export const requestBusService = async (req: Request, res: Response) => {
     const existingRequest = await prisma.busRequest.findFirst({
       where: {
         studentId: Number(studentId),
-        status: "pending",
+        status: { in: ["pending", "approved"] },
       },
     });
 
     if (existingRequest) {
       return res
         .status(409)
-        .json({ message: "You already have a pending request." });
+        .json({ message: "You already have an active bus request." });
+    }
+
+    // Capacity Check
+    const bus = await prisma.bus.findUnique({ where: { id: Number(busId) } });
+    if (!bus) return res.status(404).json({ message: "Bus not found." });
+
+    const activeCount = await prisma.student.count({
+      where: { busId: bus.id, bus_service: true, status: { notIn: ["graduated", "deleted"] } }
+    });
+    const reservedCount = await prisma.busRequest.count({
+      where: { busId: bus.id, status: { in: ["pending", "approved"] } }
+    });
+
+    if (bus.totalSeats - (activeCount + reservedCount) <= 0) {
+      return res.status(400).json({ message: "This bus is fully occupied. Please select an alternative route." });
     }
 
     const request = await prisma.busRequest.create({

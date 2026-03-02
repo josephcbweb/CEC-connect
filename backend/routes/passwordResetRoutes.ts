@@ -14,14 +14,14 @@
  */
 
 import express from "express";
-import { 
-    sendOTP, 
-    verifyOTP, 
+import {
+    sendOTP,
+    verifyOTP,
     resetPassword,
     adminSendOTP,
     adminVerifyOTP,
     adminResetPassword
-} from "../Controllers/passwordResetController";
+} from "../controllers/passwordResetController";
 
 const router = express.Router();
 
