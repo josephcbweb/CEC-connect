@@ -39,7 +39,7 @@ const StudentsPage = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [programs, setPrograms] = useState<string[]>([]);
-  const [selectedProgram, setSelectedProgram] = useState("BTECH");
+  const [selectedProgram, setSelectedProgram] = useState("All");
   const [departmentsInfo, setDepartmentsInfo] = useState<DepartmentInfo[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState("All");
   const [loading, setLoading] = useState(true);
@@ -61,7 +61,18 @@ const StudentsPage = () => {
       const res = await fetch(`${baseURL}/admin/students?status=${viewStatus}`);
       const data = await res.json();
       setStudents(data.students);
-      setPrograms(data.programs);
+
+      // Sort programs in a specific order: BTECH, MCA, MTECH, then others alphabetically
+      const programOrder = ["BTECH", "MCA", "MTECH"];
+      const sortedPrograms = data.programs.sort((a: string, b: string) => {
+        const indexA = programOrder.indexOf(a);
+        const indexB = programOrder.indexOf(b);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return a.localeCompare(b);
+      });
+      setPrograms(sortedPrograms);
 
       // Store the mapping of { name, department_code } from the backend
       setDepartmentsInfo(data.departments || []);
@@ -140,7 +151,10 @@ const StudentsPage = () => {
       selectedProgram === "All" || student.program === selectedProgram;
     const matchesDepartment =
       selectedDepartment === "All" || student.department === selectedDepartment;
+
+    // Skip semester filtering for graduated students
     const matchesSemester =
+      viewStatus === "graduated" ||
       selectedSemester === "All" ||
       (student.currentSemester &&
         student.currentSemester.toString() === selectedSemester);
@@ -203,12 +217,17 @@ const StudentsPage = () => {
 
       autoTable(doc, {
         startY: currentY,
-        head: [["S.No", "Name", "Program", "Department"]],
+        head: [["S.No", "Name", "Program", "Department", "Semester"]],
         body: filtered.map((s, index) => [
           (index + 1).toString(),
           s.name,
           s.program,
           s.department,
+          viewStatus === "graduated"
+            ? "Graduated"
+            : s.currentSemester
+              ? `S${s.currentSemester}`
+              : "-",
         ]),
         styles: {
           fontSize: 10,
@@ -479,7 +498,7 @@ const StudentsPage = () => {
             />
           </div>
 
-          {selectedProgram !== "All" && (
+          {selectedProgram !== "All" && viewStatus !== "graduated" && (
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
@@ -519,7 +538,7 @@ const StudentsPage = () => {
 
       <div className="bg-white rounded-lg shadow border border-gray-200">
         <div className="flex items-center py-3 border-b border-gray-200 bg-gray-50">
-          <div className="w-4/12 flex items-center pl-4">
+          <div className="w-3/12 flex items-center pl-4">
             <input
               type="checkbox"
               className="mr-4 h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
@@ -536,7 +555,7 @@ const StudentsPage = () => {
               )}
             </span>
           </div>
-          <div className="w-3/12 px-2">
+          <div className="w-2/12 px-2">
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Program
             </span>
@@ -544,6 +563,11 @@ const StudentsPage = () => {
           <div className="w-3/12 px-2">
             <span className="text-xs font-semibold text-gray-600 uppercase">
               Department
+            </span>
+          </div>
+          <div className="w-2/12 px-2">
+            <span className="text-xs font-semibold text-gray-600 uppercase">
+              Semester
             </span>
           </div>
           <div className="w-2/12 pr-4 text-right">
@@ -564,6 +588,7 @@ const StudentsPage = () => {
                 program={student.program}
                 department={student.department}
                 currentSemester={student.currentSemester}
+                isGraduated={viewStatus === "graduated"}
                 isSelected={selectedStudentIds.includes(student.id)}
                 onSelect={handleStudentSelect}
               />

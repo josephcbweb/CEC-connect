@@ -142,8 +142,30 @@ export default function NotificationManager() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                        {n.targetType === "ALL" ? "All Students" : n.targetType}
-                        {n.targetValue ? ` • ${n.targetValue}` : ""}
+                        {n.targetType === "ALL" && "All Students"}
+                        {n.targetType === "SEMESTER" &&
+                          `Semester ${n.targetValue}`}
+                        {n.targetType === "DEPARTMENT" &&
+                          `${n.targetValue} Department`}
+                        {n.targetType === "PROGRAM" &&
+                          `${n.targetValue} Program`}
+                        {n.targetType === "CLASS" &&
+                          (() => {
+                            try {
+                              const filters = JSON.parse(n.targetValue || "{}");
+                              const parts = [];
+                              if (filters.program) parts.push(filters.program);
+                              if (filters.department_code)
+                                parts.push(filters.department_code);
+                              if (filters.semester)
+                                parts.push(`S${filters.semester}`);
+                              return parts.join(" • ");
+                            } catch (e) {
+                              return "Custom Target";
+                            }
+                          })()}
+                        {n.targetType === "STUDENT" &&
+                          `Student ID: ${n.targetValue}`}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

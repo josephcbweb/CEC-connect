@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "858796473855",
+    "project_id": "acads-4d205",
+    "storage_bucket": "acads-4d205.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:858796473855:android:30c4154ac8dd5fa6b53bca",
+        "android_client_info": {
+          "package_name": "com.example.student_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_nE5QClYzeesB9O5YFEg6hVRf2fYComQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

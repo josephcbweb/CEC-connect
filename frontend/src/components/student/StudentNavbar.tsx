@@ -122,51 +122,56 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
           <div className="hidden md:flex items-center space-x-8">
             <NavLink
               to="/student"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${pathname == "/student"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student"
                   ? "border-b-teal-600 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
-                }`}
+              }`}
             >
               Dashboard
             </NavLink>
             {isRegistrationOpen && (
               <NavLink
                 to="/student/register"
-                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname == "/student/register"
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                  pathname == "/student/register"
                     ? "border-b-teal-600 text-teal-700"
                     : "text-gray-600 hover:bg-gray-50"
-                  }`}
+                }`}
               >
                 No Due Status
               </NavLink>
             )}
             <NavLink
               to="/student/fees"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${pathname == "/student/fees"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/fees"
                   ? "border-b-teal-600 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
-                }`}
+              }`}
             >
               Fees
             </NavLink>
             {/* ADD CERTIFICATE LINK */}
             <NavLink
               to="/student/certificates"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${pathname == "/student/certificates"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/certificates"
                   ? "border-b-teal-600 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
-                }`}
+              }`}
             >
-              Certificates
+              Requests
             </NavLink>
 
             {/* Link to Bus application Form */}
             <NavLink
               to="/student/busApplication"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${pathname == "/student/certificates"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/certificates"
                   ? "border-b-teal-600 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
-                }`}
+              }`}
             >
               Bus Application
             </NavLink>
@@ -253,20 +258,22 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
             <NavLink
               to="/student"
               onClick={() => setMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium ${pathname == "/student"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student"
                   ? "bg-teal-50 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
-                }`}
+              }`}
             >
               Dashboard
             </NavLink>
             <NavLink
               to="/student/fees"
               onClick={() => setMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium ${pathname == "/student/fees"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/fees"
                   ? "bg-teal-50 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
-                }`}
+              }`}
             >
               Fees
             </NavLink>
@@ -274,10 +281,11 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
             <NavLink
               to="/student/certificates"
               onClick={() => setMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium ${pathname == "/student/certificates"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname == "/student/certificates"
                   ? "bg-teal-50 text-teal-700"
                   : "text-gray-600 hover:bg-gray-50"
-                }`}
+              }`}
             >
               Certificates
             </NavLink>

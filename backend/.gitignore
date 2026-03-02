@@ -11,3 +11,12 @@ node_modules
 /dist
 
 /.agent
+/generated/prisma
+
+/generated/prisma
+
+/dist
+
+/.agent
+
+backend/serviceAccountKey.json

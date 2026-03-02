@@ -31,10 +31,36 @@ export default function NotificationModal({
   const [departments, setDepartments] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Advanced targeting selection states
+  const [targetMode, setTargetMode] = useState<"ALL" | "CUSTOM">("ALL");
+  const [customProgram, setCustomProgram] = useState("");
+  const [customDept, setCustomDept] = useState("");
+  const [customSemester, setCustomSemester] = useState("");
+
+  // Pre-fill states from notification if editing
   useEffect(() => {
     if (isOpen) {
       if (notification) {
         setFormData({ ...notification });
+        if (notification.targetType === "ALL") {
+          setTargetMode("ALL");
+        } else {
+          setTargetMode("CUSTOM");
+          if (notification.targetType === "PROGRAM") {
+            setCustomProgram(notification.targetValue || "");
+          } else if (notification.targetType === "DEPARTMENT") {
+            setCustomDept(notification.targetValue || "");
+          } else if (notification.targetType === "SEMESTER") {
+            setCustomSemester(notification.targetValue || "");
+          } else if (notification.targetType === "CLASS") {
+            try {
+              const parsed = JSON.parse(notification.targetValue || "{}");
+              if (parsed.program) setCustomProgram(parsed.program);
+              if (parsed.department_code) setCustomDept(parsed.department_code);
+              if (parsed.semester) setCustomSemester(`S${parsed.semester}`);
+            } catch (e) {}
+          }
+        }
       } else {
         setFormData({
           title: "",
@@ -45,6 +71,10 @@ export default function NotificationModal({
           status: "draft",
           expiryDate: undefined,
         });
+        setTargetMode("ALL");
+        setCustomProgram("");
+        setCustomDept("");
+        setCustomSemester("");
       }
       fetchDepartments();
     }
@@ -65,6 +95,10 @@ export default function NotificationModal({
     }
   };
 
+  const filteredDepartments = customProgram
+    ? departments.filter((d) => d.program === customProgram)
+    : departments;
+
   if (!isOpen) return null;
 
   const handleSubmit = async (
@@ -81,7 +115,51 @@ export default function NotificationModal({
 
     setIsSubmitting(true);
     try {
-      const payload = { ...formData, status };
+      let finalTargetType = formData.targetType;
+      let finalTargetValue = formData.targetValue;
+
+      if (targetMode === "ALL") {
+        finalTargetType = "ALL";
+        finalTargetValue = "";
+      } else {
+        // Evaluate Custom Targets
+        const selections = [customProgram, customDept, customSemester].filter(
+          Boolean,
+        );
+        if (selections.length === 0) {
+          finalTargetType = "ALL";
+          finalTargetValue = "";
+        } else if (selections.length === 1) {
+          if (customProgram) {
+            finalTargetType = "PROGRAM";
+            finalTargetValue = customProgram;
+          } else if (customDept) {
+            finalTargetType = "DEPARTMENT";
+            finalTargetValue = customDept;
+          } else if (customSemester) {
+            finalTargetType = "SEMESTER";
+            finalTargetValue = customSemester;
+          }
+        } else {
+          // More than 1 filter -> Use CLASS combo type
+          finalTargetType = "CLASS";
+          finalTargetValue = JSON.stringify({
+            program: customProgram || undefined,
+            department_code: customDept || undefined,
+            semester: customSemester
+              ? parseInt(customSemester.replace("S", ""))
+              : undefined,
+          });
+        }
+      }
+
+      const payload = {
+        ...formData,
+        status,
+        targetType: finalTargetType,
+        targetValue: finalTargetValue,
+      };
+
       // @ts-ignore
       if (notification && notification.id) {
         // @ts-ignore
@@ -148,35 +226,67 @@ export default function NotificationModal({
               </label>
               <select
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-100 outline-none border-gray-200"
-                value={formData.targetType}
-                // @ts-ignore
+                value={targetMode}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    targetType: e.target.value as any,
-                    targetValue: "",
-                  })
+                  setTargetMode(e.target.value as "ALL" | "CUSTOM")
                 }
               >
                 <option value="ALL">All Students</option>
-                <option value="SEMESTER">Specific Semester</option>
-                <option value="DEPARTMENT">Specific Department</option>
+                <option value="CUSTOM">Specific Group / Class</option>
               </select>
             </div>
+            {/* Empty space to align if not custom, or we can just let it flow */}
+          </div>
 
-            {formData.targetType === "SEMESTER" && (
+          {targetMode === "CUSTOM" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Semester
+                  Program
                 </label>
                 <select
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-100 outline-none border-gray-200"
-                  value={formData.targetValue}
-                  onChange={(e) =>
-                    setFormData({ ...formData, targetValue: e.target.value })
-                  }
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-100 outline-none border-gray-200 bg-white"
+                  value={customProgram}
+                  onChange={(e) => {
+                    setCustomProgram(e.target.value);
+                    setCustomDept(""); // Reset department when program changes
+                  }}
                 >
-                  <option value="">Select...</option>
+                  <option value="">All Programs</option>
+                  <option value="BTECH">B.Tech</option>
+                  <option value="MTECH">M.Tech</option>
+                  <option value="MCA">MCA</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Department
+                </label>
+                <select
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-100 outline-none border-gray-200 bg-white"
+                  value={customDept}
+                  onChange={(e) => setCustomDept(e.target.value)}
+                >
+                  <option value="">All Departments</option>
+                  {filteredDepartments.map((d: any) => (
+                    <option key={d.id} value={d.department_code}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Semester
+                </label>
+                <select
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-100 outline-none border-gray-200 bg-white"
+                  value={customSemester}
+                  onChange={(e) => setCustomSemester(e.target.value)}
+                >
+                  <option value="">All Semesters</option>
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                     <option key={s} value={`S${s}`}>
                       Semester {s}
@@ -184,30 +294,8 @@ export default function NotificationModal({
                   ))}
                 </select>
               </div>
-            )}
-
-            {formData.targetType === "DEPARTMENT" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Department
-                </label>
-                <select
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-100 outline-none border-gray-200"
-                  value={formData.targetValue}
-                  onChange={(e) =>
-                    setFormData({ ...formData, targetValue: e.target.value })
-                  }
-                >
-                  <option value="">Select...</option>
-                  {departments.map((d: any) => (
-                    <option key={d.id} value={d.department_code}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>

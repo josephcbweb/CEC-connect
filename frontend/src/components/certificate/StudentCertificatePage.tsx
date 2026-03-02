@@ -27,7 +27,6 @@ import {
   UserCheck,
   FileSignature,
   Calendar,
-  ChevronRight,
   Shield,
   Sparkles,
   Plus,
@@ -62,6 +61,7 @@ const StudentCertificatePage: React.FC = () => {
   const [showTimeline, setShowTimeline] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
   const [formErrors, setFormErrors] = useState<{ reason?: string }>({});
+  const [submitWarning, setSubmitWarning] = useState<string | null>(null);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -133,19 +133,24 @@ const StudentCertificatePage: React.FC = () => {
     }
 
     setLoading(true);
+    setSubmitWarning(null);
 
     try {
-      await certificateService.submitRequest(formData);
+      const response = await certificateService.submitRequest(formData);
       setShowModal(false);
       setFormData({ studentId: studentData.id, type: "BONAFIDE", reason: "" });
       setFormErrors({});
       loadCertificates();
 
-      // Show success toast
-      showNotification(
-        "Certificate request submitted successfully!",
-        "success",
-      );
+      // Show success toast with warning if any
+      if (response.warning) {
+        showNotification(response.warning, "warning");
+      } else {
+        showNotification(
+          "Certificate request submitted successfully!",
+          "success",
+        );
+      }
     } catch (error: unknown) {
       console.error("Error submitting request:", error);
 
@@ -161,11 +166,19 @@ const StudentCertificatePage: React.FC = () => {
     }
   };
 
-  const showNotification = (message: string, type: "success" | "error") => {
-    // You can replace this with a proper toast notification system
+  const showNotification = (
+    message: string,
+    type: "success" | "error" | "warning",
+  ) => {
+    const colors = {
+      success: "bg-green-500",
+      error: "bg-red-500",
+      warning: "bg-yellow-500",
+    };
+
     const notification = document.createElement("div");
     notification.className = `fixed top-4 right-4 ${
-      type === "success" ? "bg-green-500" : "bg-red-500"
+      colors[type]
     } text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in`;
     notification.textContent = message;
     document.body.appendChild(notification);
@@ -284,6 +297,35 @@ const StudentCertificatePage: React.FC = () => {
     return progressMap[status] || 0;
   };
 
+  // Function to check for missing approvers
+  const checkForMissingApprovers = (certificate: Certificate) => {
+    const warnings = [];
+
+    if (
+      certificate.workflowStatus === "WITH_ADVISOR" &&
+      !certificate.advisorId
+    ) {
+      warnings.push("⚠️ No advisor assigned to your class");
+    }
+
+    if (certificate.workflowStatus === "WITH_HOD" && !certificate.hodId) {
+      warnings.push("⚠️ No HOD assigned to your department");
+    }
+
+    if (certificate.workflowStatus === "WITH_OFFICE" && !certificate.officeId) {
+      warnings.push("⚠️ No office staff assigned");
+    }
+
+    if (
+      certificate.workflowStatus === "WITH_PRINCIPAL" &&
+      !certificate.principalId
+    ) {
+      warnings.push("⚠️ No principal assigned");
+    }
+
+    return warnings;
+  };
+
   const certificateTypeOptions: {
     value: CertificateType;
     label: string;
@@ -349,7 +391,7 @@ const StudentCertificatePage: React.FC = () => {
               </h1>
               <p className="text-gray-600 flex items-center gap-2 mt-1">
                 <Shield size={16} className="text-teal-500" />
-                Track and manage your certificate applications
+                Track and manage your requests
               </p>
             </div>
           </div>
@@ -367,7 +409,7 @@ const StudentCertificatePage: React.FC = () => {
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - Now 5 cards instead of 6 */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
@@ -446,9 +488,7 @@ const StudentCertificatePage: React.FC = () => {
           <div className="bg-gradient-to-r from-teal-50 to-teal-100/50 px-6 py-4 border-b border-gray-200">
             <div className="flex items-center gap-2">
               <Sparkles size={20} className="text-teal-600" />
-              <h2 className="font-semibold text-gray-800">
-                Your Certificate Requests
-              </h2>
+              <h2 className="font-semibold text-gray-800">Your Requests</h2>
             </div>
           </div>
 
@@ -458,7 +498,7 @@ const StudentCertificatePage: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Certificate Type
+                    Request Type
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Reason
@@ -484,6 +524,8 @@ const StudentCertificatePage: React.FC = () => {
                   const progress = getProgressPercentage(
                     certificate.workflowStatus,
                   );
+                  const missingApprovers =
+                    checkForMissingApprovers(certificate);
 
                   return (
                     <tr
@@ -569,32 +611,49 @@ const StudentCertificatePage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1.5 min-w-[100px]">
-                            <StepIcon
-                              size={16}
-                              className={
-                                certificate.workflowStatus === "REJECTED"
-                                  ? "text-red-500"
-                                  : certificate.workflowStatus === "COMPLETED"
-                                    ? "text-green-500"
-                                    : "text-teal-500"
-                              }
-                            />
-                            <span className="text-sm text-gray-600">
-                              {currentStep.label}
-                            </span>
-                          </div>
-                          {certificate.workflowStatus !== "REJECTED" && (
-                            <div className="w-20 bg-gray-200 rounded-full h-1.5">
-                              <div
-                                className={`h-1.5 rounded-full transition-all duration-500 ${
-                                  progress === 100
-                                    ? "bg-green-500"
-                                    : "bg-teal-500"
-                                }`}
-                                style={{ width: `${progress}%` }}
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 min-w-[100px]">
+                              <StepIcon
+                                size={16}
+                                className={
+                                  certificate.workflowStatus === "REJECTED"
+                                    ? "text-red-500"
+                                    : certificate.workflowStatus === "COMPLETED"
+                                      ? "text-green-500"
+                                      : "text-teal-500"
+                                }
                               />
+                              <span className="text-sm text-gray-600">
+                                {currentStep.label}
+                              </span>
+                            </div>
+                            {certificate.workflowStatus !== "REJECTED" && (
+                              <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                                <div
+                                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                                    progress === 100
+                                      ? "bg-green-500"
+                                      : "bg-teal-500"
+                                  }`}
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          {missingApprovers.length > 0 && (
+                            <div className="group relative inline-block">
+                              <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs cursor-help">
+                                <AlertTriangle size={10} />
+                                <span>Approver Missing</span>
+                              </div>
+                              <div className="hidden group-hover:block absolute z-10 bottom-full left-0 mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg">
+                                <ul className="list-disc pl-4 space-y-1">
+                                  {missingApprovers.map((warning, i) => (
+                                    <li key={i}>{warning}</li>
+                                  ))}
+                                </ul>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -648,11 +707,11 @@ const StudentCertificatePage: React.FC = () => {
                           <FileText size={48} className="text-teal-400" />
                         </div>
                         <h3 className="text-lg font-semibold text-gray-700">
-                          No Certificate Requests
+                          No Requests
                         </h3>
                         <p className="text-gray-500 max-w-sm">
-                          You haven't submitted any certificate requests yet.
-                          Click the "New Request" button to get started.
+                          You haven't submitted any requests yet. Click the "New
+                          Request" button to get started.
                         </p>
                         <button
                           onClick={() => setShowModal(true)}
@@ -758,7 +817,7 @@ const StudentCertificatePage: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">
-                      New Certificate Request
+                      New Request
                     </h2>
                     <p className="text-sm text-gray-600 mt-1">
                       Fill in the details below to submit your request
@@ -769,6 +828,7 @@ const StudentCertificatePage: React.FC = () => {
                   onClick={() => {
                     setShowModal(false);
                     setFormErrors({});
+                    setSubmitWarning(null);
                     setFormData({
                       studentId: studentData.id,
                       type: "BONAFIDE",
@@ -803,11 +863,30 @@ const StudentCertificatePage: React.FC = () => {
                 </div>
               </div>
 
+              {/* System Status Warning */}
+              {submitWarning && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle
+                      size={20}
+                      className="text-yellow-600 flex-shrink-0 mt-0.5"
+                    />
+                    <div>
+                      <h4 className="font-medium text-yellow-800">
+                        System Notice
+                      </h4>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        {submitWarning}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Certificate Type Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Select Certificate Type{" "}
-                  <span className="text-red-500">*</span>
+                  Select Type <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {certificateTypeOptions.map((option) => (
@@ -902,6 +981,7 @@ const StudentCertificatePage: React.FC = () => {
                   onClick={() => {
                     setShowModal(false);
                     setFormErrors({});
+                    setSubmitWarning(null);
                     setFormData({
                       studentId: studentData.id,
                       type: "BONAFIDE",
@@ -951,7 +1031,7 @@ const StudentCertificatePage: React.FC = () => {
                       Request Timeline
                     </h2>
                     <p className="text-sm text-gray-600 mt-1">
-                      Track the progress of your certificate request
+                      Track the progress of your request
                     </p>
                   </div>
                 </div>
@@ -1024,6 +1104,34 @@ const StudentCertificatePage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Missing Approvers Warning */}
+              {checkForMissingApprovers(selectedCertificate).length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle
+                      size={20}
+                      className="text-yellow-600 flex-shrink-0 mt-0.5"
+                    />
+                    <div>
+                      <h4 className="font-medium text-yellow-800">
+                        Approver Assignment Issues
+                      </h4>
+                      <ul className="mt-2 text-sm text-yellow-700 list-disc pl-4 space-y-1">
+                        {checkForMissingApprovers(selectedCertificate).map(
+                          (warning, i) => (
+                            <li key={i}>{warning}</li>
+                          ),
+                        )}
+                      </ul>
+                      <p className="mt-2 text-sm text-yellow-700">
+                        Your request may be delayed until these approvers are
+                        assigned.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Timeline - with optional chaining and null checks */}
               {selectedCertificate.approvals &&

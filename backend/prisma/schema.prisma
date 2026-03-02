@@ -28,6 +28,7 @@ model User {
   assignedDueTypes      ServiceDepartment[] @relation("AssignedDueTypes")
   students              Student[]
   userRoles             UserRole[]
+  deviceTokens          DeviceToken[]       @relation("UserDeviceTokens")
 
   @@map("users")
 }
@@ -75,11 +76,14 @@ model RolePermission {
 
 model Student {
   id                                  Int             @id @default(autoincrement()) @map("student_id")
+  deviceTokens                        DeviceToken[]   @relation("StudentDeviceTokens")
   advisorId                           Int?            @map("advisor_id")
   createdAt                           DateTime        @default(now()) @map("created_at")
   updatedAt                           DateTime        @updatedAt @map("updated_at")
   name                                String
   password                            String
+  reset_otp                           String?
+  otp_expiry                          DateTime?
   dateOfBirth                         DateTime?       @map("date_of_birth")
   email                               String?         @unique
   gender                              Gender
@@ -202,6 +206,56 @@ model AdmissionWindow {
   @@map("admission_windows")
 }
 
+model DeviceToken {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  deviceType String?  @map("device_type")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  studentId Int?     @map("student_id")
+  student   Student? @relation("StudentDeviceTokens", fields: [studentId], references: [id])
+
+  userId Int?  @map("user_id")
+  user   User? @relation("UserDeviceTokens", fields: [userId], references: [id])
+
+  @@map("device_tokens")
+}
+
+model AdmissionWindow {
+  id          Int      @id @default(autoincrement())
+  program     Program
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  isOpen      Boolean  @default(true) @map("is_open")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  batchId     Int      @unique @map("batch_id")
+  batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@map("admission_windows")
+}
+
+<<<<<<< HEAD
+=======
+model DeviceToken {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  deviceType String?  @map("device_type")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  studentId Int?     @map("student_id")
+  student   Student? @relation("StudentDeviceTokens", fields: [studentId], references: [id])
+
+  userId Int?  @map("user_id")
+  user   User? @relation("UserDeviceTokens", fields: [userId], references: [id])
+
+  @@map("device_tokens")
+}
+
+>>>>>>> de695ec9bf37f6d23e0d5266690a3a2cce50043f
 model HodDetails {
   id           Int        @id @default(autoincrement()) @map("hod_id")
   userId       Int        @unique @map("user_id")
@@ -753,6 +807,8 @@ enum NotificationTargetType {
   SEMESTER
   DEPARTMENT
   STUDENT
+  PROGRAM
+  CLASS
 }
 
 enum StudentStatus {

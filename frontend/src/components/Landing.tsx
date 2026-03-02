@@ -20,6 +20,7 @@ interface Department {
   id: number;
   name: string;
   department_code: string;
+  program: string;
   _count: {
     students: number;
   };
@@ -30,13 +31,12 @@ export const Landing: React.FC = () => {
   const sectionRefs = useRef<SectionRefs>({});
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get(
-          `${API_URL}/api/departments?program=BTECH`,
-        );
+        const response = await axios.get(`${API_URL}/api/departments`);
         setDepartments(response.data);
       } catch (error) {
         console.error("Error fetching departments:", error);
@@ -235,6 +235,33 @@ export const Landing: React.FC = () => {
     { id: "research", label: "Research" },
     { id: "contact", label: "Contact" },
   ];
+
+  const groupedDepartments = React.useMemo(() => {
+    const groups: { [key: string]: Department[] } = {};
+    departments.forEach((dept) => {
+      // Keep all departments regardless of student count to match screenshot
+      const program = dept.program || "Others";
+      if (!groups[program]) {
+        groups[program] = [];
+      }
+      groups[program].push(dept);
+    });
+
+    return groups;
+  }, [departments]);
+
+  const availablePrograms = Object.keys(groupedDepartments);
+
+  useEffect(() => {
+    if (availablePrograms.length > 0 && !expandedProgram) {
+      setExpandedProgram(availablePrograms[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availablePrograms]);
+
+  const toggleProgram = (program: string) => {
+    setExpandedProgram(program);
+  };
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
@@ -574,39 +601,81 @@ export const Landing: React.FC = () => {
           </div>
 
           <div className="max-w-5xl mx-auto space-y-6">
-            {departments.map((dept, index) => (
-              <div
-                key={dept.id}
-                ref={(el) => addToRefs(el, `program-${index}`)}
-                className="opacity-0 translate-y-8 transition-all duration-700 ease-out group"
-                style={{ transitionDelay: `${index * 100}ms` }}
-              >
-                <div className="relative p-8 rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-500 group-hover:-translate-y-2 group-hover:border-blue-200/50">
-                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center">
-                    <div className="flex items-center space-x-6">
-                      <div
-                        className={`w-4 h-16 ${getDepartmentColor(
-                          dept.department_code,
-                        )} rounded-full transform group-hover:scale-110 transition-transform duration-300`}
-                      ></div>
-                      <div>
-                        <h3 className="text-2xl font-semibold text-gray-900 group-hover:text-gray-800 transition-colors duration-300 mb-2">
-                          {dept.name}
-                        </h3>
-                        <p className="text-gray-500 text-sm font-light">
-                          4 Years
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-8 mt-4 lg:mt-0">
-                      <span className="text-gray-600 text-lg font-light">
-                        {dept._count.students} Students
-                      </span>
-                    </div>
-                  </div>
-                </div>
+            {availablePrograms.length === 0 ? (
+              <div className="text-center text-gray-500 py-10 opacity-0 translate-y-8 animate-in">
+                No active programs found.
               </div>
-            ))}
+            ) : (
+              <div className="flex flex-col space-y-4">
+                {/* Program Cards/Buttons Row */}
+                <div className="flex flex-wrap justify-center gap-4 mb-8">
+                  {availablePrograms.map((program) => {
+                    const totalStudents = groupedDepartments[program].reduce(
+                      (acc, dept) => acc + (dept._count?.students || 0),
+                      0,
+                    );
+                    return (
+                      <button
+                        key={program}
+                        onClick={() => toggleProgram(program)}
+                        className={`px-6 py-3 rounded-full font-medium transition-all duration-300 transform hover:scale-105 shadow-md flex items-center space-x-3 ${
+                          expandedProgram === program
+                            ? "bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-blue-500/30"
+                            : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+                        }`}
+                      >
+                        <span>{program} Program</span>
+                        <span
+                          className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                            expandedProgram === program
+                              ? "bg-white/20 text-white"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {totalStudents}{" "}
+                          {totalStudents === 1 ? "Student" : "Students"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Expanded Departments List */}
+                {expandedProgram && groupedDepartments[expandedProgram] && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                    {groupedDepartments[expandedProgram].map((dept) => (
+                      <div
+                        key={dept.id}
+                        className="relative p-6 rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-md hover:shadow-lg transition-all duration-300 group hover:-translate-y-1 hover:border-blue-200/50"
+                      >
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                          <div className="flex items-center space-x-5">
+                            <div
+                              className={`w-3 h-12 ${getDepartmentColor(
+                                dept.department_code,
+                              )} rounded-full transform group-hover:scale-110 transition-transform duration-300`}
+                            ></div>
+                            <div>
+                              <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-300 mb-1">
+                                {dept.name}
+                              </h3>
+                              <p className="text-gray-500 text-sm font-light">
+                                {dept.department_code} Department
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-4 sm:mt-0 flex items-center bg-gray-50 px-4 py-2 rounded-full shadow-inner">
+                            <span className="text-gray-700 font-medium whitespace-nowrap">
+                              {dept._count.students} Students Enrolled
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
