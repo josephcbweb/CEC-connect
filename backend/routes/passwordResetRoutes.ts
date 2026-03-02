@@ -17,8 +17,11 @@ import express from "express";
 import {
     sendOTP,
     verifyOTP,
-    resetPassword
-} from "../controllers/passwordResetController";
+    resetPassword,
+    adminSendOTP,
+    adminVerifyOTP,
+    adminResetPassword
+} from "../Controllers/passwordResetController";
 
 const router = express.Router();
 
@@ -45,5 +48,29 @@ router.post("/verify-otp", verifyOTP);
  * @body    { email: string, otp: string, newPassword: string, confirmPassword: string }
  */
 router.post("/reset-password", resetPassword);
+
+/**
+ * @route   POST /api/password-reset/admin/send-otp
+ * @desc    Send OTP to registered admin email
+ * @access  Public
+ * @body    { email: string }
+ */
+router.post("/admin/send-otp", adminSendOTP);
+
+/**
+ * @route   POST /api/password-reset/admin/verify-otp
+ * @desc    Verify admin OTP sent to email
+ * @access  Public
+ * @body    { email: string, otp: string }
+ */
+router.post("/admin/verify-otp", adminVerifyOTP);
+
+/**
+ * @route   POST /api/password-reset/admin/reset-password
+ * @desc    Reset admin password after OTP verification
+ * @access  Public
+ * @body    { email: string, otp: string, newPassword: string, confirmPassword: string }
+ */
+router.post("/admin/reset-password", adminResetPassword);
 
 export default router;

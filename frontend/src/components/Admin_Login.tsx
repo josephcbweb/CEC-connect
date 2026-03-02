@@ -214,12 +214,12 @@ const Login = () => {
 
                 {/* Forgot Password */}
                 <div className="flex justify-end items-center">
-                  <a
-                    href="#"
-                    className="text-sm font-medium text-[#3AA9AB] hover:text-[#031D44] transition-colors duration-300"
+                  <span
+                    onClick={() => navigate("/admin-forgot-password")}
+                    className="text-sm font-medium text-[#3AA9AB] hover:text-[#031D44] transition-colors duration-300 cursor-pointer"
                   >
                     Forgot password?
-                  </a>
+                  </span>
                 </div>
 
                 {/* Submit Button */}

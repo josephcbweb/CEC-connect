@@ -121,7 +121,7 @@ const AdminFeesDashboard: React.FC = () => {
   }, []);
 
   const filteredStudents = useMemo(() => {
-    let result = students.filter((student) => {
+    const result = students.filter((student) => {
       // Search filter
       if (
         searchQuery &&

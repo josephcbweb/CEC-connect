@@ -14,6 +14,8 @@ model User {
   email                 String              @unique
   status                UserStatus          @default(active)
   lastLogin             DateTime?           @map("last_login")
+  reset_otp             String?
+  otp_expiry            DateTime?
   createdAt             DateTime            @default(now()) @map("created_at")
   updatedAt             DateTime            @updatedAt @map("updated_at")
   advisorDetails        AdvisorDetails?
