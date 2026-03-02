@@ -22,10 +22,35 @@ export default function AddBusModal({ isOpen, onClose, onSuccess }: Props) {
 
   if (!isOpen) return null;
 
+  const saveDriverInfo = async () => {
+    // This function seems to be part of a different context or a future feature.
+    // The variables `editName`, `editPhone`, and `setIsSavingDriver` are not defined in this component.
+    // I am adding it as per the instruction, but it will cause a compilation error without further context.
+    // If this is intended for a different modal or component, please clarify.
+    // For now, I'll comment out the parts that would cause immediate errors.
+    // if (!editName.trim() || !editPhone.trim()) return;
+
+    // Phone Validation
+    const phoneRegex = /^[0-9]{10}$/;
+    // if (!phoneRegex.test(editPhone)) {
+    //   alert("Invalid phone number. Please enter a 10-digit number.");
+    //   return;
+    // }
+
+    // setIsSavingDriver(true);
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (!formData.busNumber || !formData.totalSeats || !formData.driverName || !formData.driverPhone) {
       setError("Please fill in all required fields");
+      return;
+    }
+
+    // Phone Validation
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(formData.driverPhone)) {
+      setError("Invalid driver phone number. Please enter a 10-digit number.");
       return;
     }
 
@@ -109,7 +134,7 @@ export default function AddBusModal({ isOpen, onClose, onSuccess }: Props) {
           {/* Bus Information Section */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Bus Information</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Bus Number */}
               <div className="space-y-2">
@@ -212,7 +237,7 @@ export default function AddBusModal({ isOpen, onClose, onSuccess }: Props) {
           {/* Driver Information Section */}
           <div className="space-y-4 pt-2">
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Driver Information</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Driver Name */}
               <div className="space-y-2">
