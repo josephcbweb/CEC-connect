@@ -6,7 +6,7 @@ import {
   updateNotification,
   deleteNotification,
   registerToken,
-} from "../Controllers/notificationController";
+} from "../controllers/notificationController";
 import AuthMiddleware from "../middlewares/authMiddlewares";
 
 const router = express.Router();
@@ -24,10 +24,6 @@ router.get(
   getStudentNotifications,
 );
 
-router.post(
-  "/register-token",
-  AuthMiddleware.authenticate,
-  registerToken
-);
+router.post("/register-token", AuthMiddleware.authenticate, registerToken);
 
 export default router;

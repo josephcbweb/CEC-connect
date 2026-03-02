@@ -162,232 +162,233 @@ const StaffCertificatePage: React.FC = () => {
 
   // src/components/certificate/StaffCertificatePage.tsx
 
-const determineAllUserRoles = async () => {
-  setLoadingRole(true);
-  const detectedRoles: UserRoleInfo[] = [];
+  const determineAllUserRoles = async () => {
+    setLoadingRole(true);
+    const detectedRoles: UserRoleInfo[] = [];
 
-  try {
-    // Check all possible roles and collect them
-    
-    // Check HOD
     try {
-      const hodResponse = await fetch(
-        `http://localhost:3000/api/certificates/role/hod/${userId}?limit=1`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      // Check all possible roles and collect them
 
-      if (hodResponse.ok) {
-        const hodData = await hodResponse.json();
-        // Also check if user has certificates or just has the role
-        const hasHODRole = hodData.data || hodResponse.status === 200;
-        
-        // Get department info for HOD
-        let departmentName = "Department";
-        let departmentId = null;
-        
-        // Try to get department from user profile or another endpoint
-        try {
-          const deptResponse = await fetch(
-            `http://localhost:3000/api/users/${userId}/departments`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (deptResponse.ok) {
-            const deptData = await deptResponse.json();
-            if (deptData.hodDepartment) {
-              departmentName = deptData.hodDepartment.name;
-              departmentId = deptData.hodDepartment.id;
+      // Check HOD
+      try {
+        const hodResponse = await fetch(
+          `http://localhost:3000/api/certificates/role/hod/${userId}?limit=1`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (hodResponse.ok) {
+          const hodData = await hodResponse.json();
+          // Also check if user has certificates or just has the role
+          const hasHODRole = hodData.data || hodResponse.status === 200;
+
+          // Get department info for HOD
+          let departmentName = "Department";
+          let departmentId = null;
+
+          // Try to get department from user profile or another endpoint
+          try {
+            const deptResponse = await fetch(
+              `http://localhost:3000/api/users/${userId}/departments`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (deptResponse.ok) {
+              const deptData = await deptResponse.json();
+              if (deptData.hodDepartment) {
+                departmentName = deptData.hodDepartment.name;
+                departmentId = deptData.hodDepartment.id;
+              }
             }
+          } catch (error) {
+            console.error("Error fetching HOD department:", error);
           }
-        } catch (error) {
-          console.error("Error fetching HOD department:", error);
-        }
 
-        detectedRoles.push({
-          role: "hod",
-          label: "Head of Department",
-          icon: <Building2 size={18} />,
-          color: "text-emerald-600 bg-emerald-50",
-          bgGradient: "from-emerald-500 to-teal-600",
-          description: `Manage ${departmentName} certificates`,
-          departmentId,
-          departmentName
-        });
-        console.log("HOD role detected");
+          detectedRoles.push({
+            role: "hod",
+            label: "Head of Department",
+            icon: <Building2 size={18} />,
+            color: "text-emerald-600 bg-emerald-50",
+            bgGradient: "from-emerald-500 to-teal-600",
+            description: `Manage ${departmentName} certificates`,
+            departmentId,
+            departmentName,
+          });
+          console.log("HOD role detected");
+        }
+      } catch (error) {
+        console.log("HOD role check failed:", error);
       }
-    } catch (error) {
-      console.log("HOD role check failed:", error);
-    }
 
-    // Check Principal
-    try {
-      const principalResponse = await fetch(
-        `http://localhost:3000/api/certificates/role/principal/${userId}?limit=1`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
+      // Check Principal
+      try {
+        const principalResponse = await fetch(
+          `http://localhost:3000/api/certificates/role/principal/${userId}?limit=1`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (principalResponse.ok) {
+          detectedRoles.push({
+            role: "principal",
+            label: "Principal",
+            icon: <Crown size={18} />,
+            color: "text-purple-600 bg-purple-50",
+            bgGradient: "from-purple-500 to-pink-500",
+            description: "Final approval for all certificates",
+            departmentId: null,
+            departmentName: undefined,
+          });
+          console.log("Principal role detected");
         }
-      );
-
-      if (principalResponse.ok) {
-        detectedRoles.push({
-          role: "principal",
-          label: "Principal",
-          icon: <Crown size={18} />,
-          color: "text-purple-600 bg-purple-50",
-          bgGradient: "from-purple-500 to-pink-500",
-          description: "Final approval for all certificates",
-          departmentId: null,
-          departmentName: undefined
-        });
-        console.log("Principal role detected");
+      } catch (error) {
+        console.log("Principal role check failed:", error);
       }
-    } catch (error) {
-      console.log("Principal role check failed:", error);
-    }
 
-    // Check Office
-    try {
-      const officeResponse = await fetch(
-        `http://localhost:3000/api/certificates/role/office/${userId}?limit=1`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
+      // Check Office
+      try {
+        const officeResponse = await fetch(
+          `http://localhost:3000/api/certificates/role/office/${userId}?limit=1`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (officeResponse.ok) {
+          detectedRoles.push({
+            role: "office",
+            label: "Office Staff",
+            icon: <FileText size={18} />,
+            color: "text-amber-600 bg-amber-50",
+            bgGradient: "from-amber-500 to-orange-500",
+            description: "Process and generate certificates",
+            departmentId: null,
+            departmentName: undefined,
+          });
+          console.log("Office role detected");
         }
-      );
-
-      if (officeResponse.ok) {
-        detectedRoles.push({
-          role: "office",
-          label: "Office Staff",
-          icon: <FileText size={18} />,
-          color: "text-amber-600 bg-amber-50",
-          bgGradient: "from-amber-500 to-orange-500",
-          description: "Process and generate certificates",
-          departmentId: null,
-          departmentName: undefined
-        });
-        console.log("Office role detected");
+      } catch (error) {
+        console.log("Office role check failed:", error);
       }
-    } catch (error) {
-      console.log("Office role check failed:", error);
-    }
 
-    // Check Advisor
-    try {
-      const advisorResponse = await fetch(
-        `http://localhost:3000/api/certificates/role/advisor/${userId}?limit=1`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      // Check Advisor
+      try {
+        const advisorResponse = await fetch(
+          `http://localhost:3000/api/certificates/role/advisor/${userId}?limit=1`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
 
-      if (advisorResponse.ok) {
-        const advisorData = await advisorResponse.json();
-        
-        // Get class info for advisor
-        let className = "Class";
-        try {
-          const classResponse = await fetch(
-            `http://localhost:3000/api/users/${userId}/advisor-class`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (classResponse.ok) {
-            const classData = await classResponse.json();
-            className = classData.className || "Class";
+        if (advisorResponse.ok) {
+          const advisorData = await advisorResponse.json();
+
+          // Get class info for advisor
+          let className = "Class";
+          try {
+            const classResponse = await fetch(
+              `http://localhost:3000/api/users/${userId}/advisor-class`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (classResponse.ok) {
+              const classData = await classResponse.json();
+              className = classData.className || "Class";
+            }
+          } catch (error) {
+            console.error("Error fetching advisor class:", error);
           }
-        } catch (error) {
-          console.error("Error fetching advisor class:", error);
-        }
 
+          detectedRoles.push({
+            role: "advisor",
+            label: "Class Advisor",
+            icon: <UserCog size={18} />,
+            color: "text-teal-600 bg-teal-50",
+            bgGradient: "from-teal-500 to-teal-600",
+            description: `Manage ${className} advisee certificates`,
+            departmentId: null,
+            departmentName: undefined,
+          });
+          console.log("Advisor role detected");
+
+          // Set advisor name from token if available
+          if (tokenData.name) {
+            setAdvisorName(tokenData.name);
+          }
+        }
+      } catch (error) {
+        console.log("Advisor role check failed:", error);
+      }
+
+      // Check Admin
+      try {
+        const adminResponse = await fetch(
+          `http://localhost:3000/api/certificates/role/admin/${userId}?limit=1`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (adminResponse.ok) {
+          detectedRoles.push({
+            role: "admin",
+            label: "Administrator",
+            icon: <Shield size={18} />,
+            color: "text-red-600 bg-red-50",
+            bgGradient: "from-red-500 to-rose-600",
+            description: "View all certificate flows",
+            departmentId: null,
+            departmentName: undefined,
+          });
+          console.log("Admin role detected");
+        }
+      } catch (error) {
+        console.log("Admin role check failed:", error);
+      }
+
+      // If no roles detected, add a default role
+      if (detectedRoles.length === 0) {
         detectedRoles.push({
+          role: "viewer",
+          label: "Viewer",
+          icon: <Users size={18} />,
+          color: "text-gray-600 bg-gray-50",
+          bgGradient: "from-gray-500 to-gray-600",
+          description: "View certificates",
+          departmentId: null,
+          departmentName: undefined,
+        });
+      }
+
+      setUserRoles(detectedRoles);
+
+      // Set active role to the first one (or try to get from localStorage)
+      const savedRole = localStorage.getItem(`activeRole_${userId}`);
+      if (savedRole && detectedRoles.some((r) => r.role === savedRole)) {
+        setActiveRole(savedRole);
+      } else {
+        setActiveRole(detectedRoles[0].role);
+      }
+    } catch (error) {
+      console.error("Error determining user roles:", error);
+      // Fallback to a default role
+      setUserRoles([
+        {
           role: "advisor",
           label: "Class Advisor",
           icon: <UserCog size={18} />,
           color: "text-teal-600 bg-teal-50",
           bgGradient: "from-teal-500 to-teal-600",
-          description: `Manage ${className} advisee certificates`,
+          description: "Default role",
           departmentId: null,
-          departmentName: undefined
-        });
-        console.log("Advisor role detected");
-        
-        // Set advisor name from token if available
-        if (tokenData.name) {
-          setAdvisorName(tokenData.name);
-        }
-      }
-    } catch (error) {
-      console.log("Advisor role check failed:", error);
+          departmentName: undefined,
+        },
+      ]);
+      setActiveRole("advisor");
+    } finally {
+      setLoadingRole(false);
     }
-
-    // Check Admin
-    try {
-      const adminResponse = await fetch(
-        `http://localhost:3000/api/certificates/role/admin/${userId}?limit=1`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (adminResponse.ok) {
-        detectedRoles.push({
-          role: "admin",
-          label: "Administrator",
-          icon: <Shield size={18} />,
-          color: "text-red-600 bg-red-50",
-          bgGradient: "from-red-500 to-rose-600",
-          description: "View all certificate flows",
-          departmentId: null,
-          departmentName: undefined
-        });
-        console.log("Admin role detected");
-      }
-    } catch (error) {
-      console.log("Admin role check failed:", error);
-    }
-
-    // If no roles detected, add a default role
-    if (detectedRoles.length === 0) {
-      detectedRoles.push({
-        role: "viewer",
-        label: "Viewer",
-        icon: <Users size={18} />,
-        color: "text-gray-600 bg-gray-50",
-        bgGradient: "from-gray-500 to-gray-600",
-        description: "View certificates",
-        departmentId: null,
-        departmentName: undefined
-      });
-    }
-
-    setUserRoles(detectedRoles);
-    
-    // Set active role to the first one (or try to get from localStorage)
-    const savedRole = localStorage.getItem(`activeRole_${userId}`);
-    if (savedRole && detectedRoles.some(r => r.role === savedRole)) {
-      setActiveRole(savedRole);
-    } else {
-      setActiveRole(detectedRoles[0].role);
-    }
-
-  } catch (error) {
-    console.error("Error determining user roles:", error);
-    // Fallback to a default role
-    setUserRoles([{
-      role: "advisor",
-      label: "Class Advisor",
-      icon: <UserCog size={18} />,
-      color: "text-teal-600 bg-teal-50",
-      bgGradient: "from-teal-500 to-teal-600",
-      description: "Default role",
-      departmentId: null,
-      departmentName: undefined
-    }]);
-    setActiveRole("advisor");
-  } finally {
-    setLoadingRole(false);
-  }
-};
+  };
 
   // Switch role
   const switchRole = (role: string) => {
@@ -396,8 +397,8 @@ const determineAllUserRoles = async () => {
     setShowRoleSwitcher(false);
     setPage(1); // Reset pagination
     // Clear filters that might not be relevant for the new role
-    if (role === 'advisor') {
-      setDepartmentFilter('all');
+    if (role === "advisor") {
+      setDepartmentFilter("all");
     }
   };
 
@@ -415,10 +416,10 @@ const determineAllUserRoles = async () => {
       if (searchTerm) queryParams.append("search", searchTerm);
 
       // Only apply department filter if role supports it (not advisor)
-      if (activeRole !== 'advisor' && departmentFilter !== "all") {
+      if (activeRole !== "advisor" && departmentFilter !== "all") {
         queryParams.append("departmentId", departmentFilter);
       }
-      
+
       if (semesterFilter !== "all")
         queryParams.append("semester", semesterFilter);
 
@@ -443,7 +444,10 @@ const determineAllUserRoles = async () => {
         const errorData = await response.json();
         console.error("Response not OK:", response.status, errorData);
         // Show error notification
-        showNotification(errorData.error || "Failed to fetch certificates", "error");
+        showNotification(
+          errorData.error || "Failed to fetch certificates",
+          "error",
+        );
       }
     } catch (error) {
       console.error("Error fetching certificates:", error);
@@ -475,12 +479,14 @@ const determineAllUserRoles = async () => {
   }, [statusFilter, searchTerm, departmentFilter, semesterFilter, activeRole]);
 
   // Get active role config
-  const activeRoleConfig = userRoles.find(r => r.role === activeRole) || userRoles[0];
+  const activeRoleConfig =
+    userRoles.find((r) => r.role === activeRole) || userRoles[0];
 
   // Function to show approver missing error modal
   const showApproverError = (errorMessage: string) => {
     const errorModal = document.createElement("div");
-    errorModal.className = "fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in";
+    errorModal.className =
+      "fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in";
     errorModal.innerHTML = `
       <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-slide-up overflow-hidden">
         <div class="p-6 bg-red-50 border-b border-red-200">
@@ -558,10 +564,13 @@ const determineAllUserRoles = async () => {
         fetchCertificates();
         showNotification("Certificate processed successfully!", "success");
       } else {
-        if (data.code === 'NEXT_APPROVER_MISSING') {
+        if (data.code === "NEXT_APPROVER_MISSING") {
           showApproverError(data.error);
         } else {
-          showNotification(data.error || "Failed to process certificate", "error");
+          showNotification(
+            data.error || "Failed to process certificate",
+            "error",
+          );
         }
       }
     } catch (error) {
@@ -572,13 +581,16 @@ const determineAllUserRoles = async () => {
     }
   };
 
-  const showNotification = (message: string, type: "success" | "error" | "warning") => {
+  const showNotification = (
+    message: string,
+    type: "success" | "error" | "warning",
+  ) => {
     const colors = {
       success: "bg-green-500",
       error: "bg-red-500",
-      warning: "bg-yellow-500"
+      warning: "bg-yellow-500",
     };
-    
+
     const notification = document.createElement("div");
     notification.className = `fixed top-4 right-4 ${
       colors[type]
@@ -600,7 +612,10 @@ const determineAllUserRoles = async () => {
       showNotification("Download started successfully!", "success");
     } catch (error) {
       console.error("Error downloading certificate:", error);
-      showNotification("Failed to download certificate. Please try again.", "error");
+      showNotification(
+        "Failed to download certificate. Please try again.",
+        "error",
+      );
     } finally {
       setDownloadLoading(null);
     }
@@ -617,7 +632,7 @@ const determineAllUserRoles = async () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -680,69 +695,81 @@ const determineAllUserRoles = async () => {
   };
 
   const canTakeAction = (certificate: Certificate) => {
-  const workflowMap: Record<string, string[]> = {
-    advisor: ["SUBMITTED", "WITH_ADVISOR"],
-    hod: ["WITH_HOD"],
-    office: ["WITH_OFFICE"],
-    principal: ["WITH_PRINCIPAL"],
-    admin: ["SUBMITTED", "WITH_ADVISOR", "WITH_HOD", "WITH_OFFICE", "WITH_PRINCIPAL"], // Admin can act on any
+    const workflowMap: Record<string, string[]> = {
+      advisor: ["SUBMITTED", "WITH_ADVISOR"],
+      hod: ["WITH_HOD"],
+      office: ["WITH_OFFICE"],
+      principal: ["WITH_PRINCIPAL"],
+      admin: [
+        "SUBMITTED",
+        "WITH_ADVISOR",
+        "WITH_HOD",
+        "WITH_OFFICE",
+        "WITH_PRINCIPAL",
+      ], // Admin can act on any
+    };
+
+    return (
+      workflowMap[activeRole]?.includes(certificate.workflowStatus) &&
+      certificate.status !== "REJECTED" &&
+      certificate.status !== "GENERATED"
+    );
   };
 
-  return (
-    workflowMap[activeRole]?.includes(certificate.workflowStatus) &&
-    certificate.status !== "REJECTED" &&
-    certificate.status !== "GENERATED"
-  );
-};
-
   const canGenerate = (certificate: Certificate) => {
-  return (
-    (activeRole === "office" || activeRole === "admin") && // Admin can also generate
-    certificate.status === "APPROVED" &&
-    certificate.workflowStatus === "COMPLETED"
-  );
-};
+    return (
+      (activeRole === "office" || activeRole === "admin") && // Admin can also generate
+      certificate.status === "APPROVED" &&
+      certificate.workflowStatus === "COMPLETED"
+    );
+  };
 
   // Function to check for missing approvers in a certificate
   const checkForMissingApprovers = (certificate: ExtendedCertificate) => {
     const warnings = [];
-    
-    if (certificate.workflowStatus === "WITH_ADVISOR" && !certificate.advisorId) {
+
+    if (
+      certificate.workflowStatus === "WITH_ADVISOR" &&
+      !certificate.advisorId
+    ) {
       warnings.push("⚠️ No advisor assigned to this student's class");
     }
-    
+
     if (certificate.workflowStatus === "WITH_HOD" && !certificate.hodId) {
       warnings.push("⚠️ No HOD assigned to this department");
     }
-    
+
     if (certificate.workflowStatus === "WITH_OFFICE" && !certificate.officeId) {
       warnings.push("⚠️ No office staff assigned");
     }
-    
-    if (certificate.workflowStatus === "WITH_PRINCIPAL" && !certificate.principalId) {
+
+    if (
+      certificate.workflowStatus === "WITH_PRINCIPAL" &&
+      !certificate.principalId
+    ) {
       warnings.push("⚠️ No principal assigned");
     }
-    
+
     return warnings;
   };
 
   // Get welcome message based on active role
   const getWelcomeMessage = () => {
-  switch (activeRole) {
-    case "hod":
-      return "Review department requests forwarded by advisors";
-    case "principal":
-      return "Final approval for  requests";
-    case "office":
-      return "Verify and process requests";
-    case "advisor":
-      return "Review and forward requests from your advisees";
-    case "admin":
-      return "View all  requests across the institution";
-    default:
-      return "Manage requests";
-  }
-};
+    switch (activeRole) {
+      case "hod":
+        return "Review department requests forwarded by advisors";
+      case "principal":
+        return "Final approval for  requests";
+      case "office":
+        return "Verify and process requests";
+      case "advisor":
+        return "Review and forward requests from your advisees";
+      case "admin":
+        return "View all  requests across the institution";
+      default:
+        return "Manage requests";
+    }
+  };
 
   // Show loading while determining roles
   if (loadingRole) {
@@ -776,7 +803,7 @@ const determineAllUserRoles = async () => {
               className={`p-3 bg-gradient-to-r ${activeRoleConfig?.bgGradient || "from-teal-500 to-teal-600"} rounded-xl shadow-lg relative`}
             >
               {activeRoleConfig?.icon}
-              
+
               {/* Role indicator badge for multi-role users */}
               {userRoles.length > 1 && (
                 <div className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-md border border-gray-200">
@@ -789,7 +816,7 @@ const determineAllUserRoles = async () => {
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent">
                   Request Management
                 </h1>
-                
+
                 {/* Role Switcher Button - Only show if multiple roles */}
                 {userRoles.length > 1 && (
                   <div className="relative">
@@ -800,12 +827,14 @@ const determineAllUserRoles = async () => {
                       <RefreshCw size={16} className="text-teal-600" />
                       <span className="text-sm font-medium">Switch Role</span>
                     </button>
-                    
+
                     {/* Role Switcher Dropdown */}
                     {showRoleSwitcher && (
                       <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
                         <div className="p-2 bg-gray-50 border-b border-gray-200">
-                          <p className="text-xs font-medium text-gray-500">SELECT ROLE</p>
+                          <p className="text-xs font-medium text-gray-500">
+                            SELECT ROLE
+                          </p>
                         </div>
                         <div className="p-1">
                           {userRoles.map((role) => (
@@ -814,19 +843,26 @@ const determineAllUserRoles = async () => {
                               onClick={() => switchRole(role.role)}
                               className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
                                 activeRole === role.role
-                                  ? 'bg-teal-50 border border-teal-200'
-                                  : 'hover:bg-gray-50'
+                                  ? "bg-teal-50 border border-teal-200"
+                                  : "hover:bg-gray-50"
                               }`}
                             >
                               <div className={`p-2 rounded-lg ${role.color}`}>
                                 {role.icon}
                               </div>
                               <div className="flex-1 text-left">
-                                <p className="font-medium text-gray-900">{role.label}</p>
-                                <p className="text-xs text-gray-500">{role.description}</p>
+                                <p className="font-medium text-gray-900">
+                                  {role.label}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {role.description}
+                                </p>
                               </div>
                               {activeRole === role.role && (
-                                <CheckCircle size={16} className="text-teal-600" />
+                                <CheckCircle
+                                  size={16}
+                                  className="text-teal-600"
+                                />
                               )}
                             </button>
                           ))}
@@ -836,7 +872,7 @@ const determineAllUserRoles = async () => {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-2 mt-1">
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium ${activeRoleConfig?.color || "bg-gray-100 text-gray-700"}`}
@@ -848,9 +884,9 @@ const determineAllUserRoles = async () => {
                   {getWelcomeMessage()}
                 </p>
               </div>
-              
+
               {/* Show department info for HOD */}
-              {activeRole === 'hod' && activeRoleConfig?.departmentName && (
+              {activeRole === "hod" && activeRoleConfig?.departmentName && (
                 <p className="text-xs text-gray-500 mt-1">
                   Department: {activeRoleConfig.departmentName}
                 </p>
@@ -903,7 +939,7 @@ const determineAllUserRoles = async () => {
               </select>
 
               {/* Department Filter - Hide for advisor */}
-              {(activeRole !== 'advisor') && (
+              {activeRole !== "advisor" && (
                 <select
                   className="px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   value={departmentFilter}
@@ -935,7 +971,7 @@ const determineAllUserRoles = async () => {
 
             {/* Active filters display */}
             {(statusFilter !== "all" ||
-              (activeRole !== 'advisor' && departmentFilter !== "all") ||
+              (activeRole !== "advisor" && departmentFilter !== "all") ||
               semesterFilter !== "all" ||
               searchTerm) && (
               <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
@@ -953,7 +989,7 @@ const determineAllUserRoles = async () => {
                     </button>
                   </span>
                 )}
-                {activeRole !== 'advisor' && departmentFilter !== "all" && (
+                {activeRole !== "advisor" && departmentFilter !== "all" && (
                   <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium border border-purple-200">
                     Dept:{" "}
                     {departments.find((d) => d.id === Number(departmentFilter))
@@ -999,7 +1035,7 @@ const determineAllUserRoles = async () => {
             <div className="flex items-center gap-2">
               <Sparkles size={18} className="text-teal-600" />
               <h2 className="font-semibold text-gray-800">
-                 Requests {activeRole && `(${activeRoleConfig?.label})`}
+                Requests {activeRole && `(${activeRoleConfig?.label})`}
               </h2>
               {totalItems > 0 && (
                 <span className="ml-auto text-sm text-gray-500">

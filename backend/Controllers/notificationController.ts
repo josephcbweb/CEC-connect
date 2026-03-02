@@ -1,15 +1,27 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { AuthenticatedRequest } from "../utils/types";
-import { NotificationTargetType, NotificationPriority, NotificationStatus } from "../generated/prisma/enums";
-import fs from 'fs';
-import path from 'path';
+import {
+  NotificationTargetType,
+  NotificationPriority,
+  NotificationStatus,
+} from "../generated/prisma/enums";
+import fs from "fs";
+import path from "path";
 
-import { sendPushNotification } from '../services/pushNotificationService';
+import { sendPushNotification } from "../services/pushNotificationService";
 
 export const createNotification = async (req: Request, res: Response) => {
   try {
-    const { title, description, targetType, targetValue, priority, expiryDate, status } = req.body;
+    const {
+      title,
+      description,
+      targetType,
+      targetValue,
+      priority,
+      expiryDate,
+      status,
+    } = req.body;
 
     // In a real scenario, get admin ID from token. For now, try to find a default admin or use ID 1.
     // Ensure we have at least one user to assign as sender.
@@ -24,25 +36,27 @@ export const createNotification = async (req: Request, res: Response) => {
         targetType: targetType as NotificationTargetType,
         targetValue,
         priority: priority as NotificationPriority,
-        status: status as NotificationStatus || NotificationStatus.draft,
-        expiryDate: expiryDate ? new Date(new Date(expiryDate).setUTCHours(23, 59, 59, 999)) : null,
+        status: (status as NotificationStatus) || NotificationStatus.draft,
+        expiryDate: expiryDate
+          ? new Date(new Date(expiryDate).setUTCHours(23, 59, 59, 999))
+          : null,
         senderId: senderId,
       },
     });
 
     // Send Push Notification if published
     if (notification.status === NotificationStatus.published) {
-        // Run asynchronously to not block response
-        // In production, use a job queue
-        sendPushNotification(
-            notification.id,
-            notification.targetType,
-            notification.targetValue,
-            notification.title,
-            notification.description || '',
-            { notificationId: notification.id },
-            notification.priority
-        ).catch(err => console.error("Async push error", err));
+      // Run asynchronously to not block response
+      // In production, use a job queue
+      sendPushNotification(
+        notification.id,
+        notification.targetType,
+        notification.targetValue,
+        notification.title,
+        notification.description || "",
+        { notificationId: notification.id },
+        notification.priority,
+      ).catch((err) => console.error("Async push error", err));
     }
 
     res.status(201).json(notification);
@@ -69,23 +83,33 @@ export const getNotifications = async (req: Request, res: Response) => {
   }
 };
 
-export const getStudentNotifications = async (req: AuthenticatedRequest, res: Response) => {
+export const getStudentNotifications = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
   try {
     // Student ID comes from token payload (set in middleware)
-    const studentId = typeof req.user === 'object' && req.user ? (req.user as any).userId : null;
+    const studentId =
+      typeof req.user === "object" && req.user
+        ? (req.user as any).userId
+        : null;
 
     if (!studentId) {
-      return res.status(401).json({ error: "Unauthorized: No studentId in token" });
+      return res
+        .status(401)
+        .json({ error: "Unauthorized: No studentId in token" });
     }
 
     // Fetch complete student details (Semester, Department)
     const student = await prisma.student.findUnique({
       where: { id: parseInt(studentId) },
-      include: { department: true }
+      include: { department: true },
     });
 
     if (!student) {
-      return res.status(404).json({ error: `Student not found for ID ${studentId}` });
+      return res
+        .status(404)
+        .json({ error: `Student not found for ID ${studentId}` });
     }
 
     const currentSemester = `S${student.currentSemester}`;
@@ -98,18 +122,15 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
         status: NotificationStatus.published,
         AND: [
           {
-            OR: [
-              { expiryDate: null },
-              { expiryDate: { gte: new Date() } }
-            ]
-          }
-        ]
+            OR: [{ expiryDate: null }, { expiryDate: { gte: new Date() } }],
+          },
+        ],
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
     // Filter notifications based on target type
-    const notifications = allNotifications.filter(notification => {
+    const notifications = allNotifications.filter((notification) => {
       // ALL - matches everyone
       if (notification.targetType === NotificationTargetType.ALL) {
         return true;
@@ -131,12 +152,12 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
       }
 
       // PROGRAM - matches program
-      if (notification.targetType === 'PROGRAM') {
+      if (notification.targetType === "PROGRAM") {
         return notification.targetValue === program;
       }
 
       // CLASS - matches combination of program, department, and semester
-      if (notification.targetType === 'CLASS' && notification.targetValue) {
+      if (notification.targetType === "CLASS" && notification.targetValue) {
         try {
           const classFilter = JSON.parse(notification.targetValue);
           let matches = true;
@@ -145,17 +166,23 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
             matches = false;
           }
 
-          if (classFilter.department_code && classFilter.department_code !== deptCode) {
+          if (
+            classFilter.department_code &&
+            classFilter.department_code !== deptCode
+          ) {
             matches = false;
           }
 
-          if (classFilter.semester && classFilter.semester !== student.currentSemester) {
+          if (
+            classFilter.semester &&
+            classFilter.semester !== student.currentSemester
+          ) {
             matches = false;
           }
 
           return matches;
         } catch (e) {
-          console.error('Error parsing CLASS targetValue:', e);
+          console.error("Error parsing CLASS targetValue:", e);
           return false;
         }
       }
@@ -164,7 +191,7 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
     });
 
     // Custom sort: URGENT > IMPORTANT > NORMAL, then by createdAt desc
-    const priorityOrder = { "URGENT": 0, "IMPORTANT": 1, "NORMAL": 2 };
+    const priorityOrder = { URGENT: 0, IMPORTANT: 1, NORMAL: 2 };
 
     const sortedNotifications = notifications.sort((a, b) => {
       const pA = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2;
@@ -175,16 +202,27 @@ export const getStudentNotifications = async (req: AuthenticatedRequest, res: Re
     });
 
     res.json(sortedNotifications);
-
   } catch (error: any) {
     console.error("Error fetching student notifications:", error);
-    res.status(500).json({ error: "Failed to fetch notifications", details: error.toString(), stack: error.stack });
+    res.status(500).json({
+      error: "Failed to fetch notifications",
+      details: error.toString(),
+      stack: error.stack,
+    });
   }
 };
 
 export const updateNotification = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { title, description, targetType, targetValue, priority, expiryDate, status } = req.body;
+  const {
+    title,
+    description,
+    targetType,
+    targetValue,
+    priority,
+    expiryDate,
+    status,
+  } = req.body;
   try {
     const notification = await prisma.notification.update({
       where: { id: Number(id) },
@@ -195,7 +233,9 @@ export const updateNotification = async (req: Request, res: Response) => {
         targetValue,
         priority: priority as NotificationPriority,
         status: status as NotificationStatus,
-        expiryDate: expiryDate ? new Date(new Date(expiryDate).setUTCHours(23, 59, 59, 999)) : null,
+        expiryDate: expiryDate
+          ? new Date(new Date(expiryDate).setUTCHours(23, 59, 59, 999))
+          : null,
       },
     });
     res.json(notification);
@@ -218,61 +258,67 @@ export const deleteNotification = async (req: Request, res: Response) => {
   }
 };
 
-export const registerToken = async (req: AuthenticatedRequest, res: Response) => {
+export const registerToken = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
   try {
     const { fcmToken, deviceType } = req.body;
     // Assuming userId exists on req.user. If not, this cast might need adjustment based on auth middleware.
     // In student app, standard JWT usually has userId.
-    const userId = typeof req.user === 'object' && req.user ? (req.user as any).userId : null;
-    
+    const userId =
+      typeof req.user === "object" && req.user
+        ? (req.user as any).userId
+        : null;
+
     if (!userId || !fcmToken) {
-        return res.status(400).json({ error: "Missing token or user ID" });
+      return res.status(400).json({ error: "Missing token or user ID" });
     }
 
     // Check if userId belongs to a student first (as this is student app)
     const student = await prisma.student.findUnique({
-        where: { id: parseInt(userId) }
+      where: { id: parseInt(userId) },
     });
 
     if (student) {
-         await prisma.deviceToken.upsert({
-            where: { token: fcmToken },
-            update: { 
-                studentId: student.id, 
-                deviceType: deviceType || 'android',
-                userId: null // Clear userId if it was previously associated with staff
-            },
-            create: {
-                token: fcmToken,
-                studentId: student.id,
-                deviceType: deviceType || 'android'
-            }
-        });
-        res.status(200).json({ message: "Token registered for student" });
-        return;
+      await prisma.deviceToken.upsert({
+        where: { token: fcmToken },
+        update: {
+          studentId: student.id,
+          deviceType: deviceType || "android",
+          userId: null, // Clear userId if it was previously associated with staff
+        },
+        create: {
+          token: fcmToken,
+          studentId: student.id,
+          deviceType: deviceType || "android",
+        },
+      });
+      res.status(200).json({ message: "Token registered for student" });
+      return;
     }
-    
+
     // If not student, try User (staff/admin)
     const user = await prisma.user.findUnique({
-        where: { id: parseInt(userId) }
+      where: { id: parseInt(userId) },
     });
 
     if (user) {
-         await prisma.deviceToken.upsert({
-            where: { token: fcmToken },
-            update: { 
-                userId: user.id, 
-                deviceType: deviceType || 'android',
-                studentId: null
-            },
-            create: {
-                token: fcmToken,
-                userId: user.id,
-                deviceType: deviceType || 'android'
-            }
-        });
-        res.status(200).json({ message: "Token registered for user" });
-        return;
+      await prisma.deviceToken.upsert({
+        where: { token: fcmToken },
+        update: {
+          userId: user.id,
+          deviceType: deviceType || "android",
+          studentId: null,
+        },
+        create: {
+          token: fcmToken,
+          userId: user.id,
+          deviceType: deviceType || "android",
+        },
+      });
+      res.status(200).json({ message: "Token registered for user" });
+      return;
     }
 
     res.status(404).json({ error: "User or Student not found" });
@@ -281,4 +327,3 @@ export const registerToken = async (req: AuthenticatedRequest, res: Response) =>
     res.status(500).json({ error: "Failed to register token" });
   }
 };
-

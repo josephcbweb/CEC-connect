@@ -1,34 +1,33 @@
-
 import nodemailer from "nodemailer";
 
 // Create reusable transporter object using the default SMTP transport
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
 });
 
 export const sendAdmissionConfirmation = async (
-    email: string,
-    name: string,
-    admissionNumber: string
+  email: string,
+  name: string,
+  admissionNumber: string,
 ) => {
-    try {
-        // Check if mail config is present before attempting to send
-        if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
-            console.warn("Mail configuration missing. Skipping email sending.");
-            return false;
-        }
+  try {
+    // Check if mail config is present before attempting to send
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+      console.warn("Mail configuration missing. Skipping email sending.");
+      return false;
+    }
 
-        const info = await transporter.sendMail({
-            from: process.env.SMTP_USER || '"CEC Admission" <admission@cectl.ac.in>', // sender address
-            to: email, // list of receivers
-            subject: "Admission Registration Confirmation - CEC Connect", // Subject line
-            html: `
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_USER || '"CEC Admission" <admission@cectl.ac.in>', // sender address
+      to: email, // list of receivers
+      subject: "Admission Registration Confirmation - CEC Connect", // Subject line
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Admission Registration Received</h2>
           <p>Dear <strong>${name}</strong>,</p>
@@ -47,14 +46,14 @@ export const sendAdmissionConfirmation = async (
           <p>CEC Connect Team</p>
         </div>
       `,
-        });
+    });
 
-        console.log("Message sent: %s", info.messageId);
-        return true;
-    } catch (error) {
-        console.error("Error sending email:", error);
-        return false; // Don't throw, just return false to allow the main flow to continue
-    }
+    console.log("Message sent: %s", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return false; // Don't throw, just return false to allow the main flow to continue
+  }
 };
 
 /**
@@ -65,22 +64,22 @@ export const sendAdmissionConfirmation = async (
  * @returns Promise<boolean> - true if sent successfully, false otherwise
  */
 export const sendPasswordResetOTP = async (
-    email: string,
-    name: string,
-    otp: string
+  email: string,
+  name: string,
+  otp: string,
 ): Promise<boolean> => {
-    try {
-        // Check if mail config is present before attempting to send
-        if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
-            console.warn("Mail configuration missing. Skipping email sending.");
-            return false;
-        }
+  try {
+    // Check if mail config is present before attempting to send
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+      console.warn("Mail configuration missing. Skipping email sending.");
+      return false;
+    }
 
-        const info = await transporter.sendMail({
-            from: process.env.SMTP_USER || '"CEC Connect" <noreply@cectl.ac.in>',
-            to: email,
-            subject: "Password Reset OTP - CEC Connect",
-            html: `
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_USER || '"CEC Connect" <noreply@cectl.ac.in>',
+      to: email,
+      subject: "Password Reset OTP - CEC Connect",
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
           <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h2 style="color: #031D44; margin-top: 0;">Password Reset Request</h2>
@@ -107,14 +106,14 @@ export const sendPasswordResetOTP = async (
           </p>
         </div>
       `,
-        });
+    });
 
-        console.log("Password reset OTP sent: %s", info.messageId);
-        return true;
-    } catch (error) {
-        console.error("Error sending password reset OTP:", error);
-        return false;
-    }
+    console.log("Password reset OTP sent: %s", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("Error sending password reset OTP:", error);
+    return false;
+  }
 };
 
 /**
@@ -124,20 +123,20 @@ export const sendPasswordResetOTP = async (
  * @returns Promise<boolean> - true if sent successfully, false otherwise
  */
 export const sendPasswordResetConfirmation = async (
-    email: string,
-    name: string
+  email: string,
+  name: string,
 ): Promise<boolean> => {
-    try {
-        if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
-            console.warn("Mail configuration missing. Skipping email sending.");
-            return false;
-        }
+  try {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+      console.warn("Mail configuration missing. Skipping email sending.");
+      return false;
+    }
 
-        const info = await transporter.sendMail({
-            from: process.env.SMTP_USER || '"CEC Connect" <noreply@cectl.ac.in>',
-            to: email,
-            subject: "Password Reset Successful - CEC Connect",
-            html: `
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_USER || '"CEC Connect" <noreply@cectl.ac.in>',
+      to: email,
+      subject: "Password Reset Successful - CEC Connect",
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
           <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h2 style="color: #2e7d32;">Password Reset Successful</h2>
@@ -157,12 +156,12 @@ export const sendPasswordResetConfirmation = async (
           </div>
         </div>
       `,
-        });
+    });
 
-        console.log("Password reset confirmation sent: %s", info.messageId);
-        return true;
-    } catch (error) {
-        console.error("Error sending password reset confirmation:", error);
-        return false;
-    }
+    console.log("Password reset confirmation sent: %s", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("Error sending password reset confirmation:", error);
+    return false;
+  }
 };

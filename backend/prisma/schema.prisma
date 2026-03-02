@@ -31,6 +31,7 @@ model User {
   students              Student[]
   userRoles             UserRole[]
   deviceTokens          DeviceToken[]       @relation("UserDeviceTokens")
+
   @@map("users")
 }
 
@@ -213,12 +214,12 @@ model DeviceToken {
   deviceType String?  @map("device_type")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
-  
-  studentId  Int?     @map("student_id")
-  student    Student? @relation("StudentDeviceTokens", fields: [studentId], references: [id])
-  
-  userId     Int?     @map("user_id")
-  user       User?    @relation("UserDeviceTokens", fields: [userId], references: [id])
+
+  studentId Int?     @map("student_id")
+  student   Student? @relation("StudentDeviceTokens", fields: [studentId], references: [id])
+
+  userId Int?  @map("user_id")
+  user   User? @relation("UserDeviceTokens", fields: [userId], references: [id])
 
   @@map("device_tokens")
 }

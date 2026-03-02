@@ -146,7 +146,10 @@ const StudentCertificatePage: React.FC = () => {
       if (response.warning) {
         showNotification(response.warning, "warning");
       } else {
-        showNotification("Certificate request submitted successfully!", "success");
+        showNotification(
+          "Certificate request submitted successfully!",
+          "success",
+        );
       }
     } catch (error: unknown) {
       console.error("Error submitting request:", error);
@@ -163,13 +166,16 @@ const StudentCertificatePage: React.FC = () => {
     }
   };
 
-  const showNotification = (message: string, type: "success" | "error" | "warning") => {
+  const showNotification = (
+    message: string,
+    type: "success" | "error" | "warning",
+  ) => {
     const colors = {
       success: "bg-green-500",
       error: "bg-red-500",
-      warning: "bg-yellow-500"
+      warning: "bg-yellow-500",
     };
-    
+
     const notification = document.createElement("div");
     notification.className = `fixed top-4 right-4 ${
       colors[type]
@@ -294,23 +300,29 @@ const StudentCertificatePage: React.FC = () => {
   // Function to check for missing approvers
   const checkForMissingApprovers = (certificate: Certificate) => {
     const warnings = [];
-    
-    if (certificate.workflowStatus === "WITH_ADVISOR" && !certificate.advisorId) {
+
+    if (
+      certificate.workflowStatus === "WITH_ADVISOR" &&
+      !certificate.advisorId
+    ) {
       warnings.push("⚠️ No advisor assigned to your class");
     }
-    
+
     if (certificate.workflowStatus === "WITH_HOD" && !certificate.hodId) {
       warnings.push("⚠️ No HOD assigned to your department");
     }
-    
+
     if (certificate.workflowStatus === "WITH_OFFICE" && !certificate.officeId) {
       warnings.push("⚠️ No office staff assigned");
     }
-    
-    if (certificate.workflowStatus === "WITH_PRINCIPAL" && !certificate.principalId) {
+
+    if (
+      certificate.workflowStatus === "WITH_PRINCIPAL" &&
+      !certificate.principalId
+    ) {
       warnings.push("⚠️ No principal assigned");
     }
-    
+
     return warnings;
   };
 
@@ -476,9 +488,7 @@ const StudentCertificatePage: React.FC = () => {
           <div className="bg-gradient-to-r from-teal-50 to-teal-100/50 px-6 py-4 border-b border-gray-200">
             <div className="flex items-center gap-2">
               <Sparkles size={20} className="text-teal-600" />
-              <h2 className="font-semibold text-gray-800">
-                Your Requests
-              </h2>
+              <h2 className="font-semibold text-gray-800">Your Requests</h2>
             </div>
           </div>
 
@@ -514,7 +524,8 @@ const StudentCertificatePage: React.FC = () => {
                   const progress = getProgressPercentage(
                     certificate.workflowStatus,
                   );
-                  const missingApprovers = checkForMissingApprovers(certificate);
+                  const missingApprovers =
+                    checkForMissingApprovers(certificate);
 
                   return (
                     <tr
@@ -696,11 +707,11 @@ const StudentCertificatePage: React.FC = () => {
                           <FileText size={48} className="text-teal-400" />
                         </div>
                         <h3 className="text-lg font-semibold text-gray-700">
-                          No  Requests
+                          No Requests
                         </h3>
                         <p className="text-gray-500 max-w-sm">
-                          You haven't submitted any requests yet.
-                          Click the "New Request" button to get started.
+                          You haven't submitted any requests yet. Click the "New
+                          Request" button to get started.
                         </p>
                         <button
                           onClick={() => setShowModal(true)}
@@ -806,7 +817,7 @@ const StudentCertificatePage: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">
-                      New  Request
+                      New Request
                     </h2>
                     <p className="text-sm text-gray-600 mt-1">
                       Fill in the details below to submit your request
@@ -856,10 +867,17 @@ const StudentCertificatePage: React.FC = () => {
               {submitWarning && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle size={20} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle
+                      size={20}
+                      className="text-yellow-600 flex-shrink-0 mt-0.5"
+                    />
                     <div>
-                      <h4 className="font-medium text-yellow-800">System Notice</h4>
-                      <p className="text-sm text-yellow-700 mt-1">{submitWarning}</p>
+                      <h4 className="font-medium text-yellow-800">
+                        System Notice
+                      </h4>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        {submitWarning}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -868,8 +886,7 @@ const StudentCertificatePage: React.FC = () => {
               {/* Certificate Type Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Select  Type{" "}
-                  <span className="text-red-500">*</span>
+                  Select Type <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {certificateTypeOptions.map((option) => (
@@ -1092,16 +1109,24 @@ const StudentCertificatePage: React.FC = () => {
               {checkForMissingApprovers(selectedCertificate).length > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle size={20} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle
+                      size={20}
+                      className="text-yellow-600 flex-shrink-0 mt-0.5"
+                    />
                     <div>
-                      <h4 className="font-medium text-yellow-800">Approver Assignment Issues</h4>
+                      <h4 className="font-medium text-yellow-800">
+                        Approver Assignment Issues
+                      </h4>
                       <ul className="mt-2 text-sm text-yellow-700 list-disc pl-4 space-y-1">
-                        {checkForMissingApprovers(selectedCertificate).map((warning, i) => (
-                          <li key={i}>{warning}</li>
-                        ))}
+                        {checkForMissingApprovers(selectedCertificate).map(
+                          (warning, i) => (
+                            <li key={i}>{warning}</li>
+                          ),
+                        )}
                       </ul>
                       <p className="mt-2 text-sm text-yellow-700">
-                        Your request may be delayed until these approvers are assigned.
+                        Your request may be delayed until these approvers are
+                        assigned.
                       </p>
                     </div>
                   </div>

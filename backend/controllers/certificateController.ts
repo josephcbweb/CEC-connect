@@ -1,7 +1,7 @@
 // backend/src/controllers/certificateController.ts
 import { Request, Response } from "express";
 import PDFDocument from "pdfkit";
-import { certificateTemplates } from './certificateTemplates';
+import { certificateTemplates } from "./certificateTemplates";
 import { prisma } from "../lib/prisma";
 import { verifyToken } from "../utils/jwt";
 
@@ -9,32 +9,32 @@ import { verifyToken } from "../utils/jwt";
 const createCertificateNotification = async (
   studentId: number,
   certificateId: number,
-  certificateType: string
+  certificateType: string,
 ) => {
   try {
     // Get student details to verify student exists
     const student = await prisma.student.findUnique({
-      where: { id: studentId }
+      where: { id: studentId },
     });
 
     if (!student) return;
 
     // Find a user to be the sender (preferably office staff or any user)
     let senderId = null;
-    
+
     // Try to find office staff first
     const officeUser = await prisma.user.findFirst({
       where: {
         userRoles: {
           some: {
             role: {
-              name: { in: ['office', 'office_staff', 'OFFICE'] }
-            }
-          }
-        }
-      }
+              name: { in: ["office", "office_staff", "OFFICE"] },
+            },
+          },
+        },
+      },
     });
-    
+
     if (officeUser) {
       senderId = officeUser.id;
     } else {
@@ -44,8 +44,12 @@ const createCertificateNotification = async (
     }
 
     // Format certificate type for display
-    const formattedType = certificateType.replace(/_/g, ' ').toLowerCase()
-      .split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    const formattedType = certificateType
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
 
     // Create notification
     await prisma.notification.create({
@@ -61,7 +65,9 @@ const createCertificateNotification = async (
       },
     });
 
-    console.log(`✅ Certificate notification created for student ID: ${studentId}`);
+    console.log(
+      `✅ Certificate notification created for student ID: ${studentId}`,
+    );
   } catch (error) {
     console.error("❌ Error creating certificate notification:", error);
     // Don't throw - we don't want to fail certificate generation if notification fails
@@ -73,8 +79,8 @@ const createCertificateNotification = async (
 const getUserFromToken = (req: Request) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return null;
-  
-  const token = authHeader.split(' ')[1];
+
+  const token = authHeader.split(" ")[1];
   try {
     return verifyToken(token);
   } catch (error) {
@@ -83,93 +89,100 @@ const getUserFromToken = (req: Request) => {
 };
 
 // Helper to check if next approver exists
-const checkNextApproverExists = async (currentRole: string, certificate: any) => {
+const checkNextApproverExists = async (
+  currentRole: string,
+  certificate: any,
+) => {
   const departmentId = certificate.student?.departmentId;
-  
+
   switch (currentRole) {
-    case 'advisor':
+    case "advisor":
       // Check if HOD exists for this department
       if (!departmentId) {
         return {
           exists: false,
-          message: "❌ Cannot forward: Student is not assigned to any department. Please contact administration."
+          message:
+            "❌ Cannot forward: Student is not assigned to any department. Please contact administration.",
         };
       }
-      
+
       // Check multiple ways HOD could be assigned
       const hodViaDetails = await prisma.hodDetails.findFirst({
-        where: { departmentId }
+        where: { departmentId },
       });
-      
+
       const hodViaDepartment = await prisma.department.findFirst({
-        where: { 
+        where: {
           id: departmentId,
-          hodId: { not: null }
-        }
+          hodId: { not: null },
+        },
       });
-      
+
       const hodExists = hodViaDetails || hodViaDepartment;
-      
+
       if (!hodExists) {
         return {
           exists: false,
-          message: "❌ Cannot forward: No HOD (Head of Department) assigned to this department. Please contact administration to assign a HOD."
+          message:
+            "❌ Cannot forward: No HOD (Head of Department) assigned to this department. Please contact administration to assign a HOD.",
         };
       }
       break;
-      
-    case 'hod':
+
+    case "hod":
       // Check if Office staff exists
       const officeExists = await prisma.user.findFirst({
         where: {
           userRoles: {
             some: {
               role: {
-                name: { in: ['office', 'office_staff', 'OFFICE'] }
-              }
-            }
-          }
-        }
+                name: { in: ["office", "office_staff", "OFFICE"] },
+              },
+            },
+          },
+        },
       });
-      
+
       if (!officeExists) {
         return {
           exists: false,
-          message: "❌ Cannot forward: No Office Staff assigned in the system. Please contact administration to assign office staff."
+          message:
+            "❌ Cannot forward: No Office Staff assigned in the system. Please contact administration to assign office staff.",
         };
       }
       break;
-      
-    case 'office':
+
+    case "office":
       // Check if Principal exists
       const principalExists = await prisma.user.findFirst({
         where: {
           userRoles: {
             some: {
               role: {
-                name: { in: ['principal', 'PRINCIPAL', 'Principal'] }
-              }
-            }
-          }
-        }
+                name: { in: ["principal", "PRINCIPAL", "Principal"] },
+              },
+            },
+          },
+        },
       });
-      
+
       if (!principalExists) {
         return {
           exists: false,
-          message: "❌ Cannot forward: No Principal assigned in the system. Please contact administration to assign a Principal."
+          message:
+            "❌ Cannot forward: No Principal assigned in the system. Please contact administration to assign a Principal.",
         };
       }
       break;
-      
-    case 'principal':
+
+    case "principal":
       // Principal is final approver, no next approver needed
       return { exists: true };
-      
+
     default:
       return { exists: true };
   }
-  
+
   return { exists: true };
 };
 
@@ -178,7 +191,7 @@ export const certificateController = {
   submitRequest: async (req: Request, res: Response) => {
     try {
       const { studentId, type, reason } = req.body;
-      
+
       // Verify authentication
       const user = getUserFromToken(req);
       if (!user) {
@@ -202,49 +215,54 @@ export const certificateController = {
               batchDepartment: {
                 include: {
                   department: true,
-                  batch: true
-                }
-              }
-            }
+                  batch: true,
+                },
+              },
+            },
           },
-          department: true
-        }
+          department: true,
+        },
       });
 
       if (!student) {
-        return res.status(404).json({ 
-          error: "Student not found. Please check your student ID." 
+        return res.status(404).json({
+          error: "Student not found. Please check your student ID.",
         });
       }
 
       if (!student.class) {
-        return res.status(400).json({ 
-          error: "❌ Cannot submit: You are not assigned to any class. Please contact the administration." 
+        return res.status(400).json({
+          error:
+            "❌ Cannot submit: You are not assigned to any class. Please contact the administration.",
         });
       }
 
       if (!student.class.advisorId) {
-        return res.status(400).json({ 
-          error: "❌ Cannot submit: Your class does not have an advisor assigned. Please contact the administration." 
+        return res.status(400).json({
+          error:
+            "❌ Cannot submit: Your class does not have an advisor assigned. Please contact the administration.",
         });
       }
 
       // Check if HOD exists for student's department before creating request
       const departmentId = student.departmentId;
       let hodWarning = null;
-      
+
       if (departmentId) {
-        const hodExists = await prisma.hodDetails.findFirst({
-          where: { departmentId }
-        }) || await prisma.department.findFirst({
-          where: { 
-            id: departmentId,
-            hodId: { not: null }
-          }
-        });
-        
+        const hodExists =
+          (await prisma.hodDetails.findFirst({
+            where: { departmentId },
+          })) ||
+          (await prisma.department.findFirst({
+            where: {
+              id: departmentId,
+              hodId: { not: null },
+            },
+          }));
+
         if (!hodExists) {
-          hodWarning = "⚠️ Warning: Your department does not have a HOD (Head of Department) assigned. Your request can be submitted but will be delayed until a HOD is assigned. Please contact administration.";
+          hodWarning =
+            "⚠️ Warning: Your department does not have a HOD (Head of Department) assigned. Your request can be submitted but will be delayed until a HOD is assigned. Please contact administration.";
         }
       }
 
@@ -254,15 +272,15 @@ export const certificateController = {
           userRoles: {
             some: {
               role: {
-                name: { in: ['office', 'office_staff', 'OFFICE'] }
-              }
-            }
-          }
-        }
+                name: { in: ["office", "office_staff", "OFFICE"] },
+              },
+            },
+          },
+        },
       });
 
       if (!officeExists) {
-        hodWarning = hodWarning 
+        hodWarning = hodWarning
           ? hodWarning + " Also, no office staff is assigned in the system."
           : "⚠️ Warning: No office staff is assigned in the system. Your request will be delayed. Please contact administration.";
       }
@@ -273,15 +291,15 @@ export const certificateController = {
           userRoles: {
             some: {
               role: {
-                name: { in: ['principal', 'PRINCIPAL', 'Principal'] }
-              }
-            }
-          }
-        }
+                name: { in: ["principal", "PRINCIPAL", "Principal"] },
+              },
+            },
+          },
+        },
       });
 
       if (!principalExists) {
-        hodWarning = hodWarning 
+        hodWarning = hodWarning
           ? hodWarning + " Also, no principal is assigned in the system."
           : "⚠️ Warning: No principal is assigned in the system. Your request will be delayed. Please contact administration.";
       }
@@ -294,7 +312,7 @@ export const certificateController = {
           reason,
           status: "PENDING",
           workflowStatus: "WITH_ADVISOR",
-          advisorId: student.class.advisorId
+          advisorId: student.class.advisorId,
         },
       });
 
@@ -305,15 +323,15 @@ export const certificateController = {
           approverId: parseInt(studentId),
           role: "STUDENT",
           action: "SUBMIT",
-          remarks: "Certificate request submitted"
-        }
+          remarks: "Certificate request submitted",
+        },
       });
 
       // Return with warning if any approvers are missing
       const responseData: any = {
         success: true,
         message: "Certificate request submitted successfully",
-        certificate
+        certificate,
       };
 
       if (hodWarning) {
@@ -321,11 +339,10 @@ export const certificateController = {
       }
 
       res.status(201).json(responseData);
-
     } catch (error: unknown) {
       console.error("SUBMIT ERROR DETAILS:", error);
-      res.status(500).json({ 
-        error: "An unexpected error occurred. Please try again later." 
+      res.status(500).json({
+        error: "An unexpected error occurred. Please try again later.",
       });
     }
   },
@@ -334,7 +351,7 @@ export const certificateController = {
   getStudentCertificates: async (req: Request, res: Response) => {
     try {
       const { studentId } = req.params;
-      
+
       const user = getUserFromToken(req);
       if (!user) {
         return res.status(401).json({ error: "Unauthorized" });
@@ -350,13 +367,13 @@ export const certificateController = {
               program: true,
               currentSemester: true,
               department: {
-                select: { name: true, id: true }
-              }
+                select: { name: true, id: true },
+              },
             },
           },
           approvals: {
-            orderBy: { createdAt: 'desc' }
-          }
+            orderBy: { createdAt: "desc" },
+          },
         },
         orderBy: { requestedAt: "desc" },
       });
@@ -372,17 +389,17 @@ export const certificateController = {
   getCertificatesByRole: async (req: Request, res: Response) => {
     try {
       const { userId, role } = req.params;
-      const { 
-        status, 
-        search, 
-        page = 1, 
+      const {
+        status,
+        search,
+        page = 1,
         limit = 10,
         departmentId,
-        semester
+        semester,
       } = req.query;
 
       console.log(`Getting certificates for role: ${role}, userId: ${userId}`);
-      console.log('Filters:', { departmentId, semester, status, search });
+      console.log("Filters:", { departmentId, semester, status, search });
 
       const user = getUserFromToken(req);
       if (!user) {
@@ -392,145 +409,157 @@ export const certificateController = {
       let whereClause: any = {};
       const parsedUserId = parseInt(userId);
 
-      switch(role) {
-        case 'advisor':
+      switch (role) {
+        case "advisor":
           // Advisor validation and logic
           const advisedClass = await prisma.class.findFirst({
             where: { advisorId: parsedUserId },
-            include: { 
-              students: { 
-                select: { id: true } 
-              } 
-            }
+            include: {
+              students: {
+                select: { id: true },
+              },
+            },
           });
 
           if (!advisedClass) {
-            return res.status(403).json({ error: "User is not a class advisor" });
+            return res
+              .status(403)
+              .json({ error: "User is not a class advisor" });
           }
 
-          const advisorStudentIds = advisedClass.students.map(s => s.id);
+          const advisorStudentIds = advisedClass.students.map((s) => s.id);
           whereClause.studentId = { in: advisorStudentIds };
-          
-          if (semester && semester !== 'all') {
+
+          if (semester && semester !== "all") {
             whereClause.student = {
-              currentSemester: parseInt(semester as string)
+              currentSemester: parseInt(semester as string),
             };
           }
-          
-          if (!status || status === 'all') {
-            whereClause.workflowStatus = 'WITH_ADVISOR';
+
+          if (!status || status === "all") {
+            whereClause.workflowStatus = "WITH_ADVISOR";
           } else {
             whereClause.workflowStatus = status;
           }
           break;
-          
-        case 'hod':
+
+        case "hod":
           console.log(`Processing HOD request for userId: ${parsedUserId}`);
-          
+
           // Find the HOD role in roles table
           const hodRole = await prisma.role.findFirst({
             where: {
               OR: [
-                { name: 'hod' },
-                { name: 'HOD' },
-                { name: 'head_of_department' },
-                { name: { contains: 'hod', mode: 'insensitive' } }
-              ]
-            }
+                { name: "hod" },
+                { name: "HOD" },
+                { name: "head_of_department" },
+                { name: { contains: "hod", mode: "insensitive" } },
+              ],
+            },
           });
 
           if (!hodRole) {
-            console.log('HOD role not found in roles table');
-            return res.status(404).json({ error: "HOD role not configured in the system. Please contact administration." });
+            console.log("HOD role not found in roles table");
+            return res
+              .status(404)
+              .json({
+                error:
+                  "HOD role not configured in the system. Please contact administration.",
+              });
           }
 
           // Check if this user has the HOD role
           const userHasHODRole = await prisma.userRole.findFirst({
             where: {
               userId: parsedUserId,
-              roleId: hodRole.id
+              roleId: hodRole.id,
             },
             include: {
               user: {
                 select: {
                   id: true,
                   username: true,
-                  email: true
-                }
-              }
-            }
+                  email: true,
+                },
+              },
+            },
           });
 
           if (!userHasHODRole) {
             console.log(`User ${parsedUserId} is not a HOD`);
-            return res.status(403).json({ 
+            return res.status(403).json({
               error: "Access denied. You do not have HOD role.",
-              requiredRole: "hod"
+              requiredRole: "hod",
             });
           }
 
           // Find which department this HOD manages
           const hodDetails = await prisma.hodDetails.findUnique({
             where: { userId: parsedUserId },
-            include: { department: true }
+            include: { department: true },
           });
 
           const departmentAsHod = await prisma.department.findFirst({
-            where: { hodId: parsedUserId }
+            where: { hodId: parsedUserId },
           });
 
           let hodDepartmentId = hodDetails?.departmentId || departmentAsHod?.id;
 
           if (!hodDepartmentId) {
-            console.log('Could not find department for HOD');
-            return res.status(400).json({ error: "You are not assigned to any department as HOD. Please contact administration." });
+            console.log("Could not find department for HOD");
+            return res
+              .status(400)
+              .json({
+                error:
+                  "You are not assigned to any department as HOD. Please contact administration.",
+              });
           }
 
           // Get students from that department with optional filters
-          let studentWhere: any = { 
+          let studentWhere: any = {
             departmentId: hodDepartmentId,
-            status: { not: 'deleted' }
+            status: { not: "deleted" },
           };
-          
-          if (semester && semester !== 'all') {
+
+          if (semester && semester !== "all") {
             studentWhere.currentSemester = parseInt(semester as string);
           }
-          
-          if (departmentId && departmentId !== 'all') {
+
+          if (departmentId && departmentId !== "all") {
             studentWhere.departmentId = parseInt(departmentId as string);
           }
 
           const deptStudents = await prisma.student.findMany({
             where: studentWhere,
-            select: { id: true }
+            select: { id: true },
           });
 
-          whereClause.studentId = { 
-            in: deptStudents.map(s => s.id) 
+          whereClause.studentId = {
+            in: deptStudents.map((s) => s.id),
           };
 
-          if (status && status !== 'all' && status !== 'undefined') {
+          if (status && status !== "all" && status !== "undefined") {
             whereClause.workflowStatus = status;
           } else {
             whereClause.workflowStatus = {
-              in: ['WITH_HOD', 'WITH_OFFICE', 'WITH_PRINCIPAL', 'COMPLETED']
+              in: ["WITH_HOD", "WITH_OFFICE", "WITH_PRINCIPAL", "COMPLETED"],
             };
           }
           break;
-          
-        case 'office':
+
+        case "office":
           console.log(`Processing office request for userId: ${parsedUserId}`);
-          
+
           // Verify this user is actually office staff
           const officeUser = await prisma.user.findUnique({
             where: { id: parsedUserId },
             include: {
               userRoles: {
                 include: {
-                  role: true
-                }
-              }
-            }
+                  role: true,
+                },
+              },
+            },
           });
 
           if (!officeUser) {
@@ -538,112 +567,128 @@ export const certificateController = {
           }
 
           // Check for office role in user_roles
-          const hasOfficeRole = officeUser.userRoles.some(ur => 
-            ur.role.name.toLowerCase() === 'office' || 
-            ur.role.name.toLowerCase().includes('office') ||
-            ur.role.name.toLowerCase() === 'office_staff'
+          const hasOfficeRole = officeUser.userRoles.some(
+            (ur) =>
+              ur.role.name.toLowerCase() === "office" ||
+              ur.role.name.toLowerCase().includes("office") ||
+              ur.role.name.toLowerCase() === "office_staff",
           );
 
           if (!hasOfficeRole) {
-            console.log('User is not office staff');
-            return res.status(403).json({ error: "Access denied. You are not authorized as office staff." });
+            console.log("User is not office staff");
+            return res
+              .status(403)
+              .json({
+                error: "Access denied. You are not authorized as office staff.",
+              });
           }
 
           // Office staff can see ALL certificates, but with filters
           whereClause = {};
 
-          if (departmentId && departmentId !== 'all') {
+          if (departmentId && departmentId !== "all") {
             whereClause.student = {
-              departmentId: parseInt(departmentId as string)
+              departmentId: parseInt(departmentId as string),
             };
           }
 
-          if (semester && semester !== 'all') {
+          if (semester && semester !== "all") {
             if (!whereClause.student) whereClause.student = {};
             whereClause.student.currentSemester = parseInt(semester as string);
           }
 
-          if (status && status !== 'all' && status !== 'undefined') {
+          if (status && status !== "all" && status !== "undefined") {
             whereClause.workflowStatus = status;
           } else {
             whereClause.workflowStatus = {
-              in: ['WITH_OFFICE', 'WITH_PRINCIPAL', 'COMPLETED']
+              in: ["WITH_OFFICE", "WITH_PRINCIPAL", "COMPLETED"],
             };
           }
 
-          console.log('Office user - showing filtered certificates');
+          console.log("Office user - showing filtered certificates");
           break;
-          
-        case 'principal':
-          console.log(`Processing principal request for userId: ${parsedUserId}`);
-          
+
+        case "principal":
+          console.log(
+            `Processing principal request for userId: ${parsedUserId}`,
+          );
+
           // Find the principal role ID first
           const principalRole = await prisma.role.findFirst({
             where: {
               name: {
-                in: ['principal', 'PRINCIPAL', 'Principal']
-              }
-            }
+                in: ["principal", "PRINCIPAL", "Principal"],
+              },
+            },
           });
 
           if (!principalRole) {
-            console.log('Principal role not found in roles table');
-            return res.status(404).json({ error: "Principal role not configured in the system. Please contact administration." });
+            console.log("Principal role not found in roles table");
+            return res
+              .status(404)
+              .json({
+                error:
+                  "Principal role not configured in the system. Please contact administration.",
+              });
           }
 
           // Now find the user who has this principal role
           const principalUserRole = await prisma.userRole.findFirst({
             where: {
               roleId: principalRole.id,
-              userId: parsedUserId
+              userId: parsedUserId,
             },
             include: {
               user: true,
-              role: true
-            }
+              role: true,
+            },
           });
 
           if (!principalUserRole) {
             console.log(`User ${parsedUserId} does not have principal role`);
-            return res.status(403).json({ error: "Access denied. You are not authorized as principal." });
+            return res
+              .status(403)
+              .json({
+                error: "Access denied. You are not authorized as principal.",
+              });
           }
 
           // PRINCIPAL SEES ALL CERTIFICATES with filters
           whereClause = {};
 
-          if (departmentId && departmentId !== 'all') {
+          if (departmentId && departmentId !== "all") {
             whereClause.student = {
-              departmentId: parseInt(departmentId as string)
+              departmentId: parseInt(departmentId as string),
             };
           }
 
-          if (semester && semester !== 'all') {
+          if (semester && semester !== "all") {
             if (!whereClause.student) whereClause.student = {};
             whereClause.student.currentSemester = parseInt(semester as string);
           }
 
-          if (status && status !== 'all' && status !== 'undefined') {
+          if (status && status !== "all" && status !== "undefined") {
             whereClause.workflowStatus = status;
           } else {
             whereClause.workflowStatus = {
-              in: ['WITH_PRINCIPAL', 'COMPLETED']
+              in: ["WITH_PRINCIPAL", "COMPLETED"],
             };
           }
           break;
-          
-        case 'admin':
+
+        case "admin":
           console.log(`Processing admin request for userId: ${parsedUserId}`);
-          
+
           // Verify this user is actually an admin
           const adminUser = await prisma.user.findUnique({
             where: { id: parsedUserId },
             include: {
               userRoles: {
                 include: {
-                  role: true
-                }
-              }
-            }
+                  role: true,
+                },
+              },
+            },
           });
 
           if (!adminUser) {
@@ -651,38 +696,42 @@ export const certificateController = {
           }
 
           // Check for admin role
-          const hasAdminRole = adminUser.userRoles.some(ur => 
-            ur.role.name.toLowerCase() === 'admin'
+          const hasAdminRole = adminUser.userRoles.some(
+            (ur) => ur.role.name.toLowerCase() === "admin",
           );
 
           if (!hasAdminRole) {
-            console.log('User is not admin');
-            return res.status(403).json({ error: "Access denied. You are not authorized as admin." });
+            console.log("User is not admin");
+            return res
+              .status(403)
+              .json({
+                error: "Access denied. You are not authorized as admin.",
+              });
           }
 
           // Admin can see ALL certificates with filters
           whereClause = {};
 
           // Apply filters
-          if (departmentId && departmentId !== 'all') {
+          if (departmentId && departmentId !== "all") {
             whereClause.student = {
-              departmentId: parseInt(departmentId as string)
+              departmentId: parseInt(departmentId as string),
             };
           }
 
-          if (semester && semester !== 'all') {
+          if (semester && semester !== "all") {
             if (!whereClause.student) whereClause.student = {};
             whereClause.student.currentSemester = parseInt(semester as string);
           }
 
-          if (status && status !== 'all' && status !== 'undefined') {
+          if (status && status !== "all" && status !== "undefined") {
             whereClause.workflowStatus = status;
           }
           // No default filter - admins see everything
 
-          console.log('Admin user - showing all certificates');
+          console.log("Admin user - showing all certificates");
           break;
-          
+
         default:
           return res.status(400).json({ error: "Invalid role" });
       }
@@ -694,16 +743,26 @@ export const certificateController = {
           whereClause.student = {
             ...whereClause.student,
             OR: [
-              { name: { contains: searchValue, mode: 'insensitive' } },
-              { admission_number: { contains: searchValue, mode: 'insensitive' } }
-            ]
+              { name: { contains: searchValue, mode: "insensitive" } },
+              {
+                admission_number: {
+                  contains: searchValue,
+                  mode: "insensitive",
+                },
+              },
+            ],
           };
         } else {
           whereClause.student = {
             OR: [
-              { name: { contains: searchValue, mode: 'insensitive' } },
-              { admission_number: { contains: searchValue, mode: 'insensitive' } }
-            ]
+              { name: { contains: searchValue, mode: "insensitive" } },
+              {
+                admission_number: {
+                  contains: searchValue,
+                  mode: "insensitive",
+                },
+              },
+            ],
           };
         }
       }
@@ -712,7 +771,7 @@ export const certificateController = {
       const skip = (Number(page) - 1) * Number(limit);
       const take = Number(limit);
 
-      console.log('Final where clause:', JSON.stringify(whereClause, null, 2));
+      console.log("Final where clause:", JSON.stringify(whereClause, null, 2));
 
       const [total, certificates] = await Promise.all([
         prisma.certificate.count({ where: whereClause }),
@@ -726,18 +785,18 @@ export const certificateController = {
                 program: true,
                 currentSemester: true,
                 class: { select: { name: true } },
-                department: { select: { name: true, id: true } }
-              }
+                department: { select: { name: true, id: true } },
+              },
             },
             approvals: {
-              orderBy: { createdAt: 'desc' },
-              take: 5
-            }
+              orderBy: { createdAt: "desc" },
+              take: 5,
+            },
           },
-          orderBy: { requestedAt: 'desc' },
+          orderBy: { requestedAt: "desc" },
           skip,
-          take
-        })
+          take,
+        }),
       ]);
 
       res.json({
@@ -746,10 +805,9 @@ export const certificateController = {
           total,
           page: Number(page),
           limit: Number(limit),
-          totalPages: Math.ceil(total / Number(limit))
-        }
+          totalPages: Math.ceil(total / Number(limit)),
+        },
       });
-
     } catch (error) {
       console.error("Role fetch error:", error);
       res.status(500).json({ error: "Failed to fetch certificates" });
@@ -777,14 +835,14 @@ export const certificateController = {
                 include: {
                   batchDepartment: {
                     include: {
-                      department: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      department: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!certificate) {
@@ -792,13 +850,16 @@ export const certificateController = {
       }
 
       // If action is FORWARD, check if next approver exists
-      if (action === 'FORWARD') {
-        const nextApproverCheck = await checkNextApproverExists(role, certificate);
-        
+      if (action === "FORWARD") {
+        const nextApproverCheck = await checkNextApproverExists(
+          role,
+          certificate,
+        );
+
         if (!nextApproverCheck.exists) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: nextApproverCheck.message,
-            code: 'NEXT_APPROVER_MISSING'
+            code: "NEXT_APPROVER_MISSING",
           });
         }
       }
@@ -808,103 +869,106 @@ export const certificateController = {
 
       // Define workflow order
       const workflowOrder = [
-        'WITH_ADVISOR',
-        'WITH_HOD', 
-        'WITH_OFFICE', 
-        'WITH_PRINCIPAL', 
-        'COMPLETED'
+        "WITH_ADVISOR",
+        "WITH_HOD",
+        "WITH_OFFICE",
+        "WITH_PRINCIPAL",
+        "COMPLETED",
       ];
 
-      if (action === 'REJECT') {
-        updateData.workflowStatus = 'REJECTED';
-        updateData.status = 'REJECTED';
+      if (action === "REJECT") {
+        updateData.workflowStatus = "REJECTED";
+        updateData.status = "REJECTED";
         updateData.rejectedAt = now;
         updateData.rejectionReason = remarks;
-      } else if (action === 'FORWARD') {
+      } else if (action === "FORWARD") {
         const currentIndex = workflowOrder.indexOf(certificate.workflowStatus);
-        const nextStatus = currentIndex < workflowOrder.length - 1 
-          ? workflowOrder[currentIndex + 1] 
-          : 'COMPLETED';
-        
+        const nextStatus =
+          currentIndex < workflowOrder.length - 1
+            ? workflowOrder[currentIndex + 1]
+            : "COMPLETED";
+
         updateData.workflowStatus = nextStatus;
-        
+
         // Set role-specific fields
-        if (role === 'advisor') {
+        if (role === "advisor") {
           updateData.advisorId = parseInt(userId);
           updateData.advisorActionAt = now;
           updateData.advisorRemarks = remarks;
-          
-          if (nextStatus === 'WITH_HOD') {
+
+          if (nextStatus === "WITH_HOD") {
             const departmentId = certificate.student.departmentId;
-            
+
             if (departmentId) {
               const hodDetails = await prisma.hodDetails.findFirst({
-                where: { departmentId }
+                where: { departmentId },
               });
-              
+
               if (hodDetails) {
                 updateData.hodId = hodDetails.userId;
-                console.log(`Assigned HOD ID ${hodDetails.userId} for certificate ${id}`);
+                console.log(
+                  `Assigned HOD ID ${hodDetails.userId} for certificate ${id}`,
+                );
               }
             }
           }
-        } else if (role === 'hod') {
+        } else if (role === "hod") {
           updateData.hodId = parseInt(userId);
           updateData.hodActionAt = now;
           updateData.hodRemarks = remarks;
-          
-          if (nextStatus === 'WITH_OFFICE') {
+
+          if (nextStatus === "WITH_OFFICE") {
             const officeUser = await prisma.user.findFirst({
               where: {
                 userRoles: {
                   some: {
                     role: {
-                      name: { in: ['office', 'office_staff'] }
-                    }
-                  }
-                }
-              }
+                      name: { in: ["office", "office_staff"] },
+                    },
+                  },
+                },
+              },
             });
-            
+
             if (officeUser) {
               updateData.officeId = officeUser.id;
             }
           }
-        } else if (role === 'office') {
+        } else if (role === "office") {
           updateData.officeId = parseInt(userId);
           updateData.officeActionAt = now;
           updateData.officeRemarks = remarks;
-          
-          if (nextStatus === 'WITH_PRINCIPAL') {
+
+          if (nextStatus === "WITH_PRINCIPAL") {
             const principalUser = await prisma.user.findFirst({
               where: {
                 userRoles: {
                   some: {
                     role: {
-                      name: 'principal'
-                    }
-                  }
-                }
-              }
+                      name: "principal",
+                    },
+                  },
+                },
+              },
             });
-            
+
             if (principalUser) {
               updateData.principalId = principalUser.id;
             }
           }
-        } else if (role === 'principal') {
+        } else if (role === "principal") {
           updateData.principalId = parseInt(userId);
           updateData.principalActionAt = now;
           updateData.principalRemarks = remarks;
-          
-          updateData.status = 'APPROVED';
+
+          updateData.status = "APPROVED";
           updateData.approvedAt = now;
         }
       }
 
       const updatedCertificate = await prisma.certificate.update({
         where: { id: parseInt(id) },
-        data: updateData
+        data: updateData,
       });
 
       await prisma.certificateApproval.create({
@@ -913,18 +977,17 @@ export const certificateController = {
           approverId: parseInt(userId),
           role: role.toUpperCase(),
           action,
-          remarks: remarks || ''
-        }
+          remarks: remarks || "",
+        },
       });
 
-      console.log('Certificate updated successfully:', {
+      console.log("Certificate updated successfully:", {
         id: updatedCertificate.id,
         workflowStatus: updatedCertificate.workflowStatus,
-        hodId: updatedCertificate.hodId
+        hodId: updatedCertificate.hodId,
       });
 
       res.json(updatedCertificate);
-
     } catch (error) {
       console.error("Process error:", error);
       res.status(500).json({ error: "Failed to process certificate" });
@@ -946,25 +1009,25 @@ export const certificateController = {
         include: {
           student: {
             select: {
-              id: true,  // Make sure to include student ID for notification
+              id: true, // Make sure to include student ID for notification
               name: true,
               admission_number: true,
               program: true,
               dateOfBirth: true,
               currentSemester: true,
               department: {
-                select: { name: true }
-              }
-            }
-          }
-        }
+                select: { name: true },
+              },
+            },
+          },
+        },
       });
 
       if (!certificate) {
         return res.status(404).json({ error: "Certificate not found" });
       }
 
-      if (certificate.status !== 'APPROVED') {
+      if (certificate.status !== "APPROVED") {
         return res.status(400).json({ error: "Certificate not approved yet" });
       }
 
@@ -974,19 +1037,18 @@ export const certificateController = {
           status: "GENERATED",
           workflowStatus: "COMPLETED",
           certificateUrl: `http://localhost:3000/api/certificates/${id}/download`,
-        }
+        },
       });
 
       // ============ NEW: Create notification for student ============
       await createCertificateNotification(
         certificate.student.id,
         certificate.id,
-        certificate.type
+        certificate.type,
       );
       // ============ END NEW NOTIFICATION ============
 
       res.json(updatedCertificate);
-
     } catch (error) {
       console.error("Generate error:", error);
       res.status(500).json({ error: "Failed to generate certificate" });
@@ -1009,7 +1071,7 @@ export const certificateController = {
               dateOfBirth: true,
               currentSemester: true,
               department: {
-                select: { name: true }
+                select: { name: true },
               },
             },
           },
@@ -1027,8 +1089,8 @@ export const certificateController = {
       const certificateData = {
         studentName: certificate.student.name,
         admissionNumber: certificate.student.admission_number,
-        program: certificate.student.program || '',
-        department: certificate.student.department?.name || '',
+        program: certificate.student.program || "",
+        department: certificate.student.department?.name || "",
         dateOfBirth: certificate.student.dateOfBirth
           ? new Date(certificate.student.dateOfBirth).toLocaleDateString()
           : undefined,
@@ -1038,7 +1100,10 @@ export const certificateController = {
         semester: certificate.student.currentSemester || 1,
       };
 
-      const templateFunction = certificateTemplates[certificate.type as keyof typeof certificateTemplates];
+      const templateFunction =
+        certificateTemplates[
+          certificate.type as keyof typeof certificateTemplates
+        ];
       if (!templateFunction) {
         return res.status(400).json({ error: "Invalid certificate type" });
       }
@@ -1058,7 +1123,7 @@ export const certificateController = {
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename=certificate-${certificate.id}.pdf`
+        `attachment; filename=certificate-${certificate.id}.pdf`,
       );
 
       doc.pipe(res);
@@ -1066,8 +1131,9 @@ export const certificateController = {
       let yPosition = 100;
 
       template.content.forEach((item: any) => {
-        doc.fontSize(item.fontSize || 12)
-           .font(item.bold ? "Helvetica-Bold" : "Helvetica");
+        doc
+          .fontSize(item.fontSize || 12)
+          .font(item.bold ? "Helvetica-Bold" : "Helvetica");
 
         yPosition += item.margin?.[0] || 0;
 
@@ -1081,11 +1147,11 @@ export const certificateController = {
         }
 
         doc.text(item.text, 50, yPosition, options);
-        yPosition += doc.heightOfString(item.text, options) + (item.margin?.[2] || 10);
+        yPosition +=
+          doc.heightOfString(item.text, options) + (item.margin?.[2] || 10);
       });
 
       doc.end();
-
     } catch (error) {
       console.error("Download error:", error);
       res.status(500).json({ error: "Failed to download certificate" });
@@ -1111,13 +1177,13 @@ export const certificateController = {
               admission_number: true,
               currentSemester: true,
               class: { select: { name: true } },
-              department: { select: { name: true, id: true } }
-            }
+              department: { select: { name: true, id: true } },
+            },
           },
           approvals: {
-            orderBy: { createdAt: 'asc' }
-          }
-        }
+            orderBy: { createdAt: "asc" },
+          },
+        },
       });
 
       if (!certificate) {
@@ -1125,10 +1191,9 @@ export const certificateController = {
       }
 
       res.json(certificate);
-
     } catch (error) {
       console.error("Status error:", error);
       res.status(500).json({ error: "Failed to fetch workflow status" });
     }
-  }
+  },
 };
