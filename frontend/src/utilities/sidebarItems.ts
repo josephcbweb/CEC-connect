@@ -25,7 +25,12 @@ export const sidebarItems = [
     permission: "view:fee",
   },
   { icon: Bell, text: "Notifications", route: "/notifications" },
-  { icon: BookOpen, text: "Certificates", route: "/certificate" },
+  {
+    icon: BookOpen,
+    text: "Certificates",
+    route: "/certificate",
+    permission: "view:certificates",
+  },
   { icon: Building, text: "Departments", route: "/departments" },
   { icon: LayoutGrid, text: "Manage Classes", route: "/batches" },
   {
