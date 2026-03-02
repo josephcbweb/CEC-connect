@@ -280,4 +280,89 @@ class ApiService {
       throw Exception('Connection error: $e');
     }
   }
+
+  // Password Reset Methods
+
+  /// Send OTP to email for password reset
+  Future<Map<String, dynamic>> sendPasswordResetOTP(String email) async {
+    final url =
+        Uri.parse('${AppConstants.baseUrl}/api/password-reset/send-otp');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data;
+      } else {
+        throw Exception(data['message'] ?? 'Failed to send OTP');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  /// Verify OTP
+  Future<Map<String, dynamic>> verifyPasswordResetOTP(
+      String email, String otp) async {
+    final url =
+        Uri.parse('${AppConstants.baseUrl}/api/password-reset/verify-otp');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'otp': otp}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data;
+      } else {
+        throw Exception(data['message'] ?? 'Failed to verify OTP');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  /// Reset password with OTP
+  Future<Map<String, dynamic>> resetPassword(
+    String email,
+    String otp,
+    String newPassword,
+    String confirmPassword,
+  ) async {
+    final url =
+        Uri.parse('${AppConstants.baseUrl}/api/password-reset/reset-password');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'otp': otp,
+          'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data;
+      } else {
+        throw Exception(data['message'] ?? 'Failed to reset password');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
 }

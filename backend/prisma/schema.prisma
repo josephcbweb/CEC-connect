@@ -81,6 +81,8 @@ model Student {
   updatedAt                           DateTime        @updatedAt @map("updated_at")
   name                                String
   password                            String
+  reset_otp                           String?
+  otp_expiry                          DateTime?
   dateOfBirth                         DateTime?       @map("date_of_birth")
   email                               String?         @unique
   gender                              Gender

@@ -222,7 +222,7 @@ const StudentLogin = () => {
                 {/* Password Recovery */}
                 <div className="flex justify-end items-center">
                   <a
-                    href="#"
+                    href="/forgot-password"
                     className="text-sm font-medium text-[#3AA9AB] hover:text-[#031D44] transition-colors duration-300"
                   >
                     Forgot password?

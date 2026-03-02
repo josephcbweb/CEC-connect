@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../services/push_notification_service.dart';
 import 'dashboard_screen.dart';
 import 'contact_office_screen.dart';
+import 'forgot_password_screen.dart';
 import '../components/app_loader.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -300,10 +301,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    "Please contact administration to reset password")),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const ForgotPasswordScreen(),
+                            ),
                           );
                         },
                         style: TextButton.styleFrom(

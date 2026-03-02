@@ -22,6 +22,7 @@ import notificationRoutes from "./routes/notificationRoutes";
 import hostelRoutes from "./routes/hostelRoutes";
 import analyticsRoutes from "./routes/analyticsRoutes";
 import auditRoutes from "./routes/auditRoutes";
+import passwordResetRoutes from "./routes/passwordResetRoutes";
 import cors from "cors";
 dotenv.config();
 
@@ -59,6 +60,7 @@ app.use("/api", batchRoutes);
 app.use("/api/hostel", hostelRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/audit-logs", auditRoutes);
+app.use("/api/password-reset", passwordResetRoutes);
 import { initCronJobs } from "./services/cronService";
 initCronJobs();
 
