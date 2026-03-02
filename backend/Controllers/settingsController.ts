@@ -157,6 +157,9 @@ export async function getSemesterStats(req: Request, res: Response) {
   try {
     const semesterStats = await prisma.student.groupBy({
       by: ["currentSemester"],
+      where: {
+        status: "approved",
+      },
       _count: {
         currentSemester: true,
       },
@@ -187,12 +190,13 @@ export async function promoteStudents(req: Request, res: Response) {
       return res.status(400).json({ message: "No semesters provided" });
     }
 
-    // Update all students in selected semesters
+    // Update all approved students in selected semesters
     const updated = await prisma.student.updateMany({
       where: {
         currentSemester: {
           in: semesters,
         },
+        status: "approved",
       },
       data: {
         currentSemester: {
