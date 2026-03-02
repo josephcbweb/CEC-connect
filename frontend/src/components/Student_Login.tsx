@@ -97,6 +97,7 @@ const StudentLogin = () => {
       } else {
         // 3. Login failed: Display error message from the backend
         const errorMessage =
+          data.message ||
           "Login failed. Please verify your Student ID/Email and Password.";
         setMessage({ text: errorMessage, type: "error" });
       }
