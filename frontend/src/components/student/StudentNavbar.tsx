@@ -210,7 +210,22 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
             </div>
 
             <button
-              onClick={() => {
+              onClick={async () => {
+                const token = localStorage.getItem("studentAuthToken");
+                if (token) {
+                  try {
+                    await fetch("http://localhost:3000/auth/logout", {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ type: "student" }),
+                    });
+                  } catch (e) {
+                    console.error("Logout err", e);
+                  }
+                }
                 localStorage.removeItem("studentAuthToken");
                 navigate("/studentlogin");
               }}
@@ -296,7 +311,28 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
                 {studentData?.name || "Student"}
               </p>
             </div>
-            <button className="w-full text-left bg-gray-100 hover:bg-gray-200 text-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors">
+            <button
+              onClick={async () => {
+                const token = localStorage.getItem("studentAuthToken");
+                if (token) {
+                  try {
+                    await fetch("http://localhost:3000/auth/logout", {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ type: "student" }),
+                    });
+                  } catch (e) {
+                    console.error("Logout err", e);
+                  }
+                }
+                localStorage.removeItem("studentAuthToken");
+                navigate("/studentlogin");
+              }}
+              className="w-full text-left bg-gray-100 hover:bg-gray-200 text-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors"
+            >
               Logout
             </button>
           </div>
