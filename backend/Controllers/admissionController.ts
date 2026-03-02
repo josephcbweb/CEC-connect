@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import bcrypt from "bcrypt";
 import {
   StudentStatus,
   AdmissionType,
@@ -254,7 +255,7 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
       updatedAt: new Date(),
     };
 
-    // If approving, generate new admission number
+    // If approving, generate new admission number and set default password
     if (status === StudentStatus.approved) {
       const student = await prisma.student.findUnique({
         where: { id: studentId },
@@ -275,6 +276,9 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
           error: "Cannot approve student without a department assigned",
         });
       }
+
+      const hashedPassword = await bcrypt.hash("password", 10);
+      updateData.password = hashedPassword;
 
       try {
         const maxRetries = 3;
@@ -1388,6 +1392,8 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
       const results = [];
       const errors = [];
 
+      const hashedPassword = await bcrypt.hash("password", 10);
+
       for (const id of ids) {
         try {
           const studentId = parseInt(id);
@@ -1420,6 +1426,7 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
                   status: StudentStatus.approved,
                   admission_number: admissionNumber,
                   departmentId: !student.departmentId ? deptId : undefined,
+                  password: hashedPassword,
                   updatedAt: new Date(),
                 },
               });
