@@ -2,7 +2,13 @@ export interface Notification {
   id: number;
   title: string;
   description: string;
-  targetType: "ALL" | "SEMESTER" | "DEPARTMENT" | "STUDENT";
+  targetType:
+    | "ALL"
+    | "SEMESTER"
+    | "DEPARTMENT"
+    | "STUDENT"
+    | "PROGRAM"
+    | "CLASS";
   targetValue?: string;
   program?: string;
   departmentId?: number;
