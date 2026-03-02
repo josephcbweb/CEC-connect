@@ -51,6 +51,22 @@ class ApiService {
   }
 
   Future<void> logout() async {
+    final token = await storage.read(key: 'jwt_token');
+    if (token != null) {
+      try {
+        final url = Uri.parse('${AppConstants.baseUrl}/auth/logout');
+        await http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({'type': 'student'}),
+        );
+      } catch (e) {
+        debugPrint('Logout API call failed: $e');
+      }
+    }
     await storage.delete(key: 'jwt_token');
     await storage.delete(key: 'last_active');
   }

@@ -17,5 +17,6 @@ router.get(
   AuthMiddleware.authenticate,
   AuthController.getUserById
 );
+router.post("/logout", AuthMiddleware.authenticate, AuthController.logout);
 
 export default router;

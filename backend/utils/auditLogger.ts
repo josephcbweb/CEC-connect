@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { prisma } from "../lib/prisma";
 
-export type AuditModule = "fee" | "admission" | "due" | "due_settings";
+export type AuditModule = "fee" | "admission" | "due" | "due_settings" | "auth";
 
 interface AuditLogParams {
   req: Request;
@@ -10,14 +10,17 @@ interface AuditLogParams {
   entityType?: string;
   entityId?: string | number;
   details?: Record<string, any>;
-  userId?: number;
+  userId?: number | null;
 }
 
 /**
  * Extract user ID from the request.
  * Works with both JWT-authenticated requests and body-supplied userId.
  */
-function extractUserId(req: Request, fallbackUserId?: number): number | null {
+function extractUserId(req: Request, fallbackUserId?: number | null): number | null {  
+  // If explicitly null but not undefined, force null (e.g. for Students who aren't in User table)
+  if (fallbackUserId === null) return null;
+
   // JWT-authenticated user
   const authUser = (req as any).user as
     | { userId?: number; id?: number }
