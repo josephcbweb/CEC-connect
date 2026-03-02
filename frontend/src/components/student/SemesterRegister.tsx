@@ -129,7 +129,7 @@ const SemesterRegister = () => {
         .filter((due: any) => due.course)
         .forEach((due: any) => {
           const course = due.course;
-          let typeLabel = course.type === "LAB" ? "Lab" : "Theory";
+          const typeLabel = course.type === "LAB" ? "Lab" : "Theory";
           let categoryLabel = "";
           if (course.category === "ELECTIVE") categoryLabel = " • Elective";
           else if (course.category === "HONOURS") categoryLabel = " • Honours";
