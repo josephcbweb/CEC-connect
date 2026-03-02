@@ -21,7 +21,7 @@ import {
     adminSendOTP,
     adminVerifyOTP,
     adminResetPassword
-} from "../Controllers/passwordResetController";
+} from "../controllers/passwordResetController";
 
 const router = express.Router();
 
