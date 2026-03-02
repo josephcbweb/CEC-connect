@@ -33,6 +33,7 @@ async function main(): Promise<void> {
     { name: "accounts_staff", description: "Accounts Staff" },
     { name: "hostel_warden", description: "Hostel Warden" },
     { name: "hod", description: "Head of Department" },
+    { name: "staff_advisor", description: "Staff Advisor" },
   ];
 
   const roleMap: Record<string, number> = {};
@@ -75,6 +76,7 @@ async function main(): Promise<void> {
     { name: "manage_settings", moduleName: "settings", action: "manage" },
 
     // Sidebar Section Permissions
+    { name: "view:certificates", moduleName: "sidebar", action: "view" },
     { name: "view:due", moduleName: "sidebar", action: "view" },
     { name: "view:admissions", moduleName: "sidebar", action: "view" },
     { name: "view:fee", moduleName: "sidebar", action: "view" },
@@ -166,6 +168,18 @@ async function main(): Promise<void> {
     {
       role: "hostel_warden",
       perms: ["view:due"],
+    },
+
+    // Head of Department
+    {
+      role: "hod",
+      perms: ["view:certificates"],
+    },
+
+    // Staff Advisor
+    {
+      role: "staff_advisor",
+      perms: ["view:certificates"],
     },
   ];
 
