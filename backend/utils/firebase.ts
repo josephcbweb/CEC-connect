@@ -10,7 +10,7 @@ export const initializeFirebase = () => {
   try {
     // You must place your serviceAccountKey.json in the backend root or config folder
     // Alternatively, use connection string or environment variables
-    const serviceAccountPath = path.join(__dirname, '../../serviceAccountKey.json');
+    const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
     
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
          const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);

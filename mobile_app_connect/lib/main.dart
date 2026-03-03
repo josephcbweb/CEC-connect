@@ -6,7 +6,12 @@ import 'services/push_notification_service.dart';
 import 'services/api_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/notification_screen.dart';
 import 'components/app_loader.dart';
+
+/// Global navigator key so we can navigate from notification taps without
+/// needing a BuildContext.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +32,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ACADS Student',
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
@@ -100,6 +106,9 @@ class _AuthCheckState extends State<AuthCheck> {
             // Register FCM Token (refresh it)
             PushNotificationService().registerToken();
 
+            // Wire up notification tap → navigate to NotificationScreen
+            _setupNotificationNavigation();
+
             setState(() {
               _startScreen = DashboardScreen(userId: userIdInt!);
             });
@@ -123,6 +132,34 @@ class _AuthCheckState extends State<AuthCheck> {
     } finally {
       setState(() {
         _isLoading = false;
+      });
+    }
+  }
+
+  /// Registers the notification tap callback and processes any pending payload
+  /// that arrived while the app was being initialised.
+  void _setupNotificationNavigation() {
+    final pushService = PushNotificationService();
+
+    pushService.onNotificationTap = (Map<String, dynamic> data) {
+      debugPrint('Navigating from notification tap: $data');
+      final nav = navigatorKey.currentState;
+      if (nav != null) {
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => const NotificationScreen(),
+          ),
+        );
+      }
+    };
+
+    // If a notification tap arrived before we set the callback, handle it now
+    if (pushService.pendingNotificationPayload != null) {
+      final pending = pushService.pendingNotificationPayload!;
+      pushService.pendingNotificationPayload = null;
+      // Use addPostFrameCallback to ensure the navigator is mounted
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        pushService.onNotificationTap?.call(pending);
       });
     }
   }
