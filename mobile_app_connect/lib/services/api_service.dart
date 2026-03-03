@@ -301,6 +301,122 @@ class ApiService {
     }
   }
 
+  // ============ Certificate Methods ============
+
+  /// Submit a certificate request
+  Future<Map<String, dynamic>> submitCertificateRequest({
+    required int studentId,
+    required String type,
+    required String reason,
+  }) async {
+    final token = await storage.read(key: 'jwt_token');
+    final url = Uri.parse('${AppConstants.baseUrl}/api/certificates');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'studentId': studentId,
+          'type': type,
+          'reason': reason,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return data;
+      } else {
+        throw Exception(
+            data['error'] ?? 'Failed to submit certificate request');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  /// Get all certificate requests for a student
+  Future<List<dynamic>> getStudentCertificates(int studentId) async {
+    final token = await storage.read(key: 'jwt_token');
+    final url = Uri.parse(
+        '${AppConstants.baseUrl}/api/certificates/student/$studentId');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return List<dynamic>.from(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load certificates: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  /// Get workflow status for a specific certificate
+  Future<Map<String, dynamic>> getCertificateWorkflow(int certificateId) async {
+    final token = await storage.read(key: 'jwt_token');
+    final url = Uri.parse(
+        '${AppConstants.baseUrl}/api/certificates/$certificateId/workflow');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to load workflow: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  /// Download certificate PDF
+  Future<List<int>> downloadCertificatePdf(int certificateId) async {
+    final token = await storage.read(key: 'jwt_token');
+    final url = Uri.parse(
+        '${AppConstants.baseUrl}/api/certificates/$certificateId/download');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Failed to download certificate PDF');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Password Reset Methods
 
   /// Send OTP to email for password reset

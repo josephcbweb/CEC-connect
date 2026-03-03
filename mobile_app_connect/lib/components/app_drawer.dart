@@ -3,6 +3,7 @@ import '../screens/dashboard_screen.dart';
 import '../screens/fees_screen.dart';
 import '../screens/bus_screen.dart';
 import '../screens/registration_screen.dart';
+import '../screens/certificate_screen.dart';
 import '../screens/login_screen.dart';
 import '../services/api_service.dart';
 
@@ -106,6 +107,19 @@ class AppDrawer extends StatelessWidget {
                     context,
                     'registration',
                     RegistrationScreen(userId: userId),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _buildDrawerItem(
+                  context,
+                  title: 'Certificates',
+                  icon: Icons.description_outlined,
+                  selectedIcon: Icons.description,
+                  route: 'certificates',
+                  onTap: () => _navigateTo(
+                    context,
+                    'certificates',
+                    CertificateScreen(userId: userId),
                   ),
                 ),
               ],

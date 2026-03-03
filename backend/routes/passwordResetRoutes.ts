@@ -14,9 +14,9 @@
  */
 
 import express from "express";
-import {
-    sendOTP,
-    verifyOTP,
+import { 
+    sendOTP, 
+    verifyOTP, 
     resetPassword,
     adminSendOTP,
     adminVerifyOTP,
