@@ -17,22 +17,22 @@ import { FaMoneyBill } from "react-icons/fa";
 
 export const sidebarItems = [
   { icon: LayoutDashboard, text: "Dashboard", route: "", active: true },
-  { icon: Users, text: "Students", route: "/students" },
+  { icon: Users, text: "Students", route: "/students", permission: "view:students" },
   {
     icon: FaMoneyBill,
     text: "Fee Management",
     route: "/fee",
     permission: "view:fee",
   },
-  { icon: Bell, text: "Notifications", route: "/notifications" },
+  { icon: Bell, text: "Notifications", route: "/notifications", permission: "view:notifications" },
   {
     icon: BookOpen,
     text: "Certificates",
     route: "/certificate",
     permission: "view:certificates",
   },
-  { icon: Building, text: "Departments", route: "/departments" },
-  { icon: LayoutGrid, text: "Manage Classes", route: "/batches" },
+  { icon: Building, text: "Departments", route: "/departments", permission: "view:departments" },
+  { icon: LayoutGrid, text: "Manage Classes", route: "/batches", permission: "view:classes" },
   {
     icon: CheckCircle,
     text: "Due Management",
@@ -46,8 +46,8 @@ export const sidebarItems = [
     alert: true,
     permission: "view:admissions",
   },
-  { icon: Bus, text: "College Bus", route: "/bus", alert: true },
-  { icon: Bed, text: "Hostel", route: "/hostel" },
+  { icon: Bus, text: "College Bus", route: "/bus", alert: true, permission: "view:bus" },
+  { icon: Bed, text: "Hostel", route: "/hostel", permission: "view:hostel" },
   { icon: BarChart3, text: "Analytics", route: "/analytics", adminOnly: true },
   { icon: Shield, text: "Audit Logs", route: "/audit-logs", adminOnly: true },
   // { icon: GraduationCap, text: "Faculty", route: "/faculty" },

@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { prisma } from "../lib/prisma";
 
-export type AuditModule = "fee" | "admission" | "due" | "due_settings" | "auth" | "bus" | "hostel";
+export type AuditModule = "fee" | "admission" | "due" | "due_settings" | "auth" | "bus" | "hostel" | "certificate";
 interface AuditLogParams {
   req: Request;
   action: string;

@@ -21,12 +21,12 @@ export const createFeeStructure = async (req: Request, res: Response) => {
         fineSlabs:
           fineEnabled && fineSlabs?.length
             ? {
-                create: fineSlabs.map((slab: any) => ({
-                  startDay: slab.startDay,
-                  endDay: slab.endDay ?? null,
-                  amountPerDay: parseFloat(slab.amountPerDay),
-                })),
-              }
+              create: fineSlabs.map((slab: any) => ({
+                startDay: slab.startDay,
+                endDay: slab.endDay ?? null,
+                amountPerDay: parseFloat(slab.amountPerDay),
+              })),
+            }
             : undefined,
       },
       include: { fineSlabs: true },
@@ -179,6 +179,8 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
 
     const studentMap = new Map(students.map((s) => [s.id, s]));
 
+    const notificationsToPush: any[] = [];
+
     // Collect push data to fire after transaction commits
     const pushQueue: Array<{ targetValue: string; title: string; description: string }> = [];
 
@@ -218,17 +220,19 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
           const feeDesc = `A new fee "${feeStructure.name}" of ₹${feeStructure.amount} has been assigned to you. Due date: ${new Date(dueDate).toLocaleDateString()}.`;
 
           // Step 3: Send notification to the student
-          await tx.notification.create({
+          const notification = await tx.notification.create({
             data: {
               title: "New Fee Assigned",
               description: feeDesc,
               targetType: "STUDENT",
               targetValue: studentId.toString(),
               status: "published",
-              priority: "NORMAL",
+              priority: "IMPORTANT",
               senderId: userId ? Number(userId) : 1,
             },
           });
+
+          notificationsToPush.push(notification);
 
           pushQueue.push({ targetValue: studentId.toString(), title: "New Fee Assigned", description: feeDesc });
         }
@@ -310,19 +314,19 @@ export const markInvoiceAsPaid = async (req: Request, res: Response) => {
           targetType: "STUDENT",
           targetValue: inv.studentId.toString(),
           status: "published",
-          priority: "NORMAL",
+          priority: "IMPORTANT",
           senderId: userId ? Number(userId) : 1,
         },
       });
 
-      return { ...inv, _pushDesc: paymentDesc };
+      return { inv, _pushDesc: paymentDesc };
     });
 
     // Fire FCM push AFTER the transaction commits
     sendPushNotification(
       0,
       'STUDENT' as any,
-      updatedInvoice.studentId.toString(),
+      updatedInvoice.inv.studentId.toString(),
       'Payment Successful',
       (updatedInvoice as any)._pushDesc || '',
       {},
@@ -336,14 +340,14 @@ export const markInvoiceAsPaid = async (req: Request, res: Response) => {
       entityType: "Invoice",
       entityId: invoiceId,
       details: {
-        studentId: updatedInvoice.studentId,
-        amount: updatedInvoice.amount,
+        studentId: updatedInvoice.inv.studentId,
+        amount: updatedInvoice.inv.amount,
         paymentMethod,
-        feeName: updatedInvoice.FeeStructure?.name,
+        feeName: updatedInvoice.inv.FeeStructure?.name,
       },
     });
 
-    res.status(200).json(updatedInvoice);
+    res.status(200).json(updatedInvoice.inv);
   } catch (error) {
     console.error(
       `Error marking invoice ${req.body.invoiceId} as paid:`,

@@ -1130,9 +1130,40 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
             },
           });
         }
+
+        // Create notification for manual payment
+        const adminUser = await tx.user.findFirst();
+        const senderId = adminUser ? adminUser.id : 1;
+
+        const notification = await tx.notification.create({
+          data: {
+            title: "Bus Fee Payment Successful",
+            description: `Your payment was successfully recorded manually by admin.`,
+            targetType: "STUDENT",
+            targetValue: inv.studentId.toString(),
+            status: "published",
+            priority: "IMPORTANT",
+            senderId: senderId,
+          }
+        });
+
+        return { inv, notification };
       }
-      return inv;
+      return { inv };
     });
+
+    if (status === "paid" && (updatedInvoice as any).notification) {
+      const notification = (updatedInvoice as any).notification;
+      sendPushNotification(
+        notification.id,
+        notification.targetType,
+        notification.targetValue,
+        notification.title,
+        notification.description || "",
+        { notificationId: notification.id },
+        notification.priority,
+      ).catch((err) => console.error("Async push error (bus update status):", err));
+    }
 
     logAudit({
       req,
@@ -1143,7 +1174,7 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
       details: { status },
     });
 
-    res.status(200).json(updatedInvoice);
+    res.status(200).json((updatedInvoice as any).inv || updatedInvoice);
   } catch (error: any) {
     console.error("Prisma Update Error:", error.message);
     res.status(500).json({ error: error.message });
@@ -1288,7 +1319,7 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
         : {
           title: "Bus Service Request Rejected",
           description: "Your request for bus service has been rejected. Please contact the admin for more details.",
-          priority: "NORMAL" as NotificationPriority,
+          priority: "IMPORTANT" as NotificationPriority,
         };
 
       await tx.notification.create({
