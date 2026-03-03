@@ -317,7 +317,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
           }))?.createdAt || null,
         }
         : null,
-      
+
       // Key Contacts
       advisorName: student.class?.advisor?.username || student.users?.username || "Not Assigned",
       hodName: student.department?.hodDetails?.user?.username || "Not Assigned",

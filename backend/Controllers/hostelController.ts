@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { logAudit } from '../utils/auditLogger';
 
 
 export const createHostel = async (req: Request, res: Response) => {
@@ -13,6 +14,15 @@ export const createHostel = async (req: Request, res: Response) => {
         wardenPhone,
         monthlyRent: monthlyRent ? Number(monthlyRent) : 0 // Ensure it's a number
       },
+    });
+
+    logAudit({
+      req,
+      action: "CREATE_HOSTEL",
+      module: "hostel",
+      entityType: "Hostel",
+      entityId: hostel.id,
+      details: { name, wardenName, monthlyRent },
     });
 
     return res.status(201).json({
@@ -59,6 +69,15 @@ export const assignStudentToHostel = async (req: Request, res: Response) => {
     }, {
       maxWait: 10000, // 10s to wait for a connection
       timeout: 20000  // 20s for the transaction to complete
+    });
+
+    logAudit({
+      req,
+      action: "ASSIGN_STUDENT_TO_HOSTEL",
+      module: "hostel",
+      entityType: "Student",
+      entityId: studentId,
+      details: { studentId, hostelId },
     });
 
     return res.status(200).json({
@@ -160,6 +179,15 @@ export const updateWarden = async (req: Request, res: Response) => {
       data: { wardenName, wardenPhone },
     });
 
+    logAudit({
+      req,
+      action: "UPDATE_HOSTEL_WARDEN",
+      module: "hostel",
+      entityType: "Hostel",
+      entityId: id,
+      details: { wardenName, wardenPhone },
+    });
+
     return res.status(200).json({ success: true, message: "Warden updated successfully" });
   } catch (error: any) {
     return res.status(400).json({ success: false, error: error.message });
@@ -175,6 +203,15 @@ export const updateRent = async (req: Request, res: Response) => {
     await prisma.hostel.update({
       where: { id: Number(id) },
       data: { monthlyRent: Number(monthlyRent) },
+    });
+
+    logAudit({
+      req,
+      action: "UPDATE_HOSTEL_RENT",
+      module: "hostel",
+      entityType: "Hostel",
+      entityId: id,
+      details: { monthlyRent },
     });
 
     return res.status(200).json({ success: true, message: "Rent updated successfully" });
@@ -260,6 +297,14 @@ export const generateMonthlyInvoices = async (req: Request, res: Response) => {
       })
     );
 
+    logAudit({
+      req,
+      action: "GENERATE_HOSTEL_INVOICES",
+      module: "hostel",
+      entityType: "Invoice",
+      details: { month, year, generatedCount: result.length, skippedCount },
+    });
+
     return res.status(201).json({
       success: true,
       message: `Successfully generated ${result.length} invoices for ${month} ${year}. ${skippedCount > 0 ? `(${skippedCount} skipped due to existing bills)` : ''}`,
@@ -322,6 +367,15 @@ export const vacateStudent = async (req: Request, res: Response) => {
     }, {
       maxWait: 5000,
       timeout: 10000
+    });
+
+    logAudit({
+      req,
+      action: "VACATE_HOSTEL_STUDENT",
+      module: "hostel",
+      entityType: "Student",
+      entityId: studentId,
+      details: { studentId },
     });
 
     return res.status(200).json({
@@ -411,6 +465,15 @@ export const updateHostelFineSettings = async (req: Request, res: Response) => {
         where: { id: feeId },
         include: { fineSlabs: { orderBy: { startDay: "asc" } } },
       });
+    });
+
+    logAudit({
+      req,
+      action: "UPDATE_HOSTEL_FINE_SETTINGS",
+      module: "hostel",
+      entityType: "FeeStructure",
+      entityId: feeId,
+      details: { fineEnabled, slabCount: fineSlabs?.length || 0 },
     });
 
     res.status(200).json({ success: true, data: updatedSettings });

@@ -82,6 +82,18 @@ export const deleteDepartment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    // Check if department has enrolled students
+    const studentCount = await prisma.student.count({
+      where: { departmentId: Number(id) },
+    });
+
+    if (studentCount > 0) {
+      return res.status(409).json({
+        message: "Cannot delete this department because it has active students.",
+        studentCount,
+      });
+    }
+
     await prisma.$transaction(async (tx) => {
       // Delete HodDetails first (if exists)
       await tx.hodDetails.deleteMany({
