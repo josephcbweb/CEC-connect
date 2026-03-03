@@ -3,7 +3,6 @@ import { prisma } from "../lib/prisma";
 import { InvoiceStatus } from "../generated/prisma/enums";
 import { logAudit } from "../utils/auditLogger";
 import { sendPushNotification } from "../services/pushNotificationService";
-import { sendPushNotification } from "../services/pushNotificationService";
 
 // --- Fee Structure CRUD ---
 
@@ -320,14 +319,14 @@ export const markInvoiceAsPaid = async (req: Request, res: Response) => {
         },
       });
 
-      return { ...inv, _pushDesc: paymentDesc };
+      return { inv, _pushDesc: paymentDesc };
     });
 
     // Fire FCM push AFTER the transaction commits
     sendPushNotification(
       0,
       'STUDENT' as any,
-      updatedInvoice.studentId.toString(),
+      updatedInvoice.inv.studentId.toString(),
       'Payment Successful',
       (updatedInvoice as any)._pushDesc || '',
       {},
