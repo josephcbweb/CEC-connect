@@ -56,6 +56,50 @@ export const sendAdmissionConfirmation = async (
   }
 };
 
+export const sendAdmissionApprovalEmail = async (
+  email: string,
+  name: string,
+  admissionNumber: string,
+) => {
+  try {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+      console.warn("Mail configuration missing. Skipping email sending.");
+      return false;
+    }
+
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_USER || '"CEC Admission" <admission@cectl.ac.in>',
+      to: email,
+      subject: "Admission Approved - CEC Connect",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+          <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h2 style="color: #2e7d32; margin-top: 0;">Admission Approved</h2>
+            <p>Dear <strong>${name}</strong>,</p>
+            <p>Congratulations! Your admission application to College of Engineering Chengannur has been approved.</p>
+            
+            <div style="background-color: #e8f5e9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p style="margin: 0; color: #2e7d32;"><strong>Admission Number:</strong> ${admissionNumber}</p>
+            </div>
+
+            <p>You can now log in to the student portal using your registered email address and the default password <strong>password</strong>.</p>
+            <p style="color: #d32f2f;">Please make sure to change your password immediately after your first login.</p>
+            
+            <br>
+            <p style="color: #666; font-size: 14px;">Best Regards,<br>CEC Connect Team</p>
+          </div>
+        </div>
+      `,
+    });
+
+    console.log("Admission approval email sent: %s", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("Error sending admission approval email:", error);
+    return false;
+  }
+};
+
 /**
  * Send OTP email for password reset
  * @param email - Student's email address

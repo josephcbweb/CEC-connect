@@ -7,7 +7,7 @@ import {
   Program,
   RequestStatus,
 } from "../generated/prisma/enums";
-import { sendAdmissionConfirmation } from "../services/mailService";
+import { sendAdmissionConfirmation, sendAdmissionApprovalEmail } from "../services/mailService";
 import { logAudit } from "../utils/auditLogger";
 
 // Get all admissions with filtering and pagination
@@ -314,6 +314,11 @@ export const updateAdmissionStatus = async (req: Request, res: Response) => {
       where: { id: studentId },
       data: updateData,
     });
+
+    if (status === StudentStatus.approved && updatedStudent.email && updatedStudent.name && updatedStudent.admission_number) {
+      sendAdmissionApprovalEmail(updatedStudent.email, updatedStudent.name, updatedStudent.admission_number)
+        .catch(err => console.error("Error sending approval email:", err));
+    }
 
     await logAudit({
       req,
@@ -1424,6 +1429,12 @@ export const bulkUpdateStatus = async (req: Request, res: Response) => {
                   updatedAt: new Date(),
                 },
               });
+
+              if (updated.email && updated.name && updated.admission_number) {
+                sendAdmissionApprovalEmail(updated.email, updated.name, updated.admission_number)
+                  .catch((err: any) => console.error(`Error sending approval email to ${id}:`, err));
+              }
+
               break; // Success — exit retry loop
             } catch (retryErr: any) {
               if (retryErr.code === "P2002" && attempt < maxRetries - 1) {

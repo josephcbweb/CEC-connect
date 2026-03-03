@@ -1,5 +1,11 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { sendPushNotification } from "../services/pushNotificationService";
+import {
+  NotificationTargetType,
+  NotificationPriority,
+  NotificationStatus
+} from "../generated/prisma/enums";
 
 
 export const createHostel = async (req: Request, res: Response) => {
@@ -259,6 +265,39 @@ export const generateMonthlyInvoices = async (req: Request, res: Response) => {
         });
       })
     );
+
+    // After transaction success, create notifications and trigger push alerts
+    try {
+      const adminUser = await prisma.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+
+      for (const student of studentsToBill) {
+        const notification = await prisma.notification.create({
+          data: {
+            title: "Hostel Rent Assigned",
+            description: `Hostel rent for ${month} ${year} has been assigned. Amount: ₹${student.hostel?.monthlyRent || 0}. Due date: ${finalDueDate.toLocaleDateString()}.`,
+            targetType: "STUDENT",
+            targetValue: student.id.toString(),
+            status: "published",
+            priority: "IMPORTANT",
+            senderId: senderId,
+          },
+        });
+
+        sendPushNotification(
+          notification.id,
+          notification.targetType,
+          notification.targetValue,
+          notification.title,
+          notification.description || "",
+          { notificationId: notification.id },
+          notification.priority,
+        ).catch((err) => console.error("Async push error (hostel):", err));
+      }
+    } catch (notificationError) {
+      console.error("Error creating/sending notifications for hostel:", notificationError);
+      // We don't return error here because invoices were already created successfully
+    }
 
     return res.status(201).json({
       success: true,

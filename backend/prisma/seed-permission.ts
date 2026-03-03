@@ -80,6 +80,8 @@ async function main(): Promise<void> {
     { name: "view:due", moduleName: "sidebar", action: "view" },
     { name: "view:admissions", moduleName: "sidebar", action: "view" },
     { name: "view:fee", moduleName: "sidebar", action: "view" },
+    { name: "view:bus", moduleName: "sidebar", action: "view" },
+    { name: "view:hostel", moduleName: "sidebar", action: "view" },
     { name: "manage:due", moduleName: "dues", action: "manage" },
 
     // Fee Management Permissions
@@ -167,7 +169,7 @@ async function main(): Promise<void> {
     // Hostel Warden
     {
       role: "hostel_warden",
-      perms: ["view:due"],
+      perms: ["view:due", "view:hostel"],
     },
 
     // Head of Department
