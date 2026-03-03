@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { verifyToken } from "../utils/jwt";
 import type { AuthenticatedRequest } from "../utils/types";
 import { logAudit } from "../utils/auditLogger";
+import { createAndPushNotification } from "../services/pushNotificationService";
 import {
   ApprovalStatus,
   CourseType,
@@ -574,16 +575,14 @@ export const clearDue = async (
       else if (updatedNoDue.department)
         entityName = `${updatedNoDue.department.name} Clearance`;
 
-      await prisma.notification.create({
-        data: {
-          title: "Due Cleared",
-          description: `Your clearance for "${entityName}" has been approved.`,
-          targetType: "STUDENT",
-          targetValue: updatedNoDue.request.student.id.toString(),
-          status: "published",
-          priority: "NORMAL",
-          senderId: Number(userId),
-        },
+      await createAndPushNotification({
+        title: "Due Cleared",
+        description: `Your clearance for "${entityName}" has been approved.`,
+        targetType: "STUDENT",
+        targetValue: updatedNoDue.request.student.id.toString(),
+        status: "published",
+        priority: "NORMAL",
+        senderId: Number(userId),
       });
     }
 
@@ -1037,16 +1036,14 @@ export const bulkClearDues = async (
       clearedEntities,
     ] of studentNotificationsMap.entries()) {
       const entitiesList = clearedEntities.join(", ");
-      await prisma.notification.create({
-        data: {
-          title: "Dues Cleared",
-          description: `Your clearance(s) for "${entitiesList}" have been approved.`,
-          targetType: "STUDENT",
-          targetValue: studentId.toString(),
-          status: "published",
-          priority: "NORMAL",
-          senderId: Number(userId),
-        },
+      await createAndPushNotification({
+        title: "Dues Cleared",
+        description: `Your clearance(s) for "${entitiesList}" have been approved.`,
+        targetType: "STUDENT",
+        targetValue: studentId.toString(),
+        status: "published",
+        priority: "NORMAL",
+        senderId: Number(userId),
       });
     }
 

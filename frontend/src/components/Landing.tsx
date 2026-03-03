@@ -32,17 +32,24 @@ export const Landing: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
+  const [departmentsLoading, setDepartmentsLoading] = useState<boolean>(true);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+
+  const fetchDepartments = async () => {
+    setDepartmentsLoading(true);
+    setDepartmentsError(null);
+    try {
+      const response = await axios.get(`${API_URL}/api/departments`);
+      setDepartments(response.data);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      setDepartmentsError("Failed to load programs. Please try again.");
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/departments`);
-        setDepartments(response.data);
-      } catch (error) {
-        console.error("Error fetching departments:", error);
-      }
-    };
-
     fetchDepartments();
   }, []);
 
@@ -278,10 +285,10 @@ export const Landing: React.FC = () => {
       </div>
 
       {/* Enhanced Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-lg border-b border-gray-200/50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3 group cursor-pointer">
+      <nav className="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm transition-all duration-300">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-2 lg:grid-cols-[1fr_auto_1fr] items-center h-20">
+            <div className="flex items-center space-x-3 group cursor-pointer justify-start">
               <div className="relative">
                 <img
                   src={Logo}
@@ -296,24 +303,24 @@ export const Landing: React.FC = () => {
             </div>
 
             {/* Desktop Menu */}
-            <div className="hidden lg:flex items-center space-x-10 absolute mx-auto w-full justify-center">
+            <div className="hidden lg:flex items-center justify-center space-x-10">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => scrollToSection(item.id)}
-                  className="text-gray-700 hover:text-blue-600 transition-all duration-300 font-light text-sm relative group"
+                  className="text-gray-600 hover:text-blue-600 transition-all duration-300 font-light text-sm relative group px-2 py-1"
                 >
                   {item.label}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-end space-x-4">
               {/* Student Login Button */}
               <Link
                 to="/studentlogin"
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm font-light rounded-full hover:from-blue-700 hover:to-teal-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-blue-500/25"
+                className="hidden md:inline-flex px-6 py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm font-light rounded-full hover:from-blue-700 hover:to-teal-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-blue-500/25"
               >
                 STUDENT LOGIN
               </Link>
@@ -321,14 +328,14 @@ export const Landing: React.FC = () => {
               {/* Admin Login Button */}
               <Link
                 to="/signup"
-                className="px-6 py-2.5 border border-blue-600 text-blue-600 text-sm font-light rounded-full hover:bg-blue-600 hover:text-white transition-all duration-300 transform hover:scale-105"
+                className="hidden md:inline-flex px-6 py-2.5 border border-blue-600 text-blue-600 text-sm font-light rounded-full hover:bg-blue-50 hover:text-blue-700 transition-all duration-300 transform hover:scale-105"
               >
                 ADMIN LOGIN
               </Link>
 
               {/* Mobile Menu Button */}
               <button
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors duration-300"
+                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors duration-300 ml-auto"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
                 <div className="w-6 h-6 flex flex-col justify-center space-y-1">
@@ -358,26 +365,26 @@ export const Landing: React.FC = () => {
               isMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
             }`}
           >
-            <div className="py-4 space-y-4 border-t border-gray-200 mt-4">
+            <div className="py-4 space-y-4 border-t border-gray-100 mt-2">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => scrollToSection(item.id)}
-                  className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 font-light text-sm py-2 w-full text-left"
+                  className="block text-gray-600 hover:text-blue-600 transition-colors duration-300 font-light text-sm py-2 w-full text-left px-2 hover:bg-gray-50 rounded-lg"
                 >
                   {item.label}
                 </button>
               ))}
-              <div className="pt-4 border-t border-gray-200 space-y-3">
+              <div className="pt-4 border-t border-gray-100 space-y-3 px-2">
                 <Link
-                  to="/student-login"
-                  className="block w-full text-center px-4 py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm font-light rounded-full hover:from-blue-700 hover:to-teal-700 transition-all duration-300"
+                  to="/studentlogin"
+                  className="block w-full text-center px-4 py-3 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm font-light rounded-xl hover:from-blue-700 hover:to-teal-700 transition-all duration-300 shadow-md"
                 >
                   STUDENT LOGIN
                 </Link>
                 <Link
-                  to="/admin-login"
-                  className="block w-full text-center px-4 py-2.5 border border-blue-600 text-blue-600 text-sm font-light rounded-full hover:bg-blue-600 hover:text-white transition-all duration-300"
+                  to="/signup"
+                  className="block w-full text-center px-4 py-3 border border-blue-600 text-blue-600 text-sm font-light rounded-xl hover:bg-blue-50 transition-all duration-300"
                 >
                   ADMIN LOGIN
                 </Link>
@@ -601,7 +608,26 @@ export const Landing: React.FC = () => {
           </div>
 
           <div className="max-w-5xl mx-auto space-y-6">
-            {availablePrograms.length === 0 ? (
+            {departmentsLoading ? (
+              <div className="text-center py-10">
+                <div className="inline-flex items-center space-x-3">
+                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-gray-500 font-light">
+                    Loading programs...
+                  </span>
+                </div>
+              </div>
+            ) : departmentsError ? (
+              <div className="text-center py-10">
+                <p className="text-gray-500 mb-4">{departmentsError}</p>
+                <button
+                  onClick={fetchDepartments}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-full hover:from-blue-700 hover:to-teal-700 transition-all duration-300 text-sm font-medium"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : availablePrograms.length === 0 ? (
               <div className="text-center text-gray-500 py-10 opacity-0 translate-y-8 animate-in">
                 No active programs found.
               </div>
@@ -767,7 +793,7 @@ export const Landing: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <Link
-                to="/student-login"
+                to="/studentlogin"
                 className="group px-14 py-5 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-2xl hover:from-blue-600 hover:to-teal-600 transition-all duration-500 text-lg font-semibold shadow-2xl hover:shadow-blue-500/40 transform hover:scale-105"
               >
                 <span className="flex items-center">
@@ -778,7 +804,7 @@ export const Landing: React.FC = () => {
                 </span>
               </Link>
               <Link
-                to="/admin-login"
+                to="/signup"
                 className="px-14 py-5 border-2 border-white/30 text-white rounded-2xl hover:bg-white hover:text-gray-900 transition-all duration-500 text-lg font-light backdrop-blur-sm transform hover:scale-105"
               >
                 Admin Portal
@@ -828,7 +854,7 @@ export const Landing: React.FC = () => {
 
           <div className="border-t border-gray-200/50 mt-16 pt-8 text-center">
             <p className="text-gray-500 font-light">
-              © 2024 Acads. All rights reserved.{" "}
+              © {new Date().getFullYear()} Acads. All rights reserved.{" "}
               <span className="text-blue-500">
                 Building the future of education.
               </span>

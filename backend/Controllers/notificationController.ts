@@ -9,7 +9,7 @@ import {
 import fs from "fs";
 import path from "path";
 
-import { sendPushNotification } from "../services/pushNotificationService";
+import { sendPushNotification, createAndPushNotification } from "../services/pushNotificationService";
 
 export const createNotification = async (req: Request, res: Response) => {
   try {
@@ -29,35 +29,18 @@ export const createNotification = async (req: Request, res: Response) => {
     const adminUser = await prisma.user.findFirst();
     if (adminUser) senderId = adminUser.id;
 
-    const notification = await prisma.notification.create({
-      data: {
-        title,
-        description,
-        targetType: targetType as NotificationTargetType,
-        targetValue,
-        priority: priority as NotificationPriority,
-        status: (status as NotificationStatus) || NotificationStatus.draft,
-        expiryDate: expiryDate
-          ? new Date(new Date(expiryDate).setUTCHours(23, 59, 59, 999))
-          : null,
-        senderId: senderId,
-      },
+    const notification = await createAndPushNotification({
+      title,
+      description,
+      targetType: targetType as NotificationTargetType,
+      targetValue,
+      priority: priority as NotificationPriority,
+      status: (status as NotificationStatus) || NotificationStatus.draft,
+      expiryDate: expiryDate
+        ? new Date(new Date(expiryDate).setUTCHours(23, 59, 59, 999))
+        : null,
+      senderId: senderId,
     });
-
-    // Send Push Notification if published
-    if (notification.status === NotificationStatus.published) {
-      // Run asynchronously to not block response
-      // In production, use a job queue
-      sendPushNotification(
-        notification.id,
-        notification.targetType,
-        notification.targetValue,
-        notification.title,
-        notification.description || "",
-        { notificationId: notification.id },
-        notification.priority,
-      ).catch((err) => console.error("Async push error", err));
-    }
 
     res.status(201).json(notification);
   } catch (error) {
@@ -224,6 +207,11 @@ export const updateNotification = async (req: Request, res: Response) => {
     status,
   } = req.body;
   try {
+    // Fetch existing notification to detect status change
+    const existing = await prisma.notification.findUnique({
+      where: { id: Number(id) },
+    });
+
     const notification = await prisma.notification.update({
       where: { id: Number(id) },
       data: {
@@ -238,6 +226,23 @@ export const updateNotification = async (req: Request, res: Response) => {
           : null,
       },
     });
+
+    // If status changed TO published, send push notification
+    if (
+      notification.status === NotificationStatus.published &&
+      existing?.status !== NotificationStatus.published
+    ) {
+      sendPushNotification(
+        notification.id,
+        notification.targetType,
+        notification.targetValue,
+        notification.title,
+        notification.description || "",
+        { notificationId: notification.id },
+        notification.priority,
+      ).catch((err) => console.error("Async push error (update):", err));
+    }
+
     res.json(notification);
   } catch (error) {
     console.error("Error updating notification:", error);
