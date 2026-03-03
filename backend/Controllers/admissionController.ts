@@ -601,13 +601,7 @@ export const deleteAdmissionWindow = async (req: Request, res: Response) => {
           throw new Error("Admission window not found");
         }
 
-        // 2. Activate the Batch (UPCOMING -> ACTIVE)
-        if (window.batchId) {
-          await tx.batch.update({
-            where: { id: window.batchId },
-            data: { status: "ACTIVE" },
-          });
-        }
+        // 2. Batch stays OPEN (no status transition needed)
 
         // 3. Delete the AdmissionWindow record
         await tx.admissionWindow.delete({
@@ -630,7 +624,7 @@ export const deleteAdmissionWindow = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: "Admission finalized: Batch is now ACTIVE and window removed.",
+      message: "Admission finalized: Admission window removed.",
     });
   } catch (error: any) {
     console.error("Error deleting admission window:", error);
@@ -733,7 +727,7 @@ export const createAdmissionWindow = async (req: Request, res: Response) => {
               name: batchName,
               startYear: Number(startYear),
               endYear: Number(endYear),
-              status: "UPCOMING",
+              status: "OPEN",
               batchDepartments: {
                 create: departmentIds.map((deptId: number) => ({
                   departmentId: Number(deptId),
@@ -1622,12 +1616,12 @@ export const getClassesForBatch = async (req: Request, res: Response) => {
   }
 };
 
-// Get batches with UPCOMING status (for class assignment)
+// Get batches with OPEN status (for class assignment)
 export const getUpcomingBatches = async (req: Request, res: Response) => {
   try {
     const batches = await prisma.batch.findMany({
       where: {
-        status: { in: ["UPCOMING", "ACTIVE"] },
+        status: "OPEN",
       },
       include: {
         batchDepartments: {
@@ -1684,13 +1678,14 @@ export const assignStudentToClass = async (req: Request, res: Response) => {
       });
     }
 
-    // Get the class with its department info
+    // Get the class with its department and batch info
     const classInfo = await prisma.class.findUnique({
       where: { id: parseInt(classId) },
       include: {
         batchDepartment: {
           include: {
             department: true,
+            batch: true,
           },
         },
       },
@@ -1700,6 +1695,14 @@ export const assignStudentToClass = async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: "Class not found",
+      });
+    }
+
+    // Guard: Reject assignment if batch is CLOSED
+    if (classInfo.batchDepartment.batch.status === "CLOSED") {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot assign students to a closed batch. Please open the batch first.",
       });
     }
 
@@ -1774,6 +1777,7 @@ export const autoAssignStudentsToClasses = async (
       where: { id: parseInt(batchDepartmentId) },
       include: {
         department: true,
+        batch: true,
         classes: {
           include: {
             _count: {
@@ -1788,6 +1792,14 @@ export const autoAssignStudentsToClasses = async (
       return res.status(404).json({
         success: false,
         error: "Batch department not found",
+      });
+    }
+
+    // Guard: Reject assignment if batch is CLOSED
+    if (batchDepartment.batch.status === "CLOSED") {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot assign students to a closed batch. Please open the batch first.",
       });
     }
 
@@ -1875,13 +1887,14 @@ export const bulkAssignToClass = async (req: Request, res: Response) => {
       });
     }
 
-    // Get the class with its department info
+    // Get the class with its department and batch info
     const classInfo = await prisma.class.findUnique({
       where: { id: parseInt(classId) },
       include: {
         batchDepartment: {
           include: {
             department: true,
+            batch: true,
           },
         },
       },
@@ -1891,6 +1904,14 @@ export const bulkAssignToClass = async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: "Class not found",
+      });
+    }
+
+    // Guard: Reject assignment if batch is CLOSED
+    if (classInfo.batchDepartment.batch.status === "CLOSED") {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot assign students to a closed batch. Please open the batch first.",
       });
     }
 
