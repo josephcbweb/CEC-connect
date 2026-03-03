@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { NotificationTargetType, NotificationPriority, NotificationStatus, Program } from "../generated/prisma/enums";
 import { logAudit } from "../utils/auditLogger";
+import { sendPushNotification } from "../services/pushNotificationService";
 // import { RequestStatus } from "@prisma/client";
 
 const BUS_FEE_KEY = "BUS_FEE_ENABLED";
@@ -796,8 +797,24 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
         totalStudentsBilled,
         totalSkipped,
         processedBatches: processedBatchNames,
+        _notificationsData: notificationsData, // carry out for FCM push
       };
     });
+
+    // Fire FCM pushes AFTER the transaction commits
+    if (result._notificationsData && result._notificationsData.length > 0) {
+      for (const n of result._notificationsData) {
+        sendPushNotification(
+          0, // no individual DB id available from createMany
+          n.targetType,
+          n.targetValue || null,
+          n.title,
+          n.description || '',
+          {},
+          n.priority,
+        ).catch((err: any) => console.error('Async push error (bus bulk):', err));
+      }
+    }
 
     res.status(201).json({
       message: `Assigned fees to ${result.totalStudentsBilled} students across ${result.processedBatches.length} batch(es). ${result.totalSkipped} student(s) skipped (already billed).`,
@@ -1227,8 +1244,21 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
         },
       });
 
-      return updatedRequest;
+      return { ...updatedRequest, _pushData: { ...notificationData, targetValue: request.studentId.toString() } };
     });
+
+    // Fire FCM push AFTER the transaction commits
+    if (result._pushData) {
+      sendPushNotification(
+        0,
+        'STUDENT' as any,
+        result._pushData.targetValue,
+        result._pushData.title,
+        result._pushData.description || '',
+        {},
+        result._pushData.priority,
+      ).catch((err: any) => console.error('Async push error (bus request):', err));
+    }
 
     logAudit({
       req,
@@ -1315,10 +1345,12 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
         : 'the assigned bus';
       const stopInfo = updatedStudent.busStop?.stopName || 'your stop';
 
+      const busActivatedDesc = `Your bus service has been successfully activated! You can now use ${busInfo} from ${stopInfo} until the end of ${semesterText}. Have a safe journey!`;
+
       await tx.notification.create({
         data: {
           title: "Bus Service Activated",
-          description: `Your bus service has been successfully activated! You can now use ${busInfo} from ${stopInfo} until the end of ${semesterText}. Have a safe journey!`,
+          description: busActivatedDesc,
           targetType: "STUDENT",
           targetValue: invoice.studentId.toString(),
           priority: "IMPORTANT",
@@ -1328,8 +1360,21 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
         }
       });
 
-      return { invoice, updatedStudent };
+      return { invoice, updatedStudent, _pushData: { title: "Bus Service Activated", description: busActivatedDesc, targetValue: invoice.studentId.toString(), priority: "IMPORTANT" as any } };
     });
+
+    // Fire FCM push AFTER the transaction commits
+    if (result._pushData) {
+      sendPushNotification(
+        0,
+        'STUDENT' as any,
+        result._pushData.targetValue,
+        result._pushData.title,
+        result._pushData.description,
+        {},
+        result._pushData.priority,
+      ).catch((err: any) => console.error('Async push error (bus verify):', err));
+    }
 
     logAudit({
       req,

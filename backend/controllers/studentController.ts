@@ -91,9 +91,18 @@ export const getStudentProfile = async (req: Request, res: Response) => {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
-        department: true, //to get department name
+        department: {
+          include: {
+            hodDetails: {
+              include: {
+                user: true
+              }
+            }
+          }
+        }, //to get department name and HOD
         bus: true,
         busStop: true,
+        users: true, // Advisor details (relation name 'users' in schema)
       },
     });
     if (!student) {
@@ -303,6 +312,11 @@ export const getStudentProfile = async (req: Request, res: Response) => {
           }))?.createdAt || null,
         }
         : null,
+      
+      // Key Contacts
+      advisorName: student.users?.username || "Not Assigned",
+      hodName: student.department?.hodDetails?.user?.username || "Not Assigned",
+
       pendingBusRequest: pendingBusRequest
         ? {
           id: pendingBusRequest.id,

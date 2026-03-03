@@ -32,17 +32,24 @@ export const Landing: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
+  const [departmentsLoading, setDepartmentsLoading] = useState<boolean>(true);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+
+  const fetchDepartments = async () => {
+    setDepartmentsLoading(true);
+    setDepartmentsError(null);
+    try {
+      const response = await axios.get(`${API_URL}/api/departments`);
+      setDepartments(response.data);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      setDepartmentsError("Failed to load programs. Please try again.");
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/departments`);
-        setDepartments(response.data);
-      } catch (error) {
-        console.error("Error fetching departments:", error);
-      }
-    };
-
     fetchDepartments();
   }, []);
 
@@ -370,13 +377,13 @@ export const Landing: React.FC = () => {
               ))}
               <div className="pt-4 border-t border-gray-200 space-y-3">
                 <Link
-                  to="/student-login"
+                  to="/studentlogin"
                   className="block w-full text-center px-4 py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm font-light rounded-full hover:from-blue-700 hover:to-teal-700 transition-all duration-300"
                 >
                   STUDENT LOGIN
                 </Link>
                 <Link
-                  to="/admin-login"
+                  to="/signup"
                   className="block w-full text-center px-4 py-2.5 border border-blue-600 text-blue-600 text-sm font-light rounded-full hover:bg-blue-600 hover:text-white transition-all duration-300"
                 >
                   ADMIN LOGIN
@@ -601,7 +608,26 @@ export const Landing: React.FC = () => {
           </div>
 
           <div className="max-w-5xl mx-auto space-y-6">
-            {availablePrograms.length === 0 ? (
+            {departmentsLoading ? (
+              <div className="text-center py-10">
+                <div className="inline-flex items-center space-x-3">
+                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-gray-500 font-light">
+                    Loading programs...
+                  </span>
+                </div>
+              </div>
+            ) : departmentsError ? (
+              <div className="text-center py-10">
+                <p className="text-gray-500 mb-4">{departmentsError}</p>
+                <button
+                  onClick={fetchDepartments}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-full hover:from-blue-700 hover:to-teal-700 transition-all duration-300 text-sm font-medium"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : availablePrograms.length === 0 ? (
               <div className="text-center text-gray-500 py-10 opacity-0 translate-y-8 animate-in">
                 No active programs found.
               </div>
@@ -767,7 +793,7 @@ export const Landing: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <Link
-                to="/student-login"
+                to="/studentlogin"
                 className="group px-14 py-5 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-2xl hover:from-blue-600 hover:to-teal-600 transition-all duration-500 text-lg font-semibold shadow-2xl hover:shadow-blue-500/40 transform hover:scale-105"
               >
                 <span className="flex items-center">
@@ -778,7 +804,7 @@ export const Landing: React.FC = () => {
                 </span>
               </Link>
               <Link
-                to="/admin-login"
+                to="/signup"
                 className="px-14 py-5 border-2 border-white/30 text-white rounded-2xl hover:bg-white hover:text-gray-900 transition-all duration-500 text-lg font-light backdrop-blur-sm transform hover:scale-105"
               >
                 Admin Portal

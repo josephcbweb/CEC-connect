@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { format } from "path";
+import { createAndPushNotification } from "../services/pushNotificationService";
 
 export const toggleSettings = async (req: Request, res: Response) => {
   try {
@@ -14,15 +15,13 @@ export const toggleSettings = async (req: Request, res: Response) => {
     // If activating noDueRequest, send notification to all students
     if (name === "noDueRequestEnabled" && value === true) {
       const adminUser = await prisma.user.findFirst();
-      await prisma.notification.create({
-        data: {
-          title: "Semester Registration Open",
-          description: "No Due requests for the upcoming semester registration are now being accepted. Please visit the Semester Registration page to view your status.",
-          targetType: "ALL",
-          status: "published",
-          priority: "NORMAL",
-          senderId: adminUser?.id || 1
-        }
+      await createAndPushNotification({
+        title: "Semester Registration Open",
+        description: "No Due requests for the upcoming semester registration are now being accepted. Please visit the Semester Registration page to view your status.",
+        targetType: "ALL",
+        status: "published",
+        priority: "NORMAL",
+        senderId: adminUser?.id || 1
       });
 
       // Handle Reactivation of archived requests if selected
@@ -57,15 +56,13 @@ export const toggleSettings = async (req: Request, res: Response) => {
     // If disabling noDueRequest, handle pending requests based on `action`
     if (name === "noDueRequestEnabled" && value === false) {
       const adminUser = await prisma.user.findFirst();
-      await prisma.notification.create({
-        data: {
-          title: "No Due Status Hidden",
-          description: "The No Due clearance period has concluded. Your No Due status is currently hidden.",
-          targetType: "ALL",
-          status: "published",
-          priority: "NORMAL",
-          senderId: adminUser?.id || 1,
-        },
+      await createAndPushNotification({
+        title: "No Due Status Hidden",
+        description: "The No Due clearance period has concluded. Your No Due status is currently hidden.",
+        targetType: "ALL",
+        status: "published",
+        priority: "NORMAL",
+        senderId: adminUser?.id || 1,
       });
 
       if (action === "CLEAR") {

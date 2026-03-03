@@ -25,7 +25,7 @@ import {
   getBusFineSettings,
   updateBusFineSettings,
   updateBusDriver
-} from "../Controllers/busController";
+} from "../controllers/busController";
 
 const router = express.Router();
 
