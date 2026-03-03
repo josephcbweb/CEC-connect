@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 
-const BASE_TITLE = "CEC Connect";
+const BASE_TITLE = "Acads";
 
 /**
  * Sets the document title for the current page.
- * Appends the base title: "Page | CEC Connect"
+ * Appends the base title: "Page | Acads"
  */
 export function usePageTitle(title?: string) {
   useEffect(() => {

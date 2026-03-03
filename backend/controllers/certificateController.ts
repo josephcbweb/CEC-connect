@@ -5,6 +5,7 @@ import { certificateTemplates } from "./certificateTemplates";
 import { prisma } from "../lib/prisma";
 import { verifyToken } from "../utils/jwt";
 import { createAndPushNotification } from "../services/pushNotificationService";
+import { logAudit } from "../utils/auditLogger";
 
 // ============ NEW: Notification Helper Function ============
 const createCertificateNotification = async (
@@ -313,6 +314,21 @@ export const certificateController = {
           workflowStatus: "WITH_ADVISOR",
           advisorId: student.class.advisorId,
         },
+      });
+
+      // Log audit event for submission
+      logAudit({
+        req,
+        action: "SUBMIT_CERTIFICATE_REQUEST",
+        module: "certificate",
+        entityType: "Certificate",
+        entityId: certificate.id,
+        details: {
+          studentId: parseInt(studentId),
+          type,
+          reason,
+        },
+        userId: null, // Passed as null for students (not in User table)
       });
 
       // Create initial approval record
@@ -980,6 +996,23 @@ export const certificateController = {
         },
       });
 
+      // Log audit event for processing
+      logAudit({
+        req,
+        action: action === "REJECT" ? "REJECT_CERTIFICATE" :
+          action === "FORWARD" ? (updatedCertificate.status === "APPROVED" ? "APPROVE_CERTIFICATE" : "FORWARD_CERTIFICATE") :
+            `${action}_CERTIFICATE`,
+        module: "certificate",
+        entityType: "Certificate",
+        entityId: updatedCertificate.id,
+        details: {
+          role,
+          action,
+          remarks,
+          workflowStatus: updatedCertificate.workflowStatus,
+        },
+      });
+
       console.log("Certificate updated successfully:", {
         id: updatedCertificate.id,
         workflowStatus: updatedCertificate.workflowStatus,
@@ -1047,6 +1080,19 @@ export const certificateController = {
       );
       // ============ END NEW NOTIFICATION ============
 
+      // Log audit event for generation
+      logAudit({
+        req,
+        action: "GENERATE_CERTIFICATE",
+        module: "certificate",
+        entityType: "Certificate",
+        entityId: updatedCertificate.id,
+        details: {
+          type: certificate.type,
+          studentId: certificate.student.id,
+        },
+      });
+
       res.json(updatedCertificate);
     } catch (error) {
       console.error("Generate error:", error);
@@ -1081,6 +1127,19 @@ export const certificateController = {
         return res.status(404).json({ error: "Certificate not found" });
       }
 
+      // Log audit event for download
+      logAudit({
+        req,
+        action: "DOWNLOAD_CERTIFICATE",
+        module: "certificate",
+        entityType: "Certificate",
+        entityId: certificate.id,
+        details: {
+          type: certificate.type,
+          studentName: certificate.student.name,
+        },
+      });
+
       if (certificate.status !== "GENERATED") {
         return res.status(400).json({ error: "Certificate not generated yet" });
       }
@@ -1101,7 +1160,7 @@ export const certificateController = {
 
       const templateFunction =
         certificateTemplates[
-          certificate.type as keyof typeof certificateTemplates
+        certificate.type as keyof typeof certificateTemplates
         ];
       if (!templateFunction) {
         return res.status(400).json({ error: "Invalid certificate type" });
