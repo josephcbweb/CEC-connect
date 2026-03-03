@@ -445,3 +445,48 @@ export const addDepartmentToBatch = async (req: Request, res: Response) => {
         });
     }
 };
+
+/**
+ * Toggle batch status between OPEN and CLOSED
+ */
+export const toggleBatchStatus = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!status || !["OPEN", "CLOSED"].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid status. Must be OPEN or CLOSED.",
+            });
+        }
+
+        const batch = await prisma.batch.findUnique({
+            where: { id: parseInt(id) },
+        });
+
+        if (!batch) {
+            return res.status(404).json({
+                success: false,
+                error: "Batch not found",
+            });
+        }
+
+        const updatedBatch = await prisma.batch.update({
+            where: { id: parseInt(id) },
+            data: { status },
+        });
+
+        res.json({
+            success: true,
+            message: `Batch status updated to ${status}`,
+            data: updatedBatch,
+        });
+    } catch (error) {
+        console.error("Error updating batch status:", error);
+        res.status(500).json({
+            success: false,
+            error: "Failed to update batch status",
+        });
+    }
+};

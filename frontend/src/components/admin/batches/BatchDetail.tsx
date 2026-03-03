@@ -11,6 +11,8 @@ import {
   Trash2,
   Calendar,
   Building,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 interface Advisor {
@@ -61,6 +63,7 @@ const BatchDetail = () => {
   const [batch, setBatch] = useState<Batch | null>(null);
   const [loading, setLoading] = useState(true);
   const [availableAdvisors, setAvailableAdvisors] = useState<Advisor[]>([]);
+  const [togglingStatus, setTogglingStatus] = useState(false);
 
   // Add class modal state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -71,6 +74,10 @@ const BatchDetail = () => {
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Status toggle modal state
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string>("");
 
   useEffect(() => {
     fetchBatchDetails();
@@ -196,13 +203,43 @@ const BatchDetail = () => {
     }
   };
 
+  const handleToggleStatus = (newStatus: string) => {
+    setPendingStatus(newStatus);
+    setShowStatusModal(true);
+  };
+
+  const confirmToggleStatus = async () => {
+    if (!batch || !pendingStatus) return;
+
+    setTogglingStatus(true);
+    setShowStatusModal(false);
+    try {
+      const response = await fetch(`${API_BASE}/api/batches/${batch.id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: pendingStatus }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setBatch({ ...batch, status: pendingStatus });
+      } else {
+        alert(data.error || "Failed to update batch status");
+      }
+    } catch (error) {
+      console.error("Failed to toggle batch status:", error);
+      alert("Failed to update batch status");
+    } finally {
+      setTogglingStatus(false);
+      setPendingStatus("");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      UPCOMING: "bg-yellow-100 text-yellow-700",
-      ACTIVE: "bg-green-100 text-green-700",
-      GRADUATED: "bg-gray-100 text-gray-600",
+      OPEN: "bg-green-100 text-green-700",
+      CLOSED: "bg-red-100 text-red-700",
     };
-    return styles[status] || styles.GRADUATED;
+    return styles[status] || styles.CLOSED;
   };
 
   if (loading) {
@@ -250,10 +287,15 @@ const BatchDetail = () => {
                 </span>
               )}
               <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(
+                className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 ${getStatusBadge(
                   batch.status,
                 )}`}
               >
+                {batch.status === "OPEN" ? (
+                  <Unlock className="w-3.5 h-3.5" />
+                ) : (
+                  <Lock className="w-3.5 h-3.5" />
+                )}
                 {batch.status}
               </span>
             </div>
@@ -264,25 +306,56 @@ const BatchDetail = () => {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-6 text-sm">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-indigo-600">
-                {batch.batchDepartments.length}
+          <div className="flex items-center gap-4">
+            {/* Toggle Status Button */}
+            <button
+              onClick={() => handleToggleStatus(batch.status === "OPEN" ? "CLOSED" : "OPEN")}
+              disabled={togglingStatus}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${batch.status === "OPEN"
+                  ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                  : "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+                }`}
+            >
+              {togglingStatus ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : batch.status === "OPEN" ? (
+                <Lock className="w-4 h-4" />
+              ) : (
+                <Unlock className="w-4 h-4" />
+              )}
+              {batch.status === "OPEN" ? "Close Batch" : "Open Batch"}
+            </button>
+            <div className="flex items-center gap-6 text-sm">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600">
+                  {batch.batchDepartments.length}
+                </div>
+                <div className="text-gray-500">Departments</div>
               </div>
-              <div className="text-gray-500">Departments</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {batch.batchDepartments.reduce(
-                  (acc, bd) => acc + bd.classes.length,
-                  0,
-                )}
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {batch.batchDepartments.reduce(
+                    (acc, bd) => acc + bd.classes.length,
+                    0,
+                  )}
+                </div>
+                <div className="text-gray-500">Classes</div>
               </div>
-              <div className="text-gray-500">Classes</div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Closed Batch Warning Banner */}
+      {batch.status === "CLOSED" && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+          <Lock className="w-5 h-5 text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-700">
+            This batch is <strong>closed</strong>. Students cannot be added to classes in this batch.
+            Click "Open Batch" to allow student assignments again.
+          </p>
+        </div>
+      )}
 
       {/* Department Sections */}
       <div className="space-y-6">
@@ -492,10 +565,49 @@ const BatchDetail = () => {
               <button
                 onClick={handleSubmitClass}
                 disabled={submitting || !suffix.trim()}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center gap-2"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 Create Class
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Status Toggle */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className={`px-6 py-6 text-center ${pendingStatus === "CLOSED" ? "bg-red-50" : "bg-green-50"}`}>
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${pendingStatus === "CLOSED" ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
+                {pendingStatus === "CLOSED" ? <Lock className="w-8 h-8" /> : <Unlock className="w-8 h-8" />}
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                {pendingStatus === "CLOSED" ? "Close Batch?" : "Open Batch?"}
+              </h2>
+              <p className="text-gray-600 text-sm leading-relaxed px-2">
+                {pendingStatus === "CLOSED"
+                  ? "Closing this batch will prevent new student assignments to its classes. You can reopen it at any time."
+                  : "Opening this batch will allow new student assignments to its classes."}
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t flex items-center justify-center gap-3">
+              <button
+                onClick={() => {
+                  setShowStatusModal(false);
+                  setPendingStatus("");
+                }}
+                className="flex-1 px-4 py-2 text-gray-600 hover:text-gray-800 font-medium border border-gray-300 rounded-lg bg-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmToggleStatus}
+                className={`flex-1 px-4 py-2 text-white font-medium rounded-lg transition-all ${pendingStatus === "CLOSED" ? "bg-red-600 hover:bg-red-700 shadow-red-100 shadow-lg" : "bg-green-600 hover:bg-green-700 shadow-green-100 shadow-lg"
+                  }`}
+              >
+                Confirm
               </button>
             </div>
           </div>

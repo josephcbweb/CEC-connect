@@ -79,9 +79,8 @@ const STATUS_COLORS: Record<string, string> = {
   active: "#10b981",
   inactive: "#94a3b8",
   suspended: "#ef4444",
-  ACTIVE: "#10b981",
-  UPCOMING: "#0ea5e9",
-  GRADUATED: "#8b5cf6",
+  OPEN: "#10b981",
+  CLOSED: "#ef4444",
   PENDING: "#f59e0b",
   SENT: "#10b981",
   FAILED: "#ef4444",
@@ -224,19 +223,19 @@ const SECTION_TABS: {
   label: string;
   icon: React.ElementType;
 }[] = [
-  { key: "overview", label: "Overview", icon: BarChart3 },
-  { key: "students", label: "Students", icon: Users },
-  { key: "fees", label: "Fee & Revenue", icon: IndianRupee },
-  { key: "departments", label: "Departments", icon: Building },
-  { key: "bus", label: "College Bus", icon: Bus },
-  { key: "hostel", label: "Hostel", icon: Bed },
-  { key: "certificates", label: "Certificates", icon: FileText },
-  { key: "dues", label: "Due Management", icon: CheckCircle },
-  { key: "courses", label: "Courses", icon: BookOpen },
-  { key: "staff", label: "Staff & Roles", icon: UserCog },
-  { key: "notifications", label: "Notifications", icon: Bell },
-  { key: "batches", label: "Batches", icon: LayoutGrid },
-];
+    { key: "overview", label: "Overview", icon: BarChart3 },
+    { key: "students", label: "Students", icon: Users },
+    { key: "fees", label: "Fee & Revenue", icon: IndianRupee },
+    { key: "departments", label: "Departments", icon: Building },
+    { key: "bus", label: "College Bus", icon: Bus },
+    { key: "hostel", label: "Hostel", icon: Bed },
+    { key: "certificates", label: "Certificates", icon: FileText },
+    { key: "dues", label: "Due Management", icon: CheckCircle },
+    { key: "courses", label: "Courses", icon: BookOpen },
+    { key: "staff", label: "Staff & Roles", icon: UserCog },
+    { key: "notifications", label: "Notifications", icon: Bell },
+    { key: "batches", label: "Batches", icon: LayoutGrid },
+  ];
 
 // ─── Utility Components ──────────────────────────────────────────────────────
 const StatCard = ({
@@ -255,36 +254,36 @@ const StatCard = ({
   trend?: { value: number; label: string };
 }) => {
   const colorMap: Record<string, { bg: string; text: string; iconBg: string }> =
-    {
-      teal: { bg: "bg-teal-50", text: "text-teal-700", iconBg: "bg-teal-100" },
-      blue: { bg: "bg-blue-50", text: "text-blue-700", iconBg: "bg-blue-100" },
-      purple: {
-        bg: "bg-purple-50",
-        text: "text-purple-700",
-        iconBg: "bg-purple-100",
-      },
-      amber: {
-        bg: "bg-amber-50",
-        text: "text-amber-700",
-        iconBg: "bg-amber-100",
-      },
-      rose: { bg: "bg-rose-50", text: "text-rose-700", iconBg: "bg-rose-100" },
-      emerald: {
-        bg: "bg-emerald-50",
-        text: "text-emerald-700",
-        iconBg: "bg-emerald-100",
-      },
-      slate: {
-        bg: "bg-slate-50",
-        text: "text-slate-700",
-        iconBg: "bg-slate-100",
-      },
-      indigo: {
-        bg: "bg-indigo-50",
-        text: "text-indigo-700",
-        iconBg: "bg-indigo-100",
-      },
-    };
+  {
+    teal: { bg: "bg-teal-50", text: "text-teal-700", iconBg: "bg-teal-100" },
+    blue: { bg: "bg-blue-50", text: "text-blue-700", iconBg: "bg-blue-100" },
+    purple: {
+      bg: "bg-purple-50",
+      text: "text-purple-700",
+      iconBg: "bg-purple-100",
+    },
+    amber: {
+      bg: "bg-amber-50",
+      text: "text-amber-700",
+      iconBg: "bg-amber-100",
+    },
+    rose: { bg: "bg-rose-50", text: "text-rose-700", iconBg: "bg-rose-100" },
+    emerald: {
+      bg: "bg-emerald-50",
+      text: "text-emerald-700",
+      iconBg: "bg-emerald-100",
+    },
+    slate: {
+      bg: "bg-slate-50",
+      text: "text-slate-700",
+      iconBg: "bg-slate-100",
+    },
+    indigo: {
+      bg: "bg-indigo-50",
+      text: "text-indigo-700",
+      iconBg: "bg-indigo-100",
+    },
+  };
   const c = colorMap[color] || colorMap.teal;
 
   return (
@@ -674,8 +673,8 @@ const AnalyticsPage: React.FC = () => {
                   <span className="font-semibold text-slate-700">
                     {data.bus.totalSeats > 0
                       ? Math.round(
-                          (data.bus.totalOccupied / data.bus.totalSeats) * 100,
-                        )
+                        (data.bus.totalOccupied / data.bus.totalSeats) * 100,
+                      )
                       : 0}
                     %
                   </span>
@@ -1341,7 +1340,7 @@ const AnalyticsPage: React.FC = () => {
                   max={data.certificates.total}
                   color={
                     COLORS[
-                      data.certificates.byWorkflow.indexOf(w) % COLORS.length
+                    data.certificates.byWorkflow.indexOf(w) % COLORS.length
                     ]
                   }
                 />
@@ -1693,21 +1692,21 @@ const AnalyticsPage: React.FC = () => {
           color="indigo"
         />
         <StatCard
-          title="Active"
+          title="Open"
           value={
-            data.batches.byStatus.find((b) => b.status === "ACTIVE")?.count || 0
+            data.batches.byStatus.find((b) => b.status === "OPEN")?.count || 0
           }
           icon={CheckCircle}
           color="emerald"
         />
         <StatCard
-          title="Upcoming"
+          title="Closed"
           value={
-            data.batches.byStatus.find((b) => b.status === "UPCOMING")?.count ||
+            data.batches.byStatus.find((b) => b.status === "CLOSED")?.count ||
             0
           }
           icon={Clock}
-          color="blue"
+          color="red"
         />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1815,11 +1814,10 @@ const AnalyticsPage: React.FC = () => {
               <button
                 key={tab.key}
                 onClick={() => setActiveSection(tab.key)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${
-                  activeSection === tab.key
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${activeSection === tab.key
                     ? "bg-teal-50 text-teal-700"
                     : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}

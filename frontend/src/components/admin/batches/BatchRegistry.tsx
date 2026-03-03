@@ -25,7 +25,7 @@ interface Batch {
   name: string;
   startYear: number;
   endYear: number;
-  status: "UPCOMING" | "ACTIVE" | "GRADUATED";
+  status: "OPEN" | "CLOSED";
   batchDepartments: BatchDepartment[];
   departmentCount: number;
   classCount: number;
@@ -62,11 +62,10 @@ const BatchRegistry = () => {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      UPCOMING: "bg-amber-50 text-amber-700 border-amber-200",
-      ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-      GRADUATED: "bg-slate-50 text-slate-600 border-slate-200",
+      OPEN: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      CLOSED: "bg-red-50 text-red-700 border-red-200",
     };
-    return styles[status] || styles.GRADUATED;
+    return styles[status] || styles.CLOSED;
   };
 
   if (loading) {
@@ -113,7 +112,7 @@ const BatchRegistry = () => {
                 Active Batches
               </div>
               <div className="text-2xl font-semibold text-slate-900">
-                {batches.filter((b) => b.status === "ACTIVE").length}
+                {batches.filter((b) => b.status === "OPEN").length}
               </div>
             </div>
             <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">

@@ -570,7 +570,7 @@ model Batch {
   name              String             @unique
   startYear         Int                @map("start_year")
   endYear           Int                @map("end_year")
-  status            BatchStatus        @default(UPCOMING)
+  status            BatchStatus        @default(OPEN)
   createdAt         DateTime           @default(now()) @map("created_at")
   admissionWindow   AdmissionWindow?
   batchDepartments  BatchDepartment[]
@@ -669,9 +669,8 @@ model EmailQueue {
 }
 
 enum BatchStatus {
-  UPCOMING
-  ACTIVE
-  GRADUATED
+  OPEN
+  CLOSED
 }
 
 enum DepartmentStatus {
