@@ -178,6 +178,143 @@ export const initCronJobs = () => {
     }
   });
 
+  // --- Daily Bus Fee Due Date Reminder ---
+  // Runs every day at 12:07 AM
+  cron.schedule("7 0 * * *", async () => {
+    console.log("[CRON] Running Bus Fee Due Date Reminder check...");
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Find students who have an unpaid bus invoice DUE TOMORROW
+      const overdueStudents = await prisma.student.findMany({
+        where: {
+          bus_service: true,
+          invoices: {
+            some: {
+              status: InvoiceStatus.unpaid,
+              dueDate: tomorrow,
+              fee: { feeType: { contains: "Bus Fee", mode: "insensitive" } }
+            }
+          }
+        }
+      });
+
+      const adminUser = await prisma.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+
+      for (const student of overdueStudents) {
+        await prisma.notification.create({
+          data: {
+            title: "Fee Due Date Reminder",
+            description: "Tomorrow is the last date for paying bus fees without fine.",
+            targetType: "STUDENT",
+            targetValue: student.id.toString(),
+            priority: "IMPORTANT",
+            status: "published",
+            expiryDate: new Date(new Date().setDate(new Date().getDate() + 2)),
+            senderId: senderId,
+          }
+        });
+        console.log(`[CRON] Sent due date reminder to student ${student.id}`);
+      }
+    } catch (error) {
+      console.error("[CRON] Error during Bus Fee Due Date Reminder check:", error);
+    }
+  });
+
+  // --- Daily Bus Fee Reminder ---
+  // Runs every day at 12:08 AM
+  cron.schedule("8 0 * * *", async () => {
+    console.log("[CRON] Running Bus Fee Payment Reminder check...");
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // We look for students who are about to be expelled TOMORROW
+      const overdueStudents = await prisma.student.findMany({
+        where: {
+          bus_service: true,
+          invoices: {
+            some: {
+              status: InvoiceStatus.unpaid,
+              dueDate: { lt: today },
+              fee: { feeType: { contains: "Bus Fee", mode: "insensitive" } }
+            }
+          }
+        },
+        include: {
+          invoices: {
+            where: {
+              status: InvoiceStatus.unpaid,
+              dueDate: { lt: today },
+              fee: { feeType: { contains: "Bus Fee", mode: "insensitive" } }
+            },
+            include: {
+              FeeStructure: { include: { fineSlabs: true } }
+            }
+          }
+        }
+      });
+
+      const adminUser = await prisma.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+
+      for (const student of overdueStudents) {
+        for (const invoice of student.invoices) {
+          const slabs = invoice.FeeStructure?.fineSlabs || [];
+          let maxFineDays = slabs.length > 0 ? 0 : 5;
+
+          if (slabs.length > 0) {
+            let hasInfiniteSlab = false;
+            let highestExplicitDay = 0;
+            for (const slab of slabs) {
+              if (slab.endDay === null) {
+                hasInfiniteSlab = true;
+                highestExplicitDay = Math.max(highestExplicitDay, slab.startDay);
+              } else {
+                highestExplicitDay = Math.max(highestExplicitDay, slab.endDay);
+              }
+            }
+            maxFineDays = hasInfiniteSlab ? highestExplicitDay + 30 : highestExplicitDay;
+          }
+
+          const dueDate = new Date(invoice.dueDate);
+          dueDate.setHours(0, 0, 0, 0);
+
+          const expirationDate = new Date(dueDate);
+          expirationDate.setDate(expirationDate.getDate() + maxFineDays);
+
+          // If expiration is TOMORROW, then TODAY is the second last day
+          if (expirationDate.getTime() === tomorrow.getTime()) {
+            await prisma.notification.create({
+              data: {
+                title: "Final Bus Fee Reminder",
+                description: "The last day of paying the bus fees is tomorrow and if not paid the pass will be suspended.",
+                targetType: "STUDENT",
+                targetValue: student.id.toString(),
+                priority: "URGENT",
+                status: "published",
+                expiryDate: new Date(new Date().setDate(new Date().getDate() + 2)),
+                senderId: senderId,
+              }
+            });
+            console.log(`[CRON] Sent final reminder to student ${student.id} for invoice ${invoice.id}`);
+            break; // One reminder per student is enough
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[CRON] Error during Bus Fee Reminder check:", error);
+    }
+  });
+
   // --- Daily Bus Non-Payment Auto-Expulsion ---
   // Runs every day at 12:10 AM
   cron.schedule("10 0 * * *", async () => {
@@ -321,6 +458,6 @@ export const initCronJobs = () => {
   });
 
   console.log(
-    "Cron scheduling initialized. Daily bus auto-expulsion scheduled for 12:10 AM.",
+    "Cron scheduling initialized. Daily bus crons: Due Date Reminder (12:07 AM), Expulsion Reminder (12:08 AM), and Auto-Expulsion (12:10 AM).",
   );
 };
