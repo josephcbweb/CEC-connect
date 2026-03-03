@@ -143,13 +143,35 @@ class _AuthCheckState extends State<AuthCheck> {
 
     pushService.onNotificationTap = (Map<String, dynamic> data) {
       debugPrint('Navigating from notification tap: $data');
+
+      // Construct notification object matching API response format
+      final rawId = data['notificationId'];
+      final notifId = rawId != null ? (int.tryParse(rawId.toString()) ?? 0) : 0;
+      final bodyText = data['body']?.toString() ?? '';
+
+      final notification = {
+        'id': notifId,
+        'title': data['title']?.toString() ?? 'New Notification',
+        'description': bodyText, // API returns 'description' for message body
+        'message': bodyText, // Fallback for older screen code
+        'priority': data['priority']?.toString() ?? 'NORMAL',
+        'createdAt': DateTime.now().toIso8601String(),
+        'status': 'published',
+        'targetType': data['type']?.toString() ?? 'ALL',
+      };
+
+      debugPrint('Constructed notification payload: $notification');
+
       final nav = navigatorKey.currentState;
       if (nav != null) {
         nav.push(
           MaterialPageRoute(
-            builder: (_) => const NotificationScreen(),
+            builder: (_) =>
+                NotificationScreen(initialNotification: notification),
           ),
         );
+      } else {
+        debugPrint('Navigator not available for notification tap');
       }
     };
 

@@ -218,6 +218,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _buildPersonalDetailsCard(student),
                               const SizedBox(height: 24),
 
+                              _buildSectionTitle('Academic Contacts'),
+                              const SizedBox(height: 12),
+                              _buildContactsCard(student),
+                              const SizedBox(height: 24),
+
                               // 4. Transport Section
                               if (student['busDetails'] != null) ...[
                                 _buildSectionTitle('Transport Details'),
@@ -411,6 +416,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
         fontSize: 18,
         fontWeight: FontWeight.bold,
         color: Colors.black87,
+      ),
+    );
+  }
+
+  Widget _buildContactsCard(Map<String, dynamic> student) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+      ),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            _buildDetailRow(
+              Icons.perm_identity_rounded,
+              'Staff Advisor',
+              student['advisorName'] ?? 'Not Assigned',
+              Colors.indigo,
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1),
+            ),
+            _buildDetailRow(
+              Icons.school_rounded,
+              'Head of Dept (HOD)',
+              student['hodName'] ?? 'Not Assigned',
+              Colors.teal,
+            ),
+          ],
+        ),
       ),
     );
   }
