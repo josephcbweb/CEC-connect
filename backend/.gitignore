@@ -8,4 +8,4 @@ node_modules
 /.agent
 /generated/prisma
 
-backend/serviceAccountKey.json
+serviceAccountKey.json
