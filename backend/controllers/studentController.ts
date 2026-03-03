@@ -102,7 +102,12 @@ export const getStudentProfile = async (req: Request, res: Response) => {
         }, //to get department name and HOD
         bus: true,
         busStop: true,
-        users: true, // Advisor details (relation name 'users' in schema)
+        users: true, // Direct advisor (Student.advisorId → User)
+        class: {
+          include: {
+            advisor: true, // Class advisor (Class.advisorId → User)
+          },
+        },
       },
     });
     if (!student) {
@@ -314,7 +319,7 @@ export const getStudentProfile = async (req: Request, res: Response) => {
         : null,
       
       // Key Contacts
-      advisorName: student.users?.username || "Not Assigned",
+      advisorName: student.class?.advisor?.username || student.users?.username || "Not Assigned",
       hodName: student.department?.hodDetails?.user?.username || "Not Assigned",
 
       pendingBusRequest: pendingBusRequest
