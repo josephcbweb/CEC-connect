@@ -6,7 +6,12 @@ import 'services/push_notification_service.dart';
 import 'services/api_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/notification_screen.dart';
 import 'components/app_loader.dart';
+
+/// Global navigator key so we can navigate from notification taps without
+/// needing a BuildContext.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +32,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ACADS Student',
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
@@ -100,6 +106,9 @@ class _AuthCheckState extends State<AuthCheck> {
             // Register FCM Token (refresh it)
             PushNotificationService().registerToken();
 
+            // Wire up notification tap → navigate to NotificationScreen
+            _setupNotificationNavigation();
+
             setState(() {
               _startScreen = DashboardScreen(userId: userIdInt!);
             });
@@ -123,6 +132,56 @@ class _AuthCheckState extends State<AuthCheck> {
     } finally {
       setState(() {
         _isLoading = false;
+      });
+    }
+  }
+
+  /// Registers the notification tap callback and processes any pending payload
+  /// that arrived while the app was being initialised.
+  void _setupNotificationNavigation() {
+    final pushService = PushNotificationService();
+
+    pushService.onNotificationTap = (Map<String, dynamic> data) {
+      debugPrint('Navigating from notification tap: $data');
+
+      // Construct notification object matching API response format
+      final rawId = data['notificationId'];
+      final notifId = rawId != null ? (int.tryParse(rawId.toString()) ?? 0) : 0;
+      final bodyText = data['body']?.toString() ?? '';
+
+      final notification = {
+        'id': notifId,
+        'title': data['title']?.toString() ?? 'New Notification',
+        'description': bodyText, // API returns 'description' for message body
+        'message': bodyText, // Fallback for older screen code
+        'priority': data['priority']?.toString() ?? 'NORMAL',
+        'createdAt': DateTime.now().toIso8601String(),
+        'status': 'published',
+        'targetType': data['type']?.toString() ?? 'ALL',
+      };
+
+      debugPrint('Constructed notification payload: $notification');
+
+      final nav = navigatorKey.currentState;
+      if (nav != null) {
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) =>
+                NotificationScreen(initialNotification: notification),
+          ),
+        );
+      } else {
+        debugPrint('Navigator not available for notification tap');
+      }
+    };
+
+    // If a notification tap arrived before we set the callback, handle it now
+    if (pushService.pendingNotificationPayload != null) {
+      final pending = pushService.pendingNotificationPayload!;
+      pushService.pendingNotificationPayload = null;
+      // Use addPostFrameCallback to ensure the navigator is mounted
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        pushService.onNotificationTap?.call(pending);
       });
     }
   }

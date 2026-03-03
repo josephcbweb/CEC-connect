@@ -5,7 +5,12 @@ import '../services/api_service.dart';
 import '../components/app_loader.dart';
 
 class NotificationScreen extends StatefulWidget {
-  const NotificationScreen({super.key});
+  final Map<String, dynamic>? initialNotification;
+
+  const NotificationScreen({
+    super.key,
+    this.initialNotification,
+  });
 
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();
@@ -22,7 +27,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchNotifications();
+    if (widget.initialNotification != null) {
+      debugPrint(
+          'NotificationScreen opened with initial notification: ${widget.initialNotification}');
+      _notifications = [widget.initialNotification!];
+      _isLoading = false;
+    }
+    _fetchNotifications(silent: widget.initialNotification != null);
     // Poll API every 5 minutes for updates
     _timer = Timer.periodic(const Duration(minutes: 5), (timer) {
       _fetchNotifications(silent: true);
@@ -42,9 +53,40 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     try {
       final notifications = await _apiService.getNotifications();
+      debugPrint('Fetched ${notifications.length} notifications from API');
       if (mounted) {
         setState(() {
           _notifications = notifications;
+
+          // When opened from a push notification tap, ensure the tapped
+          // notification is always the FIRST item the user sees.
+          if (widget.initialNotification != null) {
+            final initId = widget.initialNotification!['id'];
+
+            if (initId != null && initId != 0) {
+              // Try to find the notification in the API list
+              final idx = _notifications.indexWhere((n) => n['id'] == initId);
+
+              if (idx > 0) {
+                // Found but not at top – move it to position 0
+                final item = _notifications.removeAt(idx);
+                _notifications.insert(0, item);
+                debugPrint(
+                    'Initial notification (id=$initId) moved to top from index $idx');
+              } else if (idx == -1) {
+                // Not in API response yet (race condition) – prepend local copy
+                _notifications.insert(0, widget.initialNotification!);
+                debugPrint(
+                    'Initial notification (id=$initId) not in API, prepended');
+              }
+              // idx == 0 → already at top, nothing to do
+            } else {
+              // No valid DB id (e.g. bulk push with id=0) – always prepend
+              _notifications.insert(0, widget.initialNotification!);
+              debugPrint('Initial notification (no id) prepended to list');
+            }
+          }
+
           _isLoading = false;
           _errorMessage = null;
           // Reset to show only 5 notifications when refreshing
@@ -56,11 +98,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          // If silent refresh fails, don't show full error screen, just keep old data
           if (!silent) {
             _errorMessage = "Failed to load notifications.";
             _isLoading = false;
           }
+          // Even on error, keep initialNotification visible
         });
       }
       debugPrint("Error fetching notifications: $e");
