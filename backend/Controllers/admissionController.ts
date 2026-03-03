@@ -6,6 +6,7 @@ import {
   AdmissionType,
   Program,
   RequestStatus,
+  BatchStatus,
 } from "../generated/prisma/enums";
 import { sendAdmissionConfirmation, sendAdmissionApprovalEmail } from "../services/mailService";
 import { logAudit } from "../utils/auditLogger";
@@ -732,7 +733,7 @@ export const createAdmissionWindow = async (req: Request, res: Response) => {
               name: batchName,
               startYear: Number(startYear),
               endYear: Number(endYear),
-              status: "OPEN",
+              status: BatchStatus.OPEN,
               batchDepartments: {
                 create: departmentIds.map((deptId: number) => ({
                   departmentId: Number(deptId),
@@ -1632,7 +1633,7 @@ export const getUpcomingBatches = async (req: Request, res: Response) => {
   try {
     const batches = await prisma.batch.findMany({
       where: {
-        status: "OPEN",
+        status: BatchStatus.OPEN,
       },
       include: {
         batchDepartments: {
@@ -1710,7 +1711,7 @@ export const assignStudentToClass = async (req: Request, res: Response) => {
     }
 
     // Guard: Reject assignment if batch is CLOSED
-    if (classInfo.batchDepartment.batch.status === "CLOSED") {
+    if (classInfo.batchDepartment.batch.status === BatchStatus.CLOSED) {
       return res.status(400).json({
         success: false,
         error: "Cannot assign students to a closed batch. Please open the batch first.",
@@ -1807,7 +1808,7 @@ export const autoAssignStudentsToClasses = async (
     }
 
     // Guard: Reject assignment if batch is CLOSED
-    if (batchDepartment.batch.status === "CLOSED") {
+    if (batchDepartment.batch.status === BatchStatus.CLOSED) {
       return res.status(400).json({
         success: false,
         error: "Cannot assign students to a closed batch. Please open the batch first.",
@@ -1919,7 +1920,7 @@ export const bulkAssignToClass = async (req: Request, res: Response) => {
     }
 
     // Guard: Reject assignment if batch is CLOSED
-    if (classInfo.batchDepartment.batch.status === "CLOSED") {
+    if (classInfo.batchDepartment.batch.status === BatchStatus.CLOSED) {
       return res.status(400).json({
         success: false,
         error: "Cannot assign students to a closed batch. Please open the batch first.",

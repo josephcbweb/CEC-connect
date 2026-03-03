@@ -1,6 +1,133 @@
 import { getMessaging } from '../utils/firebase';
 import { prisma } from '../lib/prisma';
-import { NotificationTargetType, NotificationPriority } from '../generated/prisma/enums';
+import { NotificationTargetType, NotificationPriority, NotificationStatus } from '../generated/prisma/enums';
+
+// ─── Helper: create a DB notification AND fire the FCM push in one call ─────
+export interface CreateNotificationInput {
+    title: string;
+    description: string;
+    targetType: NotificationTargetType | string;
+    targetValue?: string | null;
+    priority?: NotificationPriority | string;
+    status?: NotificationStatus | string;
+    expiryDate?: Date | null;
+    senderId: number;
+}
+
+/**
+ * Creates a notification row in the database and – if it is published –
+ * fires an FCM push to the matching student devices.
+ *
+ * Use this everywhere instead of calling `prisma.notification.create` +
+ * `sendPushNotification` separately.
+ */
+export const createAndPushNotification = async (input: CreateNotificationInput) => {
+    try {
+        const {
+            title,
+            description,
+            targetType,
+            targetValue = null,
+            priority = NotificationPriority.NORMAL,
+            status = NotificationStatus.published,
+            expiryDate = null,
+            senderId,
+        } = input;
+
+        const notification = await prisma.notification.create({
+            data: {
+                title,
+                description,
+                targetType: targetType as NotificationTargetType,
+                targetValue,
+                priority: priority as NotificationPriority,
+                status: status as NotificationStatus,
+                expiryDate,
+                senderId,
+            },
+        });
+
+        // Only push when the notification is published
+        if (notification.status === NotificationStatus.published) {
+            sendPushNotification(
+                notification.id,
+                notification.targetType,
+                notification.targetValue,
+                notification.title,
+                notification.description || '',
+                { notificationId: notification.id },
+                notification.priority,
+            ).catch((err) => console.error('Async push error:', err));
+        }
+
+        return notification;
+    } catch (error) {
+        console.error('Error in createAndPushNotification:', error);
+        throw error;
+    }
+};
+
+/**
+ * Same as createAndPushNotification but safe to use inside a Prisma
+ * interactive transaction – it creates the row via the provided `tx` client
+ * and queues the push to fire AFTER the transaction commits (via a returned
+ * callback).
+ *
+ * Usage:
+ *   const afterCommit = await createNotificationInTx(tx, { ... });
+ *   // … more tx work …
+ *   return result;            // transaction auto-commits here
+ *   // then call afterCommit() outside the tx block
+ *
+ * Or simply: the caller can collect the callbacks and invoke them after the
+ * transaction resolves.
+ */
+export const createNotificationInTx = async (
+    tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+    input: CreateNotificationInput,
+) => {
+    const {
+        title,
+        description,
+        targetType,
+        targetValue = null,
+        priority = NotificationPriority.NORMAL,
+        status = NotificationStatus.published,
+        expiryDate = null,
+        senderId,
+    } = input;
+
+    const notification = await (tx as any).notification.create({
+        data: {
+            title,
+            description,
+            targetType: targetType as NotificationTargetType,
+            targetValue,
+            priority: priority as NotificationPriority,
+            status: status as NotificationStatus,
+            expiryDate,
+            senderId,
+        },
+    });
+
+    // Return a callback; the caller MUST invoke it after the transaction
+    // commits so we don't send pushes for rolled-back rows.
+    const afterCommit = () => {
+        if (notification.status === NotificationStatus.published) {
+            sendPushNotification(
+                notification.id,
+                notification.targetType,
+                notification.targetValue,
+                notification.title,
+                notification.description || '',
+                { notificationId: notification.id },
+                notification.priority,
+            ).catch((err) => console.error('Async push error:', err));
+        }
+    };
+
+    return { notification, afterCommit };
+};
 
 export const sendPushNotification = async (
     notificationId: number,
@@ -117,6 +244,9 @@ export const sendPushNotification = async (
             const dataPayload: Record<string, string> = {
                 notificationId: notificationId.toString(),
                 type: targetType,
+                title: title,
+                body: body,
+                priority: priority?.toString() || 'NORMAL',
             };
             if (data) {
                 Object.entries(data).forEach(([key, value]) => {

@@ -4,6 +4,7 @@ import PDFDocument from "pdfkit";
 import { certificateTemplates } from "./certificateTemplates";
 import { prisma } from "../lib/prisma";
 import { verifyToken } from "../utils/jwt";
+import { createAndPushNotification } from "../services/pushNotificationService";
 
 // ============ NEW: Notification Helper Function ============
 const createCertificateNotification = async (
@@ -52,17 +53,15 @@ const createCertificateNotification = async (
       .join(" ");
 
     // Create notification
-    await prisma.notification.create({
-      data: {
-        title: "Certificate Generated",
-        description: `Your ${formattedType} certificate has been generated and is ready for download.`,
-        targetType: "STUDENT",
-        targetValue: studentId.toString(),
-        priority: "IMPORTANT",
-        status: "published",
-        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-        senderId: senderId,
-      },
+    await createAndPushNotification({
+      title: "Certificate Generated",
+      description: `Your ${formattedType} certificate has been generated and is ready for download.`,
+      targetType: "STUDENT",
+      targetValue: studentId.toString(),
+      priority: "IMPORTANT",
+      status: "published",
+      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      senderId: senderId,
     });
 
     console.log(

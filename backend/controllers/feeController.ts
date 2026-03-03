@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { InvoiceStatus } from "../generated/prisma/enums";
 import { logAudit } from "../utils/auditLogger";
 import { sendPushNotification } from "../services/pushNotificationService";
+import { sendPushNotification } from "../services/pushNotificationService";
 
 // --- Fee Structure CRUD ---
 
@@ -181,6 +182,9 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
 
     const notificationsToPush: any[] = [];
 
+    // Collect push data to fire after transaction commits
+    const pushQueue: Array<{ targetValue: string; title: string; description: string }> = [];
+
     await prisma.$transaction(
       async (tx) => {
         for (const studentId of studentIds) {
@@ -214,11 +218,13 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
             },
           });
 
+          const feeDesc = `A new fee "${feeStructure.name}" of ₹${feeStructure.amount} has been assigned to you. Due date: ${new Date(dueDate).toLocaleDateString()}.`;
+
           // Step 3: Send notification to the student
           const notification = await tx.notification.create({
             data: {
               title: "New Fee Assigned",
-              description: `A new fee "${feeStructure.name}" of ₹${feeStructure.amount} has been assigned to you. Due date: ${new Date(dueDate).toLocaleDateString()}.`,
+              description: feeDesc,
               targetType: "STUDENT",
               targetValue: studentId.toString(),
               status: "published",
@@ -228,6 +234,8 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
           });
 
           notificationsToPush.push(notification);
+
+          pushQueue.push({ targetValue: studentId.toString(), title: "New Fee Assigned", description: feeDesc });
         }
       },
       {
@@ -235,18 +243,11 @@ export const assignFeeToStudents = async (req: Request, res: Response) => {
       },
     );
 
-    // Trigger push notifications asynchronously after transaction success
-    notificationsToPush.forEach((notification) => {
-      sendPushNotification(
-        notification.id,
-        notification.targetType,
-        notification.targetValue,
-        notification.title,
-        notification.description || "",
-        { notificationId: notification.id },
-        notification.priority,
-      ).catch((err) => console.error("Async push error (assignment):", err));
-    });
+    // Fire FCM pushes AFTER the transaction commits
+    for (const p of pushQueue) {
+      sendPushNotification(0, 'STUDENT' as any, p.targetValue, p.title, p.description, {}, 'NORMAL' as any)
+        .catch((err: any) => console.error('Async push error (fee assign):', err));
+    }
 
     await logAudit({
       req,
@@ -306,10 +307,11 @@ export const markInvoiceAsPaid = async (req: Request, res: Response) => {
       });
 
       // Send notification to the student
-      const notification = await tx.notification.create({
+      const paymentDesc = `Your payment for "${inv.FeeStructure?.name || "Fee"}" has been successfully recorded.`;
+      await tx.notification.create({
         data: {
           title: "Payment Successful",
-          description: `Your payment for "${inv.FeeStructure?.name || "Fee"}" has been successfully recorded.`,
+          description: paymentDesc,
           targetType: "STUDENT",
           targetValue: inv.studentId.toString(),
           status: "published",
@@ -318,21 +320,19 @@ export const markInvoiceAsPaid = async (req: Request, res: Response) => {
         },
       });
 
-      return { inv, notification };
+      return { ...inv, _pushDesc: paymentDesc };
     });
 
-    // Trigger push notification after transaction success
-    if (updatedInvoice.notification) {
-      sendPushNotification(
-        updatedInvoice.notification.id,
-        updatedInvoice.notification.targetType,
-        updatedInvoice.notification.targetValue,
-        updatedInvoice.notification.title,
-        updatedInvoice.notification.description || "",
-        { notificationId: updatedInvoice.notification.id },
-        updatedInvoice.notification.priority,
-      ).catch((err) => console.error("Async push error (payment):", err));
-    }
+    // Fire FCM push AFTER the transaction commits
+    sendPushNotification(
+      0,
+      'STUDENT' as any,
+      updatedInvoice.studentId.toString(),
+      'Payment Successful',
+      (updatedInvoice as any)._pushDesc || '',
+      {},
+      'NORMAL' as any,
+    ).catch((err: any) => console.error('Async push error (fee paid):', err));
 
     await logAudit({
       req,

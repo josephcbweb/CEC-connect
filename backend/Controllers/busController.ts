@@ -379,19 +379,37 @@ export const removeStudentFromBus = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid student ID" });
     }
 
-    await prisma.$transaction([
-      prisma.busRequest.deleteMany({
+    await prisma.$transaction(async (tx) => {
+      await tx.busRequest.deleteMany({
         where: { studentId },
-      }),
-      prisma.student.update({
+      });
+      await tx.student.update({
         where: { id: studentId },
         data: {
           bus_service: false,
           busId: null,
           busStopId: null,
         },
-      }),
-    ]);
+      });
+
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+
+      await tx.notification.create({
+        data: {
+          title: "Bus Service Removed",
+          description: "You have been removed from the college bus service by the administrator.",
+          targetType: "STUDENT",
+          targetValue: studentId.toString(),
+          priority: "NORMAL",
+          status: "published",
+          expiryDate,
+          senderId,
+        },
+      });
+    });
 
     logAudit({
       req,
@@ -428,12 +446,32 @@ export const suspendStudentPass = async (req: Request, res: Response) => {
     const suspendedUntil = new Date();
     suspendedUntil.setDate(suspendedUntil.getDate() + Number(days));
 
-    await prisma.student.update({
-      where: { id: studentId },
-      data: {
-        is_bus_pass_suspended: true,
-        bus_pass_suspended_until: suspendedUntil,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id: studentId },
+        data: {
+          is_bus_pass_suspended: true,
+          bus_pass_suspended_until: suspendedUntil,
+        },
+      });
+
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+
+      await tx.notification.create({
+        data: {
+          title: "Bus Pass Suspended",
+          description: `Your bus pass has been suspended until ${suspendedUntil.toLocaleDateString()} by the administrator.`,
+          targetType: "STUDENT",
+          targetValue: studentId.toString(),
+          priority: "IMPORTANT",
+          status: "published",
+          expiryDate,
+          senderId,
+        },
+      });
     });
 
     logAudit({
@@ -464,12 +502,32 @@ export const reactivateStudentPass = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid student ID" });
     }
 
-    await prisma.student.update({
-      where: { id: studentId },
-      data: {
-        is_bus_pass_suspended: false,
-        bus_pass_suspended_until: null,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id: studentId },
+        data: {
+          is_bus_pass_suspended: false,
+          bus_pass_suspended_until: null,
+        },
+      });
+
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+
+      await tx.notification.create({
+        data: {
+          title: "Bus Pass Reactivated",
+          description: "Your bus pass has been reactivated. You can now resume using the college bus service.",
+          targetType: "STUDENT",
+          targetValue: studentId.toString(),
+          priority: "IMPORTANT",
+          status: "published",
+          expiryDate,
+          senderId,
+        },
+      });
     });
 
     logAudit({
@@ -765,7 +823,7 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
 
           notificationsData.push({
             title: "Bus Fee Assigned",
-            description: `A bus fee of ₹${amount} for Semester ${targetSemester} has been assigned to you. Due date is ${dueDateObj.toLocaleDateString()}. Please pay before the due date to avoid pass suspension.`,
+            description: `A bus fee of ₹${amount} for Semester ${targetSemester} has been assigned to you. Due date is ${dueDateObj.toLocaleDateString()}. Please pay before the due date to avoid fine.`,
             targetType: NotificationTargetType.STUDENT,
             targetValue: student.id.toString(),
             priority: NotificationPriority.IMPORTANT,
@@ -797,29 +855,23 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
         totalStudentsBilled,
         totalSkipped,
         processedBatches: processedBatchNames,
+        _notificationsData: notificationsData, // carry out for FCM push
       };
     });
 
-    // Trigger push notifications asynchronously after transaction success
-    if (result.totalStudentsBilled > 0) {
-      prisma.notification.findMany({
-        where: {
-          title: "Bus Fee Assigned",
-          createdAt: { gte: new Date(Date.now() - 10000) } // Recently created
-        }
-      }).then(notifications => {
-        notifications.forEach(notification => {
-          sendPushNotification(
-            notification.id,
-            notification.targetType,
-            notification.targetValue,
-            notification.title,
-            notification.description || "",
-            { notificationId: notification.id },
-            notification.priority,
-          ).catch((err: any) => console.error("Async push error (bus bulk):", err));
-        });
-      }).catch(err => console.error("Error fetching bus notifications for push:", err));
+    // Fire FCM pushes AFTER the transaction commits
+    if (result._notificationsData && result._notificationsData.length > 0) {
+      for (const n of result._notificationsData) {
+        sendPushNotification(
+          0, // no individual DB id available from createMany
+          n.targetType,
+          n.targetValue || null,
+          n.title,
+          n.description || '',
+          {},
+          n.priority,
+        ).catch((err: any) => console.error('Async push error (bus bulk):', err));
+      }
     }
 
     res.status(201).json({
@@ -1281,30 +1333,21 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
         },
       });
 
-      return updatedRequest;
+      return { ...updatedRequest, _pushData: { ...notificationData, targetValue: request.studentId.toString() } };
     });
 
-    // Trigger push notification after transaction success
-    prisma.notification.findFirst({
-      where: {
-        targetValue: result.studentId.toString(),
-        createdAt: { gte: new Date(Date.now() - 5000) },
-        title: { in: ["Bus Service Request Approved", "Bus Service Request Rejected"] }
-      },
-      orderBy: { createdAt: 'desc' }
-    }).then(notification => {
-      if (notification) {
-        sendPushNotification(
-          notification.id,
-          notification.targetType,
-          notification.targetValue,
-          notification.title,
-          notification.description || "",
-          { notificationId: notification.id },
-          notification.priority,
-        ).catch((err: any) => console.error("Async push error (bus request):", err));
-      }
-    }).catch(err => console.error("Error fetching bus request notification for push:", err));
+    // Fire FCM push AFTER the transaction commits
+    if (result._pushData) {
+      sendPushNotification(
+        0,
+        'STUDENT' as any,
+        result._pushData.targetValue,
+        result._pushData.title,
+        result._pushData.description || '',
+        {},
+        result._pushData.priority,
+      ).catch((err: any) => console.error('Async push error (bus request):', err));
+    }
 
     logAudit({
       req,
@@ -1391,10 +1434,12 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
         : 'the assigned bus';
       const stopInfo = updatedStudent.busStop?.stopName || 'your stop';
 
+      const busActivatedDesc = `Your bus service has been successfully activated! You can now use ${busInfo} from ${stopInfo} until the end of ${semesterText}. Have a safe journey!`;
+
       await tx.notification.create({
         data: {
           title: "Bus Service Activated",
-          description: `Your bus service has been successfully activated! You can now use ${busInfo} from ${stopInfo} until the end of ${semesterText}. Have a safe journey!`,
+          description: busActivatedDesc,
           targetType: "STUDENT",
           targetValue: invoice.studentId.toString(),
           priority: "IMPORTANT",
@@ -1404,30 +1449,21 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
         }
       });
 
-      return { invoice, updatedStudent };
+      return { invoice, updatedStudent, _pushData: { title: "Bus Service Activated", description: busActivatedDesc, targetValue: invoice.studentId.toString(), priority: "IMPORTANT" as any } };
     });
 
-    // Trigger push notification after transaction success
-    prisma.notification.findFirst({
-      where: {
-        targetValue: result.updatedStudent.id.toString(),
-        createdAt: { gte: new Date(Date.now() - 5000) },
-        title: "Bus Service Activated"
-      },
-      orderBy: { createdAt: 'desc' }
-    }).then(notification => {
-      if (notification) {
-        sendPushNotification(
-          notification.id,
-          notification.targetType,
-          notification.targetValue,
-          notification.title,
-          notification.description || "",
-          { notificationId: notification.id },
-          notification.priority,
-        ).catch((err: any) => console.error("Async push error (bus verify):", err));
-      }
-    }).catch(err => console.error("Error fetching bus verification notification for push:", err));
+    // Fire FCM push AFTER the transaction commits
+    if (result._pushData) {
+      sendPushNotification(
+        0,
+        'STUDENT' as any,
+        result._pushData.targetValue,
+        result._pushData.title,
+        result._pushData.description,
+        {},
+        result._pushData.priority,
+      ).catch((err: any) => console.error('Async push error (bus verify):', err));
+    }
 
     logAudit({
       req,
