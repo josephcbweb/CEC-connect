@@ -15,6 +15,7 @@ class FeesScreen extends StatefulWidget {
 class _FeesScreenState extends State<FeesScreen> {
   final ApiService _apiService = ApiService();
   late Future<Map<String, dynamic>> _feesData;
+  bool _showAll = false;
 
   @override
   void initState() {
@@ -67,7 +68,24 @@ class _FeesScreenState extends State<FeesScreen> {
           }
 
           final student = snapshot.data!;
-          final invoices = student['invoices'] as List<dynamic>? ?? [];
+          final List<dynamic> invoices =
+              List<dynamic>.from(student['invoices'] as List<dynamic>? ?? []);
+
+          // Sort by createdAt descending (latest first) to show latest notifications
+          invoices.sort((a, b) {
+            final dateA = a['createdAt'] != null
+                ? DateTime.tryParse(a['createdAt'])
+                : null;
+            final dateB = b['createdAt'] != null
+                ? DateTime.tryParse(b['createdAt'])
+                : null;
+            if (dateA == null && dateB == null) {
+              return (b['id'] ?? 0).compareTo(a['id'] ?? 0);
+            }
+            if (dateA == null) return 1;
+            if (dateB == null) return -1;
+            return dateB.compareTo(dateA);
+          });
 
           if (invoices.isEmpty) {
             return Center(
@@ -84,13 +102,64 @@ class _FeesScreenState extends State<FeesScreen> {
             );
           }
 
+          final int initialDisplayCount = 3;
+          final bool hasMore = invoices.length > initialDisplayCount;
+          final int itemCount = hasMore
+              ? (_showAll ? invoices.length + 1 : initialDisplayCount + 1)
+              : invoices.length;
+
           return RefreshIndicator(
             color: Colors.indigo,
             onRefresh: _refreshData,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              itemCount: invoices.length,
+              itemCount: itemCount,
               itemBuilder: (context, index) {
+                if (hasMore &&
+                    ((_showAll && index == invoices.length) ||
+                        (!_showAll && index == initialDisplayCount))) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    child: Center(
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _showAll = !_showAll;
+                          });
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.indigo,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          backgroundColor: Colors.indigo.withOpacity(0.05),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _showAll ? 'Show Less' : 'Show More',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              _showAll
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
                 final inv = invoices[index];
                 // Added Slide Animation
                 return TweenAnimationBuilder<double>(

@@ -505,7 +505,15 @@ const StudentsPage = () => {
               className="mb-6 max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300 font-semibold"
             >
               <option value="All">All Semesters</option>
-              {Array.from({ length: 8 }, (_, i) => i + 1).map((sem) => (
+              {Array.from(
+                {
+                  length:
+                    selectedProgram === "MCA" || selectedProgram === "MTECH"
+                      ? 4
+                      : 8,
+                },
+                (_, i) => i + 1,
+              ).map((sem) => (
                 <option key={sem} value={sem.toString()}>
                   S{sem}
                 </option>

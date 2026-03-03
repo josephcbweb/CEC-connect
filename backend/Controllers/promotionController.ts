@@ -92,7 +92,7 @@ export const getPromotionStats = async (req: Request, res: Response) => {
           : [
             { from: 1, to: 2, label: "S1 → S2" }, // Added as per request
             { from: 2, to: 3, label: "S2 → S3" },
-            { from: 4, to: 5, label: "S4 → S5" },
+            { from: 4, to: 5, label: "S4 → S5 (Graduates MCA/MTech)" },
             { from: 6, to: 7, label: "S6 → S7" },
             { from: 8, to: "GRADUATED", label: "S8 → Graduated" },
           ],
@@ -126,17 +126,36 @@ export const promoteStudents = async (req: Request, res: Response) => {
           currentSemester: t.from,
           status: "approved",
         },
-        select: { id: true },
+        select: { id: true, program: true },
       });
 
-      const allIds = eligibleStudents.map((s) => s.id);
+      if (eligibleStudents.length > 0) {
+        if (t.from === 4 && t.to === 5) {
+          // BTECH go to S5, MCA and MTECH graduate
+          const btechIds = eligibleStudents.filter((s) => s.program === "BTECH").map((s) => s.id);
+          const pgIds = eligibleStudents.filter((s) => s.program === "MCA" || s.program === "MTECH").map((s) => s.id);
 
-      if (allIds.length > 0) {
-        const ybIds = allIds.filter(id => yearBackIds.includes(id));
-        const promoteIds = allIds.filter(id => !yearBackIds.includes(id));
+          if (btechIds.length > 0) {
+            const ybIds = btechIds.filter((id) => yearBackIds.includes(id));
+            const promoteIds = btechIds.filter((id) => !yearBackIds.includes(id));
+            transitionGroups.push({ transition: t, ids: promoteIds, ybIds });
+            allAffectedIds.push(...btechIds);
+          }
 
-        transitionGroups.push({ transition: t, ids: promoteIds, ybIds });
-        allAffectedIds.push(...allIds);
+          if (pgIds.length > 0) {
+            const ybIds = pgIds.filter((id) => yearBackIds.includes(id));
+            const promoteIds = pgIds.filter((id) => !yearBackIds.includes(id));
+            transitionGroups.push({ transition: { from: 4, to: "GRADUATED" }, ids: promoteIds, ybIds });
+            allAffectedIds.push(...pgIds);
+          }
+        } else {
+          const allIds = eligibleStudents.map((s) => s.id);
+          const ybIds = allIds.filter((id) => yearBackIds.includes(id));
+          const promoteIds = allIds.filter((id) => !yearBackIds.includes(id));
+
+          transitionGroups.push({ transition: t, ids: promoteIds, ybIds });
+          allAffectedIds.push(...allIds);
+        }
       }
     }
 

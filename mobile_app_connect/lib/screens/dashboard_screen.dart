@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api_service.dart';
 import '../components/app_drawer.dart';
 import '../components/app_loader.dart';
@@ -18,6 +19,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late Future<Map<String, dynamic>> _studentProfile;
   bool _hasUnreadNotifications = false;
   Timer? _notificationCheckTimer;
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   @override
   void initState() {
@@ -41,18 +45,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _checkNotifications() async {
     try {
       final notifications = await _apiService.getNotifications();
-      if (mounted) {
-        // Check if there are any unread notifications
-        final hasUnread = notifications.any(
-          (notification) =>
-              notification['status']?.toString().toLowerCase() == 'unread',
-        );
+      if (mounted && notifications.isNotEmpty) {
+        // Get the latest notification's createdAt
+        final latestCreatedAt =
+            notifications.first['createdAt']?.toString() ?? '';
+
+        // Compare against last seen time stored locally
+        final lastSeen =
+            await _storage.read(key: 'lastSeenNotificationTime') ?? '';
+
         setState(() {
-          _hasUnreadNotifications = hasUnread;
+          _hasUnreadNotifications =
+              latestCreatedAt.isNotEmpty && latestCreatedAt != lastSeen;
+        });
+      } else if (mounted) {
+        setState(() {
+          _hasUnreadNotifications = false;
         });
       }
     } catch (e) {
       debugPrint("Error checking notifications: $e");
+    }
+  }
+
+  Future<void> _markNotificationsSeen() async {
+    try {
+      final notifications = await _apiService.getNotifications();
+      if (notifications.isNotEmpty) {
+        final latestCreatedAt =
+            notifications.first['createdAt']?.toString() ?? '';
+        if (latestCreatedAt.isNotEmpty) {
+          await _storage.write(
+              key: 'lastSeenNotificationTime', value: latestCreatedAt);
+        }
+      }
+    } catch (e) {
+      debugPrint("Error saving notification time: $e");
     }
   }
 
@@ -82,6 +110,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   setState(() {
                     _hasUnreadNotifications = false;
                   });
+
+                  // Save the current latest notification time
+                  await _markNotificationsSeen();
 
                   // Open notification screen
                   await Navigator.push(

@@ -235,6 +235,41 @@ class _BusScreenState extends State<BusScreen> {
     }
   }
 
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateStr);
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
+      return '${date.day} ${months[date.month - 1]} ${date.year}';
+    } catch (e) {
+      return dateStr.split('T').first;
+    }
+  }
+
+  int _daysRemaining(String? dateStr) {
+    if (dateStr == null) return 0;
+    try {
+      final dueDate = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      return dueDate.difference(now).inDays;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -264,28 +299,54 @@ class _BusScreenState extends State<BusScreen> {
                 final routes = snapshot.data!['routes'] as List<dynamic>;
 
                 final pending = profile['pendingBusRequest'];
-                final approved = profile['busDetails'];
+                final busDetails = profile['busDetails'];
+                final pendingBusFee = profile['pendingBusFee'];
+                final lastPaymentDate = profile['lastBusPaymentDate'];
 
-                if (approved != null) {
-                  return _buildActiveStatusView(
-                      approved, 'Active Service', Colors.green);
-                } else if (pending != null) {
-                  return _buildActiveStatusView(
-                      pending, 'Request Pending', Colors.orange);
+                // State 1: Active Bus Service
+                if (busDetails != null) {
+                  return _buildActiveServiceView(
+                    busDetails,
+                    pendingBusFee: pendingBusFee,
+                    lastPaymentDate: lastPaymentDate,
+                    isSuspended: profile['is_bus_pass_suspended'] == true,
+                    suspendedUntil:
+                        profile['bus_pass_suspended_until']?.toString(),
+                  );
                 }
 
-                // If no active bus or request, show list
+                // State 2: Approved Request (first-time, pending payment)
+                if (pending != null && pending['status'] == 'approved') {
+                  return _buildApprovedRequestView(pending);
+                }
+
+                // State 3: Pending Request (awaiting admin approval)
+                if (pending != null && pending['status'] == 'pending') {
+                  return _buildPendingRequestView(pending);
+                }
+
+                // State 4: No active bus or request — show routes list
                 if (routes.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.directions_bus_outlined,
-                            size: 80, color: Colors.grey[300]),
-                        const SizedBox(height: 16),
-                        const Text('No bus routes active',
-                            style: TextStyle(color: Colors.grey)),
-                      ],
+                  return RefreshIndicator(
+                    color: Colors.teal,
+                    onRefresh: _refreshData,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.8,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.directions_bus_outlined,
+                                  size: 80, color: Colors.grey[300]),
+                              const SizedBox(height: 16),
+                              const Text('No bus routes active',
+                                  style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 }
@@ -298,7 +359,6 @@ class _BusScreenState extends State<BusScreen> {
                     itemCount: routes.length,
                     itemBuilder: (context, index) {
                       final route = routes[index];
-                      // Staggered animation
                       return TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: 1.0),
                         duration: Duration(milliseconds: 400 + (index * 100)),
@@ -319,92 +379,571 @@ class _BusScreenState extends State<BusScreen> {
     );
   }
 
-  Widget _buildActiveStatusView(
-      Map<String, dynamic> data, String statusLabel, Color statusColor) {
-    final busName = data['busName'] ?? data['bus']?['busName'] ?? 'College Bus';
-    final busNumber = data['busNumber'] ?? data['bus']?['busNumber'] ?? 'N/A';
-    final stopName = data['stopName'] ?? data['stop']?['stopName'] ?? 'N/A';
-    final fee = data['feeAmount'] ??
-        data['stop']
-            ?['feeAmount']; // Might vary based on pending vs approved structure
+  // ============================================================
+  // STATE 1: Active Bus Service
+  // ============================================================
+  Widget _buildActiveServiceView(
+    Map<String, dynamic> busDetails, {
+    Map<String, dynamic>? pendingBusFee,
+    dynamic lastPaymentDate,
+    bool isSuspended = false,
+    String? suspendedUntil,
+  }) {
+    final busName = busDetails['busName'] ?? 'College Bus';
+    final busNumber = busDetails['busNumber'] ?? 'N/A';
+    final stopName = busDetails['stopName'] ?? 'N/A';
+    final fee = busDetails['feeAmount'];
 
-    return Center(
+    return RefreshIndicator(
+      color: Colors.teal,
+      onRefresh: _refreshData,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: statusColor.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height * 0.8),
+          child: Column(
+            children: [
+              // Suspension Banner
+              if (isSuspended) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.red.shade200),
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.warning_rounded, color: Colors.red),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          suspendedUntil != null
+                              ? 'Your bus service has been suspended until ${suspendedUntil.split("T").first}.\nPlease contact the administration for any queries.'
+                              : 'Your bus service has been suspended by the administration.',
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // Pending Bus Fee Banner (returning student — semester renewal)
+              if (pendingBusFee != null) ...[
+                _buildPendingFeeCard(pendingBusFee),
+                const SizedBox(height: 20),
+              ],
+
+              // Active service card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
-                    child: Icon(
-                      statusLabel.contains('Pending')
-                          ? Icons.hourglass_top_rounded
-                          : Icons.check_circle_rounded,
-                      size: 40,
-                      color: statusColor,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    statusLabel,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    statusLabel.contains('Pending')
-                        ? 'Your request is being reviewed by admin'
-                        : 'Your bus pass is active',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 32),
-                  const Divider(),
-                  const SizedBox(height: 24),
-                  _buildStatusRow(Icons.directions_bus, 'Bus Info',
-                      '$busName ($busNumber)'),
-                  const SizedBox(height: 16),
-                  _buildStatusRow(Icons.place, 'Pickup Stop', stopName),
-                  if (fee != null) ...[
-                    const SizedBox(height: 16),
-                    _buildStatusRow(
-                        Icons.currency_rupee, 'Fee', '₹$fee / year'),
                   ],
-                ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check_circle_rounded,
+                        size: 40,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Active Service',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your bus pass is active',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 32),
+                    const Divider(),
+                    const SizedBox(height: 24),
+                    _buildStatusRow(Icons.directions_bus, 'Bus Info',
+                        '$busName ($busNumber)'),
+                    const SizedBox(height: 16),
+                    _buildStatusRow(Icons.place, 'Pickup Stop', stopName),
+                    if (fee != null) ...[
+                      const SizedBox(height: 16),
+                      _buildStatusRow(
+                          Icons.currency_rupee, 'Fee', '₹$fee / year'),
+                    ],
+                    if (lastPaymentDate != null) ...[
+                      const SizedBox(height: 16),
+                      _buildStatusRow(
+                        Icons.calendar_today,
+                        'Last Fee Paid',
+                        _formatDate(lastPaymentDate.toString()),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            if (statusLabel.contains('Pending')) ...[
-              const SizedBox(height: 24),
-              TextButton(
-                onPressed: _refreshData,
-                child: const Text('Check Status Again'),
-              )
-            ]
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  // Card showing pending renewal fee for returning students
+  Widget _buildPendingFeeCard(Map<String, dynamic> pendingBusFee) {
+    final isOverdue = pendingBusFee['isOverdue'] == true;
+    final baseAmount = pendingBusFee['baseAmount'] ?? 0;
+    final fineAmount = pendingBusFee['fineAmount'] ?? 0;
+    final totalAmount = pendingBusFee['totalAmount'] ?? baseAmount;
+    final dueDate = pendingBusFee['dueDate']?.toString();
+    final daysOverdue = pendingBusFee['daysOverdue'] ?? 0;
+    final semester = pendingBusFee['semester'];
+
+    final Color cardColor = isOverdue ? Colors.red : Colors.orange;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cardColor.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: cardColor.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: cardColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isOverdue
+                      ? Icons.warning_amber_rounded
+                      : Icons.payment_rounded,
+                  color: cardColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isOverdue ? 'Bus Fee Overdue' : 'Bus Fee Due',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: cardColor,
+                      ),
+                    ),
+                    if (semester != null)
+                      Text(
+                        'Semester $semester',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: cardColor.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                if (isOverdue && fineAmount > 0) ...[
+                  _buildFeeRow('Base Fee', '₹$baseAmount'),
+                  const SizedBox(height: 6),
+                  _buildFeeRow('Fine Amount', '₹$fineAmount',
+                      valueColor: Colors.red),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(height: 1),
+                  ),
+                  _buildFeeRow('Total Amount', '₹$totalAmount',
+                      isBold: true, valueColor: Colors.red.shade800),
+                ] else ...[
+                  _buildFeeRow('Amount to Pay', '₹$totalAmount', isBold: true),
+                ],
+                if (dueDate != null) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(Icons.event_outlined,
+                          size: 16, color: Colors.grey[500]),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          isOverdue
+                              ? 'Was due on ${_formatDate(dueDate)} ($daysOverdue days overdue)'
+                              : 'Due by ${_formatDate(dueDate)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isOverdue ? Colors.red : Colors.grey[600],
+                            fontWeight:
+                                isOverdue ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            isOverdue
+                ? 'Please pay the overdue fees including fine at the earliest to continue using bus service.'
+                : 'Please pay the bus fee before the due date to continue availing the bus service.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeeRow(String label, String value,
+      {bool isBold = false, Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+            color: Colors.grey[700],
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isBold ? 16 : 14,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
+            color: valueColor ?? Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // STATE 2: Approved Request (first-time student, needs to pay)
+  // ============================================================
+  Widget _buildApprovedRequestView(Map<String, dynamic> request) {
+    final busName = request['busName'] ?? 'College Bus';
+    final stopName = request['stopName'] ?? 'N/A';
+    final feeAmount = request['feeAmount'];
+    final dueDate = request['dueDate']?.toString();
+    final daysLeft = _daysRemaining(dueDate);
+
+    return RefreshIndicator(
+      color: Colors.teal,
+      onRefresh: _refreshData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height * 0.8),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.task_alt_rounded,
+                        size: 40,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Request Approved',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your bus service request has been approved!',
+                      style: TextStyle(color: Colors.grey[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    const Divider(),
+                    const SizedBox(height: 24),
+                    _buildStatusRow(Icons.directions_bus, 'Bus Route', busName),
+                    const SizedBox(height: 16),
+                    _buildStatusRow(Icons.place, 'Pickup Stop', stopName),
+                    if (feeAmount != null) ...[
+                      const SizedBox(height: 16),
+                      _buildStatusRow(
+                          Icons.currency_rupee, 'Fee to Pay', '₹$feeAmount'),
+                    ],
+                    if (dueDate != null) ...[
+                      const SizedBox(height: 16),
+                      _buildStatusRow(
+                          Icons.event, 'Pay Before', _formatDate(dueDate)),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Payment instruction card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        color: Colors.amber.shade800, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Payment Required',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade900,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'For availing bus service, you need to pay ₹$feeAmount. '
+                            'Please proceed to the Fees section to complete the payment.',
+                            style: TextStyle(
+                              color: Colors.amber.shade900,
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
+                          if (daysLeft >= 0 && dueDate != null) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: daysLeft <= 2
+                                    ? Colors.red.shade100
+                                    : Colors.amber.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                daysLeft == 0
+                                    ? 'Due today!'
+                                    : '$daysLeft day${daysLeft == 1 ? '' : 's'} remaining',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: daysLeft <= 2
+                                      ? Colors.red.shade800
+                                      : Colors.amber.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Text(
+                            'Note: If the fee is not paid within 5 days of approval, '
+                            'this request will be automatically cancelled and you will '
+                            'need to submit a new request.',
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: _refreshData,
+                child: const Text('Refresh Status'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // STATE 3: Pending Request (awaiting admin approval)
+  // ============================================================
+  Widget _buildPendingRequestView(Map<String, dynamic> request) {
+    final busName = request['busName'] ?? 'College Bus';
+    final stopName = request['stopName'] ?? 'N/A';
+    final feeAmount = request['feeAmount'];
+
+    return RefreshIndicator(
+      color: Colors.teal,
+      onRefresh: _refreshData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height * 0.8),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.hourglass_top_rounded,
+                        size: 40,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Request Pending',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your request is being reviewed by admin',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 32),
+                    const Divider(),
+                    const SizedBox(height: 24),
+                    _buildStatusRow(Icons.directions_bus, 'Bus Route', busName),
+                    const SizedBox(height: 16),
+                    _buildStatusRow(Icons.place, 'Pickup Stop', stopName),
+                    if (feeAmount != null) ...[
+                      const SizedBox(height: 16),
+                      _buildStatusRow(
+                          Icons.currency_rupee, 'Fee', '₹$feeAmount / year'),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: _refreshData,
+                child: const Text('Check Status Again'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // Shared Widgets
+  // ============================================================
 
   Widget _buildStatusRow(IconData icon, String label, String value) {
     return Row(
@@ -446,6 +985,8 @@ class _BusScreenState extends State<BusScreen> {
 
   Widget _buildRouteCard(dynamic route) {
     final stops = route['stops'] as List<dynamic>? ?? [];
+    final isFull = route['isFull'] == true;
+    final availableSeats = route['availableSeats'] ?? 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -453,9 +994,13 @@ class _BusScreenState extends State<BusScreen> {
       shadowColor: Colors.black.withOpacity(0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.teal.withOpacity(0.05)),
+        side: BorderSide(
+          color: isFull
+              ? Colors.red.withOpacity(0.15)
+              : Colors.teal.withOpacity(0.05),
+        ),
       ),
-      color: Colors.white,
+      color: isFull ? Colors.grey[50] : Colors.white,
       child: Theme(
         data: Theme.of(context).copyWith(
           dividerColor: Colors.transparent,
@@ -466,21 +1011,60 @@ class _BusScreenState extends State<BusScreen> {
           leading: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.teal.shade50,
+              color: isFull ? Colors.grey.shade100 : Colors.teal.shade50,
               borderRadius: BorderRadius.circular(12),
             ),
-            child:
-                Icon(Icons.directions_bus_rounded, color: Colors.teal.shade700),
+            child: Icon(
+              Icons.directions_bus_rounded,
+              color: isFull ? Colors.grey : Colors.teal.shade700,
+            ),
           ),
           title: Text(
             route['busName'] ?? 'Bus ${route['busNumber']}',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: isFull ? Colors.grey[600] : Colors.black87,
+            ),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              'Route: ${route['routeName'] ?? "N/A"}',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Route: ${route['routeName'] ?? "N/A"}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ),
+                if (isFull)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Text(
+                      'Full',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    '$availableSeats seats',
+                    style: TextStyle(
+                      color: Colors.teal.shade700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
             ),
           ),
           children: [
@@ -519,40 +1103,40 @@ class _BusScreenState extends State<BusScreen> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: Colors.white,
-                                  border:
-                                      Border.all(color: Colors.teal, width: 2),
+                                  border: Border.all(
+                                    color: isFull ? Colors.grey : Colors.teal,
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                           title: Text(
                             stop['stopName'],
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 14),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: isFull ? Colors.grey[500] : Colors.black87,
+                            ),
                           ),
                           subtitle: Text(
-                            "Stop ID: ${stop['id']}",
+                            isFull
+                                ? 'No seats available'
+                                : '₹${stop['feeAmount']} / year',
                             style: TextStyle(
-                                fontSize: 11, color: Colors.grey[400]),
-                          ),
-                          trailing: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 4)
-                              ],
-                              borderRadius: BorderRadius.circular(20),
+                              fontSize: 11,
+                              color:
+                                  isFull ? Colors.red[300] : Colors.grey[400],
                             ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () => _showRequestDialog(route, stop),
-                                borderRadius: BorderRadius.circular(20),
-                                child: Padding(
+                          ),
+                          trailing: isFull
+                              ? Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -560,20 +1144,56 @@ class _BusScreenState extends State<BusScreen> {
                                         '₹${stop['feeAmount']}',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.teal.shade800,
+                                          color: Colors.grey[400],
                                           fontSize: 13,
                                         ),
                                       ),
                                       const SizedBox(width: 6),
-                                      Icon(Icons.add_circle,
-                                          size: 18,
-                                          color: Colors.teal.shade400),
+                                      Icon(Icons.block,
+                                          size: 18, color: Colors.grey[400]),
                                     ],
                                   ),
+                                )
+                              : Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 4)
+                                    ],
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () =>
+                                          _showRequestDialog(route, stop),
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '₹${stop['feeAmount']}',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.teal.shade800,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Icon(Icons.add_circle,
+                                                size: 18,
+                                                color: Colors.teal.shade400),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
                         );
                       },
                     ),

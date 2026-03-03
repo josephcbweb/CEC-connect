@@ -167,6 +167,72 @@ export const getStudentProfile = async (req: Request, res: Response) => {
     });
     const hasOverdueBusFee = !!overdueBusFeeInvoice;
 
+    // Fetch last paid bus fee invoice date (for active service card)
+    const lastPaidBusInvoice = await prisma.invoice.findFirst({
+      where: {
+        studentId: student.id,
+        status: "paid",
+        fee: { feeType: { contains: "Bus Fee" } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const lastBusPaymentDate = lastPaidBusInvoice?.createdAt || null;
+
+    // Fetch unpaid/overdue bus fee invoice for returning students (semester renewal fees)
+    // This includes any fines that may have been added
+    let pendingBusFee: any = null;
+    if (student.bus_service) {
+      const unpaidBusFeeInvoice = await prisma.invoice.findFirst({
+        where: {
+          studentId: student.id,
+          fee: { feeType: { contains: "Bus Fee" } },
+          status: { in: ["unpaid", "overdue"] },
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          fee: true,
+          FeeStructure: {
+            include: { fineSlabs: { orderBy: { startDay: "asc" } } },
+          },
+        },
+      });
+
+      if (unpaidBusFeeInvoice) {
+        // Calculate current fine amount dynamically based on days overdue
+        let calculatedFine = 0;
+        const dueDate = new Date(unpaidBusFeeInvoice.dueDate);
+        const daysOverdue = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+        if (daysOverdue > 0 && unpaidBusFeeInvoice.FeeStructure?.fineEnabled && unpaidBusFeeInvoice.FeeStructure?.fineSlabs) {
+          for (const slab of unpaidBusFeeInvoice.FeeStructure.fineSlabs) {
+            const slabStart = slab.startDay;
+            const slabEnd = slab.endDay ?? daysOverdue;
+            if (daysOverdue >= slabStart) {
+              const applicableDays = Math.min(daysOverdue, slabEnd) - slabStart + 1;
+              if (applicableDays > 0) {
+                calculatedFine += applicableDays * Number(slab.amountPerDay);
+              }
+            }
+          }
+        }
+
+        // Use stored fine if it's higher (admin manually set), otherwise use calculated
+        const effectiveFine = Math.max(Number(unpaidBusFeeInvoice.fineAmount), calculatedFine);
+        const totalAmount = Number(unpaidBusFeeInvoice.amount) + effectiveFine - Number(unpaidBusFeeInvoice.fineAmount);
+
+        pendingBusFee = {
+          invoiceId: unpaidBusFeeInvoice.id,
+          baseAmount: Number(unpaidBusFeeInvoice.amount),
+          fineAmount: effectiveFine,
+          totalAmount: Number(unpaidBusFeeInvoice.amount) + effectiveFine,
+          dueDate: unpaidBusFeeInvoice.dueDate,
+          semester: unpaidBusFeeInvoice.semester,
+          isOverdue: daysOverdue > 0,
+          daysOverdue: daysOverdue,
+        };
+      }
+    }
+
     console.log(student);
     const formattedStudent = {
       id: student.id,
@@ -229,6 +295,8 @@ export const getStudentProfile = async (req: Request, res: Response) => {
         }
         : null,
       hasOverdueBusFee,
+      lastBusPaymentDate,
+      pendingBusFee,
       is_bus_pass_suspended: student.is_bus_pass_suspended,
       bus_pass_suspended_until: student.bus_pass_suspended_until,
     };

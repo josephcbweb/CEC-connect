@@ -187,7 +187,7 @@ class AppDrawer extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            "CEC Connect",
+            "Acads",
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
