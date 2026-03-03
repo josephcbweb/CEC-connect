@@ -80,6 +80,8 @@ class _CertificateScreenState extends State<CertificateScreen> {
   bool _isLoadingCerts = true;
   String? _certError;
 
+  bool _showAllRequests = false;
+
   @override
   void initState() {
     super.initState();
@@ -260,15 +262,51 @@ class _CertificateScreenState extends State<CertificateScreen> {
   // ── Certificate list ───────────────────────────────────────────────────────
 
   Widget _buildCertificateList() {
-    return ListView.builder(
-      itemCount: _certificates.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemBuilder: (context, index) {
-        final cert = _certificates[index];
-        return _buildCertificateCard(cert);
-      },
+    final int displayCount = _showAllRequests
+        ? _certificates.length
+        : (_certificates.length > 3 ? 3 : _certificates.length);
+
+    return Column(
+      children: [
+        ListView.builder(
+          itemCount: displayCount,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemBuilder: (context, index) {
+            final cert = _certificates[index];
+            return _buildCertificateCard(cert);
+          },
+        ),
+        if (!_showAllRequests && _certificates.length > 3)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _showAllRequests = true;
+                });
+              },
+              icon: const Icon(Icons.expand_more_rounded, color: Colors.teal),
+              label: const Text(
+                'Show More',
+                style: TextStyle(
+                  color: Colors.teal,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: Colors.teal.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
