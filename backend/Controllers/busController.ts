@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { NotificationTargetType, NotificationPriority, NotificationStatus, Program } from "../generated/prisma/enums";
+import { logAudit } from "../utils/auditLogger";
 // import { RequestStatus } from "@prisma/client";
 
 const BUS_FEE_KEY = "BUS_FEE_ENABLED";
@@ -89,6 +90,15 @@ export const addBus = async (req: Request, res: Response) => {
         driverPhone,
         registrationNo,
       },
+    });
+
+    logAudit({
+      req,
+      action: "CREATE_BUS",
+      module: "bus",
+      entityType: "Bus",
+      entityId: bus.id,
+      details: { busNumber, totalSeats },
     });
 
     return res.status(201).json(bus);
@@ -191,6 +201,15 @@ export const updateBusDriver = async (req: Request, res: Response) => {
       },
     });
 
+    logAudit({
+      req,
+      action: "UPDATE_BUS_DRIVER",
+      module: "bus",
+      entityType: "Bus",
+      entityId: busId,
+      details: { driverName, driverPhone },
+    });
+
     return res.status(200).json({
       message: "Driver details updated successfully",
       bus: updatedBus,
@@ -221,6 +240,14 @@ export const addBusStops = async (req: Request, res: Response) => {
     const result = await prisma.busStop.createMany({
       data: formattedStops,
       skipDuplicates: true,
+    });
+
+    logAudit({
+      req,
+      action: "ADD_BUS_STOPS",
+      module: "bus",
+      entityType: "BusStop",
+      details: { busId, count: result.count, stops: formattedStops.map(s => s.stopName) },
     });
 
     res.status(201).json({
@@ -266,6 +293,15 @@ export const deleteBusStop = async (req: Request, res: Response) => {
     // 🗑 Delete stop
     await prisma.busStop.delete({
       where: { id: stopId },
+    });
+
+    logAudit({
+      req,
+      action: "DELETE_BUS_STOP",
+      module: "bus",
+      entityType: "BusStop",
+      entityId: stopId,
+      details: { stopName: existingStop.stopName },
     });
 
     return res.status(200).json({
@@ -356,6 +392,15 @@ export const removeStudentFromBus = async (req: Request, res: Response) => {
       }),
     ]);
 
+    logAudit({
+      req,
+      action: "REMOVE_STUDENT_FROM_BUS",
+      module: "bus",
+      entityType: "Student",
+      entityId: studentId,
+      details: { studentId },
+    });
+
     return res
       .status(200)
       .json({ message: "Student removed from bus successfully" });
@@ -390,6 +435,15 @@ export const suspendStudentPass = async (req: Request, res: Response) => {
       },
     });
 
+    logAudit({
+      req,
+      action: "SUSPEND_STUDENT_BUS_PASS",
+      module: "bus",
+      entityType: "Student",
+      entityId: studentId,
+      details: { suspendedUntil, days },
+    });
+
     return res.status(200).json({
       message: "Student bus pass suspended successfully",
       suspendedUntil
@@ -415,6 +469,15 @@ export const reactivateStudentPass = async (req: Request, res: Response) => {
         is_bus_pass_suspended: false,
         bus_pass_suspended_until: null,
       },
+    });
+
+    logAudit({
+      req,
+      action: "REACTIVATE_STUDENT_BUS_PASS",
+      module: "bus",
+      entityType: "Student",
+      entityId: studentId,
+      details: {},
     });
 
     return res.status(200).json({ message: "Student bus pass reactivated successfully" });
@@ -740,6 +803,13 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
       message: `Assigned fees to ${result.totalStudentsBilled} students across ${result.processedBatches.length} batch(es). ${result.totalSkipped} student(s) skipped (already billed).`,
       ...result,
     });
+
+    logAudit({
+      req,
+      action: "ASSIGN_BULK_BUS_FEES",
+      module: "bus",
+      details: { semester: targetSemester, program, totalStudentsBilled: result.totalStudentsBilled, totalSkipped: result.totalSkipped },
+    });
   } catch (error: any) {
     console.error("Bulk fee assignment error:", error);
     res.status(500).json({ error: error.message || "Transaction failed." });
@@ -962,13 +1032,40 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
   }
 
   try {
-    const updatedInvoice = await prisma.invoice.update({
-      where: {
-        id: parseInt(id),
-      },
-      data: {
-        status: status, // This must match your Enum (paid, unpaid, etc.)
-      },
+    const updatedInvoice = await prisma.$transaction(async (tx) => {
+      const inv = await tx.invoice.update({
+        where: { id: parseInt(id) },
+        data: { status: status },
+      });
+
+      // If marked as paid, create a payment record if one doesn't exist
+      if (status === "paid") {
+        const existingPayment = await tx.payment.findFirst({
+          where: { invoiceId: inv.id, status: "successful" }
+        });
+
+        if (!existingPayment) {
+          await tx.payment.create({
+            data: {
+              invoiceId: inv.id,
+              amount: inv.amount,
+              paymentMethod: "Manual",
+              transactionId: `BUS_ADMIN_${inv.id}_${Date.now()}`,
+              status: "successful",
+            },
+          });
+        }
+      }
+      return inv;
+    });
+
+    logAudit({
+      req,
+      action: "UPDATE_BUS_FEE_PAYMENT_STATUS",
+      module: "bus",
+      entityType: "Invoice",
+      entityId: id,
+      details: { status },
     });
 
     res.status(200).json(updatedInvoice);
@@ -1000,6 +1097,13 @@ export const archiveFeeBatch = async (req: Request, res: Response) => {
         .status(404)
         .json({ message: "No active batch found matching these criteria." });
     }
+
+    logAudit({
+      req,
+      action: "ARCHIVE_BUS_FEE_BATCH",
+      module: "bus",
+      details: { feeName, semester, dueDate, archivedCount: updateCount.count },
+    });
 
     res.status(200).json({
       message: `Successfully archived ${updateCount.count} records for ${feeName} (S${semester}).`,
@@ -1100,17 +1204,17 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
       expiryDate.setUTCHours(23, 59, 59, 999);
 
       // Create notification with appropriate message based on status
-      const notificationData = status === "approved" 
+      const notificationData = status === "approved"
         ? {
-            title: "Bus Service Request Approved",
-            description: `Your bus service request has been approved! A bus fee invoice of ₹${request.busStop.feeAmount} has been generated. Please proceed to the Fees section to complete the payment.`,
-            priority: "IMPORTANT" as NotificationPriority,
-          }
+          title: "Bus Service Request Approved",
+          description: `Your bus service request has been approved! A bus fee invoice of ₹${request.busStop.feeAmount} has been generated. Please proceed to the Fees section to complete the payment.`,
+          priority: "IMPORTANT" as NotificationPriority,
+        }
         : {
-            title: "Bus Service Request Rejected",
-            description: "Your request for bus service has been rejected. Please contact the admin for more details.",
-            priority: "NORMAL" as NotificationPriority,
-          };
+          title: "Bus Service Request Rejected",
+          description: "Your request for bus service has been rejected. Please contact the admin for more details.",
+          priority: "NORMAL" as NotificationPriority,
+        };
 
       await tx.notification.create({
         data: {
@@ -1124,6 +1228,15 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
       });
 
       return updatedRequest;
+    });
+
+    logAudit({
+      req,
+      action: "UPDATE_BUS_REQUEST_STATUS",
+      module: "bus",
+      entityType: "BusRequest",
+      entityId: requestId,
+      details: { status, studentId: result.studentId },
     });
 
     res.json({
@@ -1162,7 +1275,17 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
       if (!busRequest)
         throw new Error("No approved bus request found for this student.");
 
-      // 2. NOW set bus_service to true and assign IDs
+      // 2. Create Payment record for tracking & NOW set bus_service to true
+      await tx.payment.create({
+        data: {
+          invoiceId: invoice.id,
+          amount: invoice.amount,
+          paymentMethod: "Manual",
+          transactionId: `BUS_VERIFY_${invoice.id}_${Date.now()}`,
+          status: "successful",
+        },
+      });
+
       const updatedStudent = await tx.student.update({
         where: { id: invoice.studentId },
         data: {
@@ -1187,7 +1310,7 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
       // Format semester display
       const currentSemester = updatedStudent.currentSemester;
       const semesterText = currentSemester ? `Semester ${currentSemester}` : 'this academic period';
-      const busInfo = updatedStudent.bus?.busName 
+      const busInfo = updatedStudent.bus?.busName
         ? `${updatedStudent.bus.busName}${updatedStudent.bus.busNumber ? ' (' + updatedStudent.bus.busNumber + ')' : ''}`
         : 'the assigned bus';
       const stopInfo = updatedStudent.busStop?.stopName || 'your stop';
@@ -1206,6 +1329,15 @@ export const verifyBusPayment = async (req: Request, res: Response) => {
       });
 
       return { invoice, updatedStudent };
+    });
+
+    logAudit({
+      req,
+      action: "VERIFY_BUS_PAYMENT",
+      module: "bus",
+      entityType: "Invoice",
+      entityId: invoiceId,
+      details: { studentId: result.updatedStudent.id, busId: result.updatedStudent.busId, busStopId: result.updatedStudent.busStopId },
     });
 
     res.json({ message: "Payment verified. Bus service activated.", result });
@@ -1321,6 +1453,15 @@ export const updateBusFineSettings = async (req: Request, res: Response) => {
         where: { id: feeId },
         include: { fineSlabs: { orderBy: { startDay: "asc" } } },
       });
+    });
+
+    logAudit({
+      req,
+      action: "UPDATE_BUS_FINE_SETTINGS",
+      module: "bus",
+      entityType: "FeeStructure",
+      entityId: feeId,
+      details: { fineEnabled, slabsCount: fineSlabs?.length || 0 },
     });
 
     res.status(200).json(updatedSettings);

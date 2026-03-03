@@ -94,6 +94,14 @@ const BusDetailsPage = () => {
 
   const saveDriverInfo = async () => {
     if (!editName.trim() || !editPhone.trim()) return;
+
+    // Phone Validation
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(editPhone)) {
+      alert("Invalid phone number. Please enter a 10-digit number.");
+      return;
+    }
+
     setIsSavingDriver(true);
     try {
       await axios.put(`${BASE_URL}/bus/updateDriver/${id}`, {
@@ -142,11 +150,10 @@ const BusDetailsPage = () => {
         </div>
 
         <span
-          className={`px-4 py-1 rounded-full text-sm font-medium ${
-            bus.status === "Active"
+          className={`px-4 py-1 rounded-full text-sm font-medium ${bus.status === "Active"
               ? "bg-green-100 text-green-700"
               : "bg-red-100 text-red-700"
-          }`}
+            }`}
         >
           ● {bus.status}
         </span>
@@ -191,21 +198,19 @@ const BusDetailsPage = () => {
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab("stops")}
-            className={`px-6 py-4 font-medium transition-colors ${
-              activeTab === "stops"
+            className={`px-6 py-4 font-medium transition-colors ${activeTab === "stops"
                 ? "border-b-2 border-blue-600 text-blue-600"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
           >
             Route Stops & Fees
           </button>
           <button
             onClick={() => setActiveTab("students")}
-            className={`px-6 py-4 font-medium transition-colors ${
-              activeTab === "students"
+            className={`px-6 py-4 font-medium transition-colors ${activeTab === "students"
                 ? "border-b-2 border-blue-600 text-blue-600"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
           >
             Students ({bus.students.length})
           </button>

@@ -282,6 +282,25 @@ export const getStudentProfile = async (req: Request, res: Response) => {
           busNumber: student.bus.busNumber,
           stopName: student.busStop?.stopName,
           feeAmount: student.busStop?.feeAmount,
+          lastBusPaymentDate: (await prisma.payment.findFirst({
+            where: {
+              status: "successful",
+              invoice: {
+                studentId: student.id,
+                fee: { feeType: { contains: "Bus Fee" } },
+              },
+            },
+            orderBy: { paymentDate: "desc" },
+            select: { paymentDate: true },
+          }))?.paymentDate || (await prisma.invoice.findFirst({
+            where: {
+              status: "paid",
+              studentId: student.id,
+              fee: { feeType: { contains: "Bus Fee" } },
+            },
+            orderBy: { createdAt: "desc" },
+            select: { createdAt: true },
+          }))?.createdAt || null,
         }
         : null,
       pendingBusRequest: pendingBusRequest

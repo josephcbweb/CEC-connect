@@ -236,7 +236,7 @@ const BusServiceManager = () => {
     !student?.hasOverdueBusFee &&
     student?.busDetails
   ) {
-    const { busName, busNumber, stopName, feeAmount } = student.busDetails;
+    const { busName, busNumber, stopName, feeAmount, lastBusPaymentDate } = student.busDetails;
     return (
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -254,7 +254,7 @@ const BusServiceManager = () => {
             </div>
           </div>
 
-          <div className="p-8 grid md:grid-cols-3 gap-8">
+          <div className="p-8 grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="space-y-1">
               <label className="text-sm text-gray-500 font-medium flex items-center gap-2">
                 <Bus className="w-4 h-4" /> Bus Details
@@ -276,6 +276,19 @@ const BusServiceManager = () => {
               </label>
               <p className="text-xl font-semibold text-[#009689]">
                 ₹{feeAmount?.toLocaleString()}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm text-gray-500 font-medium flex items-center gap-2">
+                <CreditCard className="w-4 h-4" /> Last Payment
+              </label>
+              <p className="text-xl font-semibold text-gray-800">
+                {lastBusPaymentDate ? new Date(lastBusPaymentDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric'
+                }) : "No record"}
               </p>
             </div>
           </div>
