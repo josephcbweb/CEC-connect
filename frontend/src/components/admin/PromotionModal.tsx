@@ -5,7 +5,10 @@ import {
   CheckCircle,
   ChevronRight,
   X,
+  Filter,
 } from "lucide-react";
+
+type ProgramFilter = "ALL" | "BTECH" | "MCA" | "MTECH";
 
 interface Transition {
   from: number;
@@ -26,6 +29,7 @@ interface PromotionModalProps {
   onClose: () => void;
   onSuccess: () => void;
   allStudents: any[];
+  initialProgram?: string;
 }
 
 const baseURL = "http://localhost:3000";
@@ -35,25 +39,35 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
   onClose,
   onSuccess,
   allStudents,
+  initialProgram,
 }) => {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<PromotionStats | null>(null);
   const [selectedTransitions, setSelectedTransitions] = useState<
     Record<string, boolean>
   >({});
+  const [selectedProgram, setSelectedProgram] = useState<ProgramFilter>("ALL");
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dueAction, setDueAction] = useState<"CLEAR" | "KEEP" | "">("");
-  const [feeAction, setFeeAction] = useState<"CLEAR" | "ARCHIVE" | "KEEP" | "">("");
+  const [feeAction, setFeeAction] = useState<"CLEAR" | "ARCHIVE" | "KEEP" | "">(
+    "",
+  );
 
   const [yearBackCandidates, setYearBackCandidates] = useState<any[]>([]);
   const [selectedYearBackIds, setSelectedYearBackIds] = useState<number[]>([]);
 
   useEffect(() => {
     if (isOpen) {
-      fetchStats();
+      const prog: ProgramFilter =
+        initialProgram &&
+        ["BTECH", "MCA", "MTECH"].includes(initialProgram.toUpperCase())
+          ? (initialProgram.toUpperCase() as ProgramFilter)
+          : "ALL";
+      setSelectedProgram(prog);
+      fetchStats(prog);
       setStep(1);
       setError(null);
       setSelectedYearBackIds([]);
@@ -62,10 +76,12 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     }
   }, [isOpen]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (program?: ProgramFilter) => {
+    const prog = program ?? selectedProgram;
     setLoading(true);
     try {
-      const res = await fetch(`${baseURL}/api/promotion/stats`);
+      const queryParam = prog && prog !== "ALL" ? `?program=${prog}` : "";
+      const res = await fetch(`${baseURL}/api/promotion/stats${queryParam}`);
       if (!res.ok) throw new Error("Failed to fetch promotion stats");
       const data = await res.json();
       setStats(data);
@@ -94,6 +110,12 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     setSelectedTransitions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleProgramChange = (program: ProgramFilter) => {
+    setSelectedProgram(program);
+    setSelectedTransitions({});
+    fetchStats(program);
+  };
+
   const getTransitionLabel = (t: Transition) => {
     const count = stats?.counts[t.from] || 0;
     return (
@@ -108,10 +130,14 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
     if (step === 1) {
       // Check if any selected transition has pending dues or fees
       const hasPendingDues = stats?.recommendedTransitions.some(
-        (t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingDues[t.from] || 0) > 0
+        (t) =>
+          selectedTransitions[`${t.from}-${t.to}`] &&
+          (stats.pendingDues[t.from] || 0) > 0,
       );
       const hasPendingFees = stats?.recommendedTransitions.some(
-        (t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingFees[t.from] || 0) > 0
+        (t) =>
+          selectedTransitions[`${t.from}-${t.to}`] &&
+          (stats.pendingFees[t.from] || 0) > 0,
       );
 
       if (hasPendingDues || hasPendingFees) {
@@ -138,7 +164,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
         body: JSON.stringify({
           semesterType: stats.currentType,
           transitions: activeTransitions,
-          // No yearBackIds sent as per new requirement
+          program: selectedProgram !== "ALL" ? selectedProgram : undefined,
           yearBackIds: [],
           dueAction: dueAction || "NONE",
           feeAction: feeAction || "NONE",
@@ -194,9 +220,41 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
             <>
               {step === 1 && (
                 <div className="space-y-4">
+                  {/* Course/Program Filter */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <Filter className="w-4 h-4" />
+                      Select Course to Promote
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {(
+                        ["ALL", "BTECH", "MCA", "MTECH"] as ProgramFilter[]
+                      ).map((prog) => (
+                        <button
+                          key={prog}
+                          onClick={() => handleProgramChange(prog)}
+                          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors border ${
+                            selectedProgram === prog
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          {prog === "ALL" ? "All Courses" : prog}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-sm">
                     Current detected semester:{" "}
                     <strong>{stats.currentType}</strong>.
+                    {selectedProgram !== "ALL" && (
+                      <>
+                        <br />
+                        Filtering: <strong>{selectedProgram}</strong> students
+                        only.
+                      </>
+                    )}
                     <br />
                     Select the batches you want to promote.
                   </div>
@@ -228,121 +286,176 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                 <div className="space-y-6">
                   {/* Pending Dues Section */}
                   {stats.recommendedTransitions.some(
-                    (t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingDues[t.from] || 0) > 0
+                    (t) =>
+                      selectedTransitions[`${t.from}-${t.to}`] &&
+                      (stats.pendingDues[t.from] || 0) > 0,
                   ) && (
-                      <div className="space-y-4">
-                        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg flex gap-3">
-                          <AlertTriangle className="w-6 h-6 shrink-0 text-yellow-600 mt-0.5" />
-                          <div>
-                            <h4 className="font-semibold text-yellow-900">Pending No Due Requests</h4>
-                            <div className="mt-2 space-y-1 text-sm">
-                              {stats.recommendedTransitions
-                                .filter((t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingDues[t.from] || 0) > 0)
-                                .map((t) => (
-                                  <div key={t.from}>
-                                    Semester {t.from}: <strong>{stats.pendingDues[t.from]}</strong> student(s)
-                                  </div>
-                                ))}
-                            </div>
-                            <p className="mt-3 text-sm">
-                              Select how you want to handle these pending no-due clearances.
-                            </p>
+                    <div className="space-y-4">
+                      <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg flex gap-3">
+                        <AlertTriangle className="w-6 h-6 shrink-0 text-yellow-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-yellow-900">
+                            Pending No Due Requests
+                          </h4>
+                          <div className="mt-2 space-y-1 text-sm">
+                            {stats.recommendedTransitions
+                              .filter(
+                                (t) =>
+                                  selectedTransitions[`${t.from}-${t.to}`] &&
+                                  (stats.pendingDues[t.from] || 0) > 0,
+                              )
+                              .map((t) => (
+                                <div key={t.from}>
+                                  Semester {t.from}:{" "}
+                                  <strong>{stats.pendingDues[t.from]}</strong>{" "}
+                                  student(s)
+                                </div>
+                              ))}
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3">
-                          <label className={`flex p-3 border rounded-lg cursor-pointer transition-colors ${dueAction === "CLEAR" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
-                            <input
-                              type="radio"
-                              name="dueAction"
-                              className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
-                              checked={dueAction === "CLEAR"}
-                              onChange={() => setDueAction("CLEAR")}
-                            />
-                            <div className="ml-3">
-                              <h5 className="font-medium text-sm text-gray-900">Clear Dues</h5>
-                              <p className="text-xs text-gray-500">Mark all requests as approved.</p>
-                            </div>
-                          </label>
-
-                          <label className={`flex p-3 border rounded-lg cursor-pointer transition-colors ${dueAction === "KEEP" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
-                            <input
-                              type="radio"
-                              name="dueAction"
-                              className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
-                              checked={dueAction === "KEEP"}
-                              onChange={() => setDueAction("KEEP")}
-                            />
-                            <div className="ml-3">
-                              <h5 className="font-medium text-sm text-gray-900">Archive Dues</h5>
-                              <p className="text-xs text-gray-500">Keep them as-is but hide from active view.</p>
-                            </div>
-                          </label>
+                          <p className="mt-3 text-sm">
+                            Select how you want to handle these pending no-due
+                            clearances.
+                          </p>
                         </div>
                       </div>
-                    )}
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <label
+                          className={`flex p-3 border rounded-lg cursor-pointer transition-colors ${dueAction === "CLEAR" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}
+                        >
+                          <input
+                            type="radio"
+                            name="dueAction"
+                            className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                            checked={dueAction === "CLEAR"}
+                            onChange={() => setDueAction("CLEAR")}
+                          />
+                          <div className="ml-3">
+                            <h5 className="font-medium text-sm text-gray-900">
+                              Clear Dues
+                            </h5>
+                            <p className="text-xs text-gray-500">
+                              Mark all requests as approved.
+                            </p>
+                          </div>
+                        </label>
+
+                        <label
+                          className={`flex p-3 border rounded-lg cursor-pointer transition-colors ${dueAction === "KEEP" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}
+                        >
+                          <input
+                            type="radio"
+                            name="dueAction"
+                            className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                            checked={dueAction === "KEEP"}
+                            onChange={() => setDueAction("KEEP")}
+                          />
+                          <div className="ml-3">
+                            <h5 className="font-medium text-sm text-gray-900">
+                              Archive Dues
+                            </h5>
+                            <p className="text-xs text-gray-500">
+                              Keep them as-is but hide from active view.
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Pending Fees Section */}
                   {stats.recommendedTransitions.some(
-                    (t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingFees[t.from] || 0) > 0
+                    (t) =>
+                      selectedTransitions[`${t.from}-${t.to}`] &&
+                      (stats.pendingFees[t.from] || 0) > 0,
                   ) && (
-                      <div className="space-y-4 pt-4 border-t border-gray-100">
-                        <div className="bg-orange-50 border border-orange-200 text-orange-800 p-4 rounded-lg flex gap-3">
-                          <AlertTriangle className="w-6 h-6 shrink-0 text-orange-600 mt-0.5" />
-                          <div>
-                            <h4 className="font-semibold text-orange-900">Pending Student Fees</h4>
-                            <div className="mt-2 space-y-1 text-sm">
-                              {stats.recommendedTransitions
-                                .filter((t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingFees[t.from] || 0) > 0)
-                                .map((t) => (
-                                  <div key={t.from}>
-                                    Semester {t.from}: <strong>{stats.pendingFees[t.from]}</strong> invoice(s)
-                                  </div>
-                                ))}
-                            </div>
-                            <p className="mt-3 text-sm">
-                              Select how you want to handle these unpaid fees before promotion.
-                            </p>
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                      <div className="bg-orange-50 border border-orange-200 text-orange-800 p-4 rounded-lg flex gap-3">
+                        <AlertTriangle className="w-6 h-6 shrink-0 text-orange-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-orange-900">
+                            Pending Student Fees
+                          </h4>
+                          <div className="mt-2 space-y-1 text-sm">
+                            {stats.recommendedTransitions
+                              .filter(
+                                (t) =>
+                                  selectedTransitions[`${t.from}-${t.to}`] &&
+                                  (stats.pendingFees[t.from] || 0) > 0,
+                              )
+                              .map((t) => (
+                                <div key={t.from}>
+                                  Semester {t.from}:{" "}
+                                  <strong>{stats.pendingFees[t.from]}</strong>{" "}
+                                  invoice(s)
+                                </div>
+                              ))}
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3">
-                          <label className={`flex p-3 border rounded-lg cursor-pointer transition-colors ${feeAction === "CLEAR" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
-                            <input
-                              type="radio"
-                              name="feeAction"
-                              className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
-                              checked={feeAction === "CLEAR"}
-                              onChange={() => setFeeAction("CLEAR")}
-                            />
-                            <div className="ml-3">
-                              <h5 className="font-medium text-sm text-gray-900">Clear Fees (Mark Paid)</h5>
-                              <p className="text-xs text-gray-500">Mark all pending invoices as paid.</p>
-                            </div>
-                          </label>
-
-                          <label className={`flex p-3 border rounded-lg cursor-pointer transition-colors ${feeAction === "ARCHIVE" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
-                            <input
-                              type="radio"
-                              name="feeAction"
-                              className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
-                              checked={feeAction === "ARCHIVE"}
-                              onChange={() => setFeeAction("ARCHIVE")}
-                            />
-                            <div className="ml-3">
-                              <h5 className="font-medium text-sm text-gray-900">Archive Fees</h5>
-                              <p className="text-xs text-gray-500">Move them to the archived section, keeping balance clean.</p>
-                            </div>
-                          </label>
+                          <p className="mt-3 text-sm">
+                            Select how you want to handle these unpaid fees
+                            before promotion.
+                          </p>
                         </div>
                       </div>
-                    )}
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <label
+                          className={`flex p-3 border rounded-lg cursor-pointer transition-colors ${feeAction === "CLEAR" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}
+                        >
+                          <input
+                            type="radio"
+                            name="feeAction"
+                            className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                            checked={feeAction === "CLEAR"}
+                            onChange={() => setFeeAction("CLEAR")}
+                          />
+                          <div className="ml-3">
+                            <h5 className="font-medium text-sm text-gray-900">
+                              Clear Fees (Mark Paid)
+                            </h5>
+                            <p className="text-xs text-gray-500">
+                              Mark all pending invoices as paid.
+                            </p>
+                          </div>
+                        </label>
+
+                        <label
+                          className={`flex p-3 border rounded-lg cursor-pointer transition-colors ${feeAction === "ARCHIVE" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}
+                        >
+                          <input
+                            type="radio"
+                            name="feeAction"
+                            className="w-4 h-4 text-blue-600 mt-1 focus:ring-blue-500"
+                            checked={feeAction === "ARCHIVE"}
+                            onChange={() => setFeeAction("ARCHIVE")}
+                          />
+                          <div className="ml-3">
+                            <h5 className="font-medium text-sm text-gray-900">
+                              Archive Fees
+                            </h5>
+                            <p className="text-xs text-gray-500">
+                              Move them to the archived section, keeping balance
+                              clean.
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {step === 3 && (
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Summary</h4>
+                  <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-sm">
+                    Course:{" "}
+                    <strong>
+                      {selectedProgram === "ALL"
+                        ? "All Courses"
+                        : selectedProgram}
+                    </strong>
+                  </div>
                   <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600">
                     {stats.recommendedTransitions
                       .filter((t) => selectedTransitions[`${t.from}-${t.to}`])
@@ -368,12 +481,18 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                   <button
                     onClick={() => {
                       if (step === 3) {
-                        const hasPendingDues = stats?.recommendedTransitions.some(
-                          (t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingDues[t.from] || 0) > 0
-                        );
-                        const hasPendingFees = stats?.recommendedTransitions.some(
-                          (t) => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingFees[t.from] || 0) > 0
-                        );
+                        const hasPendingDues =
+                          stats?.recommendedTransitions.some(
+                            (t) =>
+                              selectedTransitions[`${t.from}-${t.to}`] &&
+                              (stats.pendingDues[t.from] || 0) > 0,
+                          );
+                        const hasPendingFees =
+                          stats?.recommendedTransitions.some(
+                            (t) =>
+                              selectedTransitions[`${t.from}-${t.to}`] &&
+                              (stats.pendingFees[t.from] || 0) > 0,
+                          );
                         setStep(hasPendingDues || hasPendingFees ? 2 : 1);
                       } else {
                         setStep(1);
@@ -390,11 +509,21 @@ const PromotionModal: React.FC<PromotionModalProps> = ({
                   <button
                     onClick={handleNext}
                     disabled={
-                      (step === 1 && Object.values(selectedTransitions).every((v) => !v)) ||
-                      (step === 2 && (
-                        (stats.recommendedTransitions.some(t => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingDues[t.from] || 0) > 0) && !dueAction) ||
-                        (stats.recommendedTransitions.some(t => selectedTransitions[`${t.from}-${t.to}`] && (stats.pendingFees[t.from] || 0) > 0) && !feeAction)
-                      ))
+                      (step === 1 &&
+                        Object.values(selectedTransitions).every((v) => !v)) ||
+                      (step === 2 &&
+                        ((stats.recommendedTransitions.some(
+                          (t) =>
+                            selectedTransitions[`${t.from}-${t.to}`] &&
+                            (stats.pendingDues[t.from] || 0) > 0,
+                        ) &&
+                          !dueAction) ||
+                          (stats.recommendedTransitions.some(
+                            (t) =>
+                              selectedTransitions[`${t.from}-${t.to}`] &&
+                              (stats.pendingFees[t.from] || 0) > 0,
+                          ) &&
+                            !feeAction)))
                     }
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 flex items-center gap-2"
                   >

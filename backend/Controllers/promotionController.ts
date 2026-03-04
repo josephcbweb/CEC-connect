@@ -11,6 +11,7 @@ interface Transition {
 interface PromotionRequest {
   transitions: Transition[];
   semesterType: "ODD" | "EVEN";
+  program?: "BTECH" | "MCA" | "MTECH"; // Optional course filter
   yearBackIds?: number[]; // IDs of students who are detained/year back
   dueAction?: "CLEAR" | "KEEP" | "NONE";
   feeAction?: "CLEAR" | "ARCHIVE" | "KEEP" | "NONE";
@@ -18,12 +19,23 @@ interface PromotionRequest {
 
 export const getPromotionStats = async (req: Request, res: Response) => {
   try {
+    // Optional program filter from query param
+    const programFilter = req.query.program as string | undefined;
+    const validPrograms = ["BTECH", "MCA", "MTECH"];
+    const program = programFilter && validPrograms.includes(programFilter.toUpperCase())
+      ? programFilter.toUpperCase()
+      : undefined;
+
+    // Build student where clause
+    const studentWhere: any = { status: "approved" };
+    if (program) {
+      studentWhere.program = program;
+    }
+
     // Get counts for all semesters
     const semesterCounts = await prisma.student.groupBy({
       by: ["currentSemester"],
-      where: {
-        status: "approved", // Only promote approved/active students
-      },
+      where: studentWhere,
       _count: {
         id: true,
       },
@@ -40,13 +52,16 @@ export const getPromotionStats = async (req: Request, res: Response) => {
 
     const currentType = oddCount >= evenCount ? "ODD" : "EVEN";
 
+    // Build no-due request where clause with program filter
+    const noDueWhere: any = { status: "pending", isArchived: false };
+    if (program) {
+      noDueWhere.student = { program };
+    }
+
     // Calculate pending dues counts per semester
     const pendingDuesQuery = await prisma.noDueRequest.groupBy({
       by: ["targetSemester"],
-      where: {
-        status: "pending",
-        isArchived: false,
-      },
+      where: noDueWhere,
       _count: {
         id: true,
       },
@@ -57,13 +72,16 @@ export const getPromotionStats = async (req: Request, res: Response) => {
       pendingDues[item.targetSemester] = item._count.id;
     });
 
+    // Build invoice where clause with program filter
+    const invoiceWhere: any = { status: "unpaid", fee: { archived: false } };
+    if (program) {
+      invoiceWhere.student = { program };
+    }
+
     // Calculate pending fees counts per semester
     const pendingFeesQuery = await prisma.invoice.groupBy({
       by: ["semester"],
-      where: {
-        status: "unpaid",
-        fee: { archived: false },
-      },
+      where: invoiceWhere,
       _count: {
         id: true,
       },
@@ -76,12 +94,26 @@ export const getPromotionStats = async (req: Request, res: Response) => {
       }
     });
 
-    res.json({
-      counts,
-      pendingDues,
-      pendingFees,
-      currentType,
-      recommendedTransitions:
+    // Build recommended transitions based on program
+    let recommendedTransitions;
+    const isPG = program === "MCA" || program === "MTECH";
+
+    if (isPG) {
+      // MCA/MTECH: 4 semesters only, S4 = graduation
+      recommendedTransitions =
+        currentType === "ODD"
+          ? [
+            { from: 1, to: 2, label: "S1 → S2" },
+            { from: 3, to: 4, label: "S3 → S4" },
+          ]
+          : [
+            { from: 1, to: 2, label: "S1 → S2" },
+            { from: 2, to: 3, label: "S2 → S3" },
+            { from: 4, to: "GRADUATED", label: "S4 → Graduated" },
+          ];
+    } else if (program === "BTECH") {
+      // BTECH: 8 semesters
+      recommendedTransitions =
         currentType === "ODD"
           ? [
             { from: 1, to: 2, label: "S1 → S2" },
@@ -90,12 +122,37 @@ export const getPromotionStats = async (req: Request, res: Response) => {
             { from: 7, to: 8, label: "S7 → S8" },
           ]
           : [
-            { from: 1, to: 2, label: "S1 → S2" }, // Added as per request
+            { from: 1, to: 2, label: "S1 → S2" },
+            { from: 2, to: 3, label: "S2 → S3" },
+            { from: 4, to: 5, label: "S4 → S5" },
+            { from: 6, to: 7, label: "S6 → S7" },
+            { from: 8, to: "GRADUATED", label: "S8 → Graduated" },
+          ];
+    } else {
+      // ALL programs combined
+      recommendedTransitions =
+        currentType === "ODD"
+          ? [
+            { from: 1, to: 2, label: "S1 → S2" },
+            { from: 3, to: 4, label: "S3 → S4" },
+            { from: 5, to: 6, label: "S5 → S6" },
+            { from: 7, to: 8, label: "S7 → S8" },
+          ]
+          : [
+            { from: 1, to: 2, label: "S1 → S2" },
             { from: 2, to: 3, label: "S2 → S3" },
             { from: 4, to: 5, label: "S4 → S5 (Graduates MCA/MTech)" },
             { from: 6, to: 7, label: "S6 → S7" },
             { from: 8, to: "GRADUATED", label: "S8 → Graduated" },
-          ],
+          ];
+    }
+
+    res.json({
+      counts,
+      pendingDues,
+      pendingFees,
+      currentType,
+      recommendedTransitions,
     });
   } catch (error) {
     console.error("Error fetching promotion stats:", error);
@@ -104,7 +161,7 @@ export const getPromotionStats = async (req: Request, res: Response) => {
 };
 
 export const promoteStudents = async (req: Request, res: Response) => {
-  const { transitions, semesterType, yearBackIds = [], dueAction = "NONE", feeAction = "NONE" } = req.body as PromotionRequest;
+  const { transitions, semesterType, program, yearBackIds = [], dueAction = "NONE", feeAction = "NONE" } = req.body as PromotionRequest;
 
   if (!transitions || !Array.isArray(transitions) || transitions.length === 0) {
     return res.status(400).json({ error: "No transitions provided." });
@@ -120,18 +177,24 @@ export const promoteStudents = async (req: Request, res: Response) => {
 
     const transitionGroups: { transition: Transition; ids: number[]; ybIds: number[] }[] = [];
 
+    // Build base where clause with optional program filter
+    const baseStudentWhere: any = { status: "approved" };
+    if (program && ["BTECH", "MCA", "MTECH"].includes(program)) {
+      baseStudentWhere.program = program;
+    }
+
     for (const t of transitions) {
       const eligibleStudents = await prisma.student.findMany({
         where: {
+          ...baseStudentWhere,
           currentSemester: t.from,
-          status: "approved",
         },
         select: { id: true, program: true },
       });
 
       if (eligibleStudents.length > 0) {
-        if (t.from === 4 && t.to === 5) {
-          // BTECH go to S5, MCA and MTECH graduate
+        if (t.from === 4 && t.to === 5 && !program) {
+          // ALL programs mode: BTECH go to S5, MCA and MTECH graduate
           const btechIds = eligibleStudents.filter((s) => s.program === "BTECH").map((s) => s.id);
           const pgIds = eligibleStudents.filter((s) => s.program === "MCA" || s.program === "MTECH").map((s) => s.id);
 
@@ -149,6 +212,7 @@ export const promoteStudents = async (req: Request, res: Response) => {
             allAffectedIds.push(...pgIds);
           }
         } else {
+          // Program-specific mode or non-S4 transitions
           const allIds = eligibleStudents.map((s) => s.id);
           const ybIds = allIds.filter((id) => yearBackIds.includes(id));
           const promoteIds = allIds.filter((id) => !yearBackIds.includes(id));

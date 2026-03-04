@@ -414,6 +414,7 @@ const StudentsPage = () => {
         onClose={() => setIsPromotionModalOpen(false)}
         onSuccess={fetchStudents}
         allStudents={students}
+        initialProgram={selectedProgram}
       />
 
       <div className="flex mt-6 bg-gray-200/60 p-1 rounded-xl w-fit relative mb-4 shadow-inner">
