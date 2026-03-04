@@ -30,9 +30,12 @@ const PaymentPage: React.FC = () => {
     const handlePayment = async () => {
         setLoading(true);
         try {
+            const token = localStorage.getItem("studentAuthToken");
             await axios.post("http://localhost:3000/fee/invoices/mark-paid", {
                 invoiceId: state.invoiceId,
                 paymentMethod: paymentMethod,
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             // Artificial delay for authentic simulation feels

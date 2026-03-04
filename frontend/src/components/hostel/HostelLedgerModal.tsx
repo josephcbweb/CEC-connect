@@ -27,9 +27,12 @@ const HostelLedgerModal = ({ studentId, onClose }: { studentId: number; onClose:
 
         setMarkingPayment(invoiceId);
         try {
-            await axios.post("http://localhost:3000/api/fee/invoices/mark-paid", {
+            const token = localStorage.getItem("authToken");
+            await axios.post("http://localhost:3000/fee/invoices/mark-paid", {
                 invoiceId,
                 paymentMethod: "MANUAL"
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
             });
             await fetchLedger();
         } catch (err) {

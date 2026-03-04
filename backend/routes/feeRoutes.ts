@@ -32,11 +32,7 @@ router.delete(
 
 // --- Fee Assignment and Payment Routes ---
 router.post("/assign", requirePermission("fee:assign"), assignFeeToStudents);
-router.post(
-  "/invoices/mark-paid",
-  requirePermission("fee:mark_paid"),
-  markInvoiceAsPaid,
-);
+router.post("/invoices/mark-paid", markInvoiceAsPaid);
 router.get("/invoices", getAllInvoices);
 
 export default router;
