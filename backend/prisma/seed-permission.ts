@@ -80,6 +80,12 @@ async function main(): Promise<void> {
     { name: "view:due", moduleName: "sidebar", action: "view" },
     { name: "view:admissions", moduleName: "sidebar", action: "view" },
     { name: "view:fee", moduleName: "sidebar", action: "view" },
+    { name: "view:bus", moduleName: "sidebar", action: "view" },
+    { name: "view:hostel", moduleName: "sidebar", action: "view" },
+    { name: "view:students", moduleName: "sidebar", action: "view" },
+    { name: "view:notifications", moduleName: "sidebar", action: "view" },
+    { name: "view:departments", moduleName: "sidebar", action: "view" },
+    { name: "view:classes", moduleName: "sidebar", action: "view" },
     { name: "manage:due", moduleName: "dues", action: "manage" },
 
     // Fee Management Permissions
@@ -161,25 +167,25 @@ async function main(): Promise<void> {
     // Accounts Staff - can view fees, mark paid, view dues
     {
       role: "accounts_staff",
-      perms: ["view:fee", "fee:mark_paid", "view:due"],
+      perms: ["view:fee", "fee:mark_paid", "view:due", "view:students"],
     },
 
     // Hostel Warden
     {
       role: "hostel_warden",
-      perms: ["view:due"],
+      perms: ["view:due", "view:hostel", "view:students"],
     },
 
     // Head of Department
     {
       role: "hod",
-      perms: ["view:certificates"],
+      perms: ["view:certificates", "view:students", "view:departments"],
     },
 
     // Staff Advisor
     {
       role: "staff_advisor",
-      perms: ["view:certificates"],
+      perms: ["view:certificates", "view:students"],
     },
   ];
 

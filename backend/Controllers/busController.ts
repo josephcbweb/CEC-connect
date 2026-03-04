@@ -379,19 +379,37 @@ export const removeStudentFromBus = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid student ID" });
     }
 
-    await prisma.$transaction([
-      prisma.busRequest.deleteMany({
+    await prisma.$transaction(async (tx) => {
+      await tx.busRequest.deleteMany({
         where: { studentId },
-      }),
-      prisma.student.update({
+      });
+      await tx.student.update({
         where: { id: studentId },
         data: {
           bus_service: false,
           busId: null,
           busStopId: null,
         },
-      }),
-    ]);
+      });
+
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+
+      await tx.notification.create({
+        data: {
+          title: "Bus Service Removed",
+          description: "You have been removed from the college bus service by the administrator.",
+          targetType: "STUDENT",
+          targetValue: studentId.toString(),
+          priority: "NORMAL",
+          status: "published",
+          expiryDate,
+          senderId,
+        },
+      });
+    });
 
     logAudit({
       req,
@@ -428,12 +446,32 @@ export const suspendStudentPass = async (req: Request, res: Response) => {
     const suspendedUntil = new Date();
     suspendedUntil.setDate(suspendedUntil.getDate() + Number(days));
 
-    await prisma.student.update({
-      where: { id: studentId },
-      data: {
-        is_bus_pass_suspended: true,
-        bus_pass_suspended_until: suspendedUntil,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id: studentId },
+        data: {
+          is_bus_pass_suspended: true,
+          bus_pass_suspended_until: suspendedUntil,
+        },
+      });
+
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+
+      await tx.notification.create({
+        data: {
+          title: "Bus Pass Suspended",
+          description: `Your bus pass has been suspended until ${suspendedUntil.toLocaleDateString()} by the administrator.`,
+          targetType: "STUDENT",
+          targetValue: studentId.toString(),
+          priority: "IMPORTANT",
+          status: "published",
+          expiryDate,
+          senderId,
+        },
+      });
     });
 
     logAudit({
@@ -464,12 +502,32 @@ export const reactivateStudentPass = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid student ID" });
     }
 
-    await prisma.student.update({
-      where: { id: studentId },
-      data: {
-        is_bus_pass_suspended: false,
-        bus_pass_suspended_until: null,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id: studentId },
+        data: {
+          is_bus_pass_suspended: false,
+          bus_pass_suspended_until: null,
+        },
+      });
+
+      const adminUser = await tx.user.findFirst();
+      const senderId = adminUser ? adminUser.id : 1;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+
+      await tx.notification.create({
+        data: {
+          title: "Bus Pass Reactivated",
+          description: "Your bus pass has been reactivated. You can now resume using the college bus service.",
+          targetType: "STUDENT",
+          targetValue: studentId.toString(),
+          priority: "IMPORTANT",
+          status: "published",
+          expiryDate,
+          senderId,
+        },
+      });
     });
 
     logAudit({
@@ -765,7 +823,7 @@ export const assignBulkBusFees = async (req: Request, res: Response) => {
 
           notificationsData.push({
             title: "Bus Fee Assigned",
-            description: `A bus fee of ₹${amount} for Semester ${targetSemester} has been assigned to you. Due date is ${dueDateObj.toLocaleDateString()}. Please pay before the due date to avoid pass suspension.`,
+            description: `A bus fee of ₹${amount} for Semester ${targetSemester} has been assigned to you. Due date is ${dueDateObj.toLocaleDateString()}. Please pay before the due date to avoid fine.`,
             targetType: NotificationTargetType.STUDENT,
             targetValue: student.id.toString(),
             priority: NotificationPriority.IMPORTANT,
@@ -1072,9 +1130,40 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
             },
           });
         }
+
+        // Create notification for manual payment
+        const adminUser = await tx.user.findFirst();
+        const senderId = adminUser ? adminUser.id : 1;
+
+        const notification = await tx.notification.create({
+          data: {
+            title: "Bus Fee Payment Successful",
+            description: `Your payment was successfully recorded manually by admin.`,
+            targetType: "STUDENT",
+            targetValue: inv.studentId.toString(),
+            status: "published",
+            priority: "IMPORTANT",
+            senderId: senderId,
+          }
+        });
+
+        return { inv, notification };
       }
-      return inv;
+      return { inv };
     });
+
+    if (status === "paid" && (updatedInvoice as any).notification) {
+      const notification = (updatedInvoice as any).notification;
+      sendPushNotification(
+        notification.id,
+        notification.targetType,
+        notification.targetValue,
+        notification.title,
+        notification.description || "",
+        { notificationId: notification.id },
+        notification.priority,
+      ).catch((err) => console.error("Async push error (bus update status):", err));
+    }
 
     logAudit({
       req,
@@ -1085,7 +1174,7 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
       details: { status },
     });
 
-    res.status(200).json(updatedInvoice);
+    res.status(200).json((updatedInvoice as any).inv || updatedInvoice);
   } catch (error: any) {
     console.error("Prisma Update Error:", error.message);
     res.status(500).json({ error: error.message });
@@ -1230,7 +1319,7 @@ export const updateBusRequestStatus = async (req: Request, res: Response) => {
         : {
           title: "Bus Service Request Rejected",
           description: "Your request for bus service has been rejected. Please contact the admin for more details.",
-          priority: "NORMAL" as NotificationPriority,
+          priority: "IMPORTANT" as NotificationPriority,
         };
 
       await tx.notification.create({

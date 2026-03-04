@@ -8,7 +8,7 @@ import {
     deleteClass,
     addDepartmentToBatch,
     toggleBatchStatus,
-} from "../Controllers/batchController";
+} from "../controllers/batchController";
 
 const router = express.Router();
 

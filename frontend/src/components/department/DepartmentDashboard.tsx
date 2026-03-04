@@ -31,6 +31,7 @@ export default function DepartmentDashboard() {
   const [changeHodModalOpen, setChangeHodModalOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteBlocked, setDeleteBlocked] = useState<{ studentCount: number } | null>(null);
 
   const fetchDepartments = async () => {
     try {
@@ -70,16 +71,23 @@ export default function DepartmentDashboard() {
 
     try {
       setDeleteLoading(true);
-      await fetch(`http://localhost:3000/api/departments/${selectedDept.id}`, {
+      const res = await fetch(`http://localhost:3000/api/departments/${selectedDept.id}`, {
         method: "DELETE",
       });
+
+      if (res.status === 409) {
+        const errorData = await res.json();
+        setDeleteBlocked({ studentCount: errorData.studentCount });
+        return;
+      }
+
       fetchDepartments();
+      setDeleteModalOpen(false);
+      setSelectedDept(null);
     } catch (err) {
       console.error(err);
     } finally {
       setDeleteLoading(false);
-      setDeleteModalOpen(false);
-      setSelectedDept(null);
     }
   };
 
@@ -127,8 +135,13 @@ export default function DepartmentDashboard() {
         isOpen={deleteModalOpen}
         departmentName={selectedDept?.name || ""}
         loading={deleteLoading}
-        onClose={() => setDeleteModalOpen(false)}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeleteBlocked(null);
+          setSelectedDept(null);
+        }}
         onConfirm={confirmDeleteDepartment}
+        blocked={deleteBlocked}
       />
 
       {selectedDept && (

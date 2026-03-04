@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Receipt, Calendar, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { X, Calendar, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import axios from "axios";
 
 interface Props {
@@ -67,23 +67,23 @@ const GenerateBillsModal = ({ isOpen, onClose, onSuccess, selectedStudentIds }: 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-zinc-950/20 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-      <div className="bg-white rounded-[2.5rem] max-w-md w-full shadow-2xl shadow-emerald-200/20 border border-zinc-100 overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-gray-950/20 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+      <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-gray-200 overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="p-8 pb-4 flex justify-between items-start">
           <div>
-            <h2 className="text-3xl font-black text-zinc-900 tracking-tight">Invoice Engine</h2>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tight">Invoice Engine</h2>
             <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest mt-1">Billing cycle generator</p>
           </div>
-          <button onClick={onClose} className="p-2.5 rounded-2xl hover:bg-zinc-50 text-zinc-400 transition-all cursor-pointer border border-transparent hover:border-zinc-100">
-            <X className="w-6 h-6" />
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 transition-all cursor-pointer border border-transparent hover:border-gray-200">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
         <div className="p-8 pt-4 space-y-6">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-bold flex items-center gap-2">
+            <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm font-bold flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
             </div>
@@ -91,9 +91,9 @@ const GenerateBillsModal = ({ isOpen, onClose, onSuccess, selectedStudentIds }: 
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Bill Month</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bill Month</label>
               <select
-                className="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-100 rounded-2xl focus:bg-white focus:border-emerald-200 focus:ring-4 focus:ring-emerald-50 transition-all outline-none font-bold text-zinc-700 appearance-none shadow-sm cursor-pointer"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-indigo-200 focus:ring-1 focus:ring-indigo-50 transition-all outline-none font-semibold text-gray-700 appearance-none shadow-sm cursor-pointer"
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
               >
@@ -105,10 +105,10 @@ const GenerateBillsModal = ({ isOpen, onClose, onSuccess, selectedStudentIds }: 
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Bill Year</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bill Year</label>
               <input
                 type="number"
-                className="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-100 rounded-2xl focus:bg-white focus:border-emerald-200 focus:ring-4 focus:ring-emerald-50 transition-all outline-none font-bold text-zinc-700 shadow-sm"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-indigo-200 focus:ring-1 focus:ring-indigo-50 transition-all outline-none font-semibold text-gray-700 shadow-sm"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
               />
@@ -116,26 +116,26 @@ const GenerateBillsModal = ({ isOpen, onClose, onSuccess, selectedStudentIds }: 
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Payment Deadline</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Payment Deadline</label>
             <div className="relative group">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
               <input
                 type="date"
-                className="w-full pl-11 pr-4 py-3.5 bg-zinc-50 border border-zinc-100 rounded-2xl focus:bg-white focus:border-emerald-200 focus:ring-4 focus:ring-emerald-50 transition-all outline-none font-bold text-zinc-700 shadow-sm"
+                className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-indigo-200 focus:ring-1 focus:ring-indigo-50 transition-all outline-none font-semibold text-gray-700 shadow-sm"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] text-white shadow-xl">
+          <div className="bg-gray-900 border border-gray-800 p-6 rounded-xl text-white shadow-xl">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-teal-600 flex items-center justify-center">
                 <AlertCircle className="w-4 h-4 text-white" />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Execution Preview</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Execution Preview</span>
             </div>
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <p className="text-xs text-gray-400 leading-relaxed">
               {selectedStudentIds.length > 0
                 ? `System will generate and deliver invoices to ${selectedStudentIds.length} targeted student(s).`
                 : `System will broadcast invoices to all residents currently enrolled in the hostel registry.`}
@@ -145,18 +145,18 @@ const GenerateBillsModal = ({ isOpen, onClose, onSuccess, selectedStudentIds }: 
         </div>
 
         {/* Action Button */}
-        <div className="p-8 border-t border-zinc-100 bg-zinc-50 flex gap-4">
+        <div className="p-8 border-t border-gray-100 bg-gray-50 flex gap-4">
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 py-4 font-black text-zinc-400 hover:bg-zinc-200 rounded-2xl transition-all cursor-pointer text-xs uppercase tracking-widest"
+            className="flex-1 py-3.5 font-bold text-gray-400 hover:bg-gray-200 rounded-lg transition-all cursor-pointer text-xs uppercase tracking-widest border border-gray-200"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-[2] bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-3 disabled:opacity-50"
+            className="flex-[2] bg-indigo-600 text-white py-3.5 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />

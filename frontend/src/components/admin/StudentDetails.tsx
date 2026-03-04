@@ -59,10 +59,14 @@ const StudentDetails = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
           <Shield className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">Student Not Found</h2>
-          <p className="text-slate-500 mb-6">The requested student details could not be loaded or do not exist.</p>
-          <button 
-            onClick={() => navigate(-1)} 
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            Student Not Found
+          </h2>
+          <p className="text-slate-500 mb-6">
+            The requested student details could not be loaded or do not exist.
+          </p>
+          <button
+            onClick={() => navigate(-1)}
             className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors"
           >
             Go Back
@@ -87,8 +91,12 @@ const StudentDetails = () => {
               <ArrowLeft className="h-4 w-4 text-slate-600" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">{personalDetails.name}</h1>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Student Profile Overview</p>
+              <h1 className="text-xl font-bold text-slate-900">
+                {personalDetails.name}
+              </h1>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Student Profile Overview
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -104,29 +112,63 @@ const StudentDetails = () => {
 
       <div className="max-w-6xl mx-auto p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
           {/* Personal Details Card */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-blue-100 bg-blue-50/50">
               <h2 className="text-sm font-bold text-blue-800 flex items-center gap-2 uppercase tracking-wide">
-                <User className="h-4 w-4 text-blue-500/70" /> Personal Information
+                <User className="h-4 w-4 text-blue-500/70" /> Personal
+                Information
               </h2>
             </div>
             <div className="p-6 space-y-1">
-              <DetailItem icon={<Mail />} label="Email" value={personalDetails.email} />
-              <DetailItem 
-                icon={<Calendar />} 
-                label="Date of Birth" 
-                value={new Date(personalDetails.dateOfBirth).toLocaleDateString()} 
+              <DetailItem
+                icon={<Mail />}
+                label="Email"
+                value={personalDetails.email}
               />
-              <DetailItem icon={<User />} label="Gender" value={personalDetails.gender} />
-              <DetailItem icon={<Droplets className="text-rose-400" />} label="Blood Group" value={personalDetails.bloodGroup} />
-              <DetailItem icon={<Phone />} label="Phone" value={personalDetails.phone} />
-              <DetailItem icon={<Globe />} label="Nationality" value={personalDetails.nationality} />
-              <DetailItem icon={<CreditCard />} label="Aadhaar" value={personalDetails.aadhaarNumber} />
+              <DetailItem
+                icon={<Calendar />}
+                label="Date of Birth"
+                value={new Date(
+                  personalDetails.dateOfBirth,
+                ).toLocaleDateString()}
+              />
+              <DetailItem
+                icon={<User />}
+                label="Gender"
+                value={personalDetails.gender}
+              />
+              <DetailItem
+                icon={<Droplets />}
+                label="Blood Group"
+                value={personalDetails.bloodGroup}
+              />
+              <DetailItem
+                icon={<Phone />}
+                label="Phone"
+                value={personalDetails.phone}
+              />
+              <DetailItem
+                icon={<Globe />}
+                label="Nationality"
+                value={personalDetails.nationality}
+              />
+              <DetailItem
+                icon={<CreditCard />}
+                label="Aadhaar"
+                value={personalDetails.aadhaarNumber}
+              />
               <div className="pt-4 mt-4 border-t border-slate-50">
-                <DetailItem icon={<MapPin />} label="Permanent Address" value={personalDetails.permanentAddress} />
-                <DetailItem icon={<Home />} label="Contact Address" value={personalDetails.contactAddress} />
+                <DetailItem
+                  icon={<MapPin />}
+                  label="Permanent Address"
+                  value={personalDetails.permanentAddress}
+                />
+                <DetailItem
+                  icon={<Home />}
+                  label="Contact Address"
+                  value={personalDetails.contactAddress}
+                />
               </div>
             </div>
           </div>
@@ -135,20 +177,45 @@ const StudentDetails = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-indigo-100 bg-indigo-50/50">
               <h2 className="text-sm font-bold text-indigo-800 flex items-center gap-2 uppercase tracking-wide">
-                <Users className="h-4 w-4 text-indigo-500/70" /> Family & Guardians
+                <Users className="h-4 w-4 text-indigo-500/70" /> Family &
+                Guardians
               </h2>
             </div>
             <div className="p-6 space-y-1">
-              <DetailItem label="Father Name" value={personalDetails.fatherName} />
-              <DetailItem label="Father Phone" value={personalDetails.fatherPhone} />
-              <DetailItem label="Mother Name" value={personalDetails.motherName} />
-              <DetailItem label="Mother Phone" value={personalDetails.motherPhone} />
-              <DetailItem label="Parent Email" value={personalDetails.parentEmail} />
+              <DetailItem
+                label="Father Name"
+                value={personalDetails.fatherName}
+              />
+              <DetailItem
+                label="Father Phone"
+                value={personalDetails.fatherPhone}
+              />
+              <DetailItem
+                label="Mother Name"
+                value={personalDetails.motherName}
+              />
+              <DetailItem
+                label="Mother Phone"
+                value={personalDetails.motherPhone}
+              />
+              <DetailItem
+                label="Parent Email"
+                value={personalDetails.parentEmail}
+              />
               {personalDetails.guardianName && (
                 <div className="pt-4 mt-4 border-t border-slate-50">
-                  <DetailItem label="Guardian Name" value={personalDetails.guardianName} />
-                  <DetailItem label="Guardian Phone" value={personalDetails.guardianPhone} />
-                  <DetailItem label="Guardian Address" value={personalDetails.guardianAddress} />
+                  <DetailItem
+                    label="Guardian Name"
+                    value={personalDetails.guardianName}
+                  />
+                  <DetailItem
+                    label="Guardian Phone"
+                    value={personalDetails.guardianPhone}
+                  />
+                  <DetailItem
+                    label="Guardian Address"
+                    value={personalDetails.guardianAddress}
+                  />
                 </div>
               )}
             </div>
@@ -158,14 +225,43 @@ const StudentDetails = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-amber-100 bg-amber-50/50">
               <h2 className="text-sm font-bold text-amber-800 flex items-center gap-2 uppercase tracking-wide">
-                <GraduationCap className="h-4 w-4 text-amber-500/70" /> Admission Data
+                <GraduationCap className="h-4 w-4 text-amber-500/70" />{" "}
+                Admission Data
               </h2>
             </div>
             <div className="p-6 space-y-1">
-              <DetailItem icon={<BookOpen />} label="Program" value={personalDetails.program} />
-              <DetailItem icon={<Building />} label="Department" value={personalDetails.department} />
-              <DetailItem icon={<Award />} label="Current Year" value={personalDetails.year} />
-              <DetailItem icon={<Users />} label="Admission Type" value={personalDetails.admission_type} />
+              <DetailItem
+                icon={<BookOpen />}
+                label="Program"
+                value={personalDetails.program}
+              />
+              <DetailItem
+                icon={<Building />}
+                label="Department"
+                value={personalDetails.department}
+              />
+              <DetailItem
+                icon={<Award />}
+                label="Current Year"
+                value={personalDetails.year}
+              />
+              <DetailItem
+                icon={<Users />}
+                label="Admission Type"
+                value={personalDetails.admission_type}
+              />
+              <div className="pt-4 mt-4 border-t border-slate-50">
+                <DetailItem
+                  icon={<User className="text-indigo-400" />}
+                  label="Staff Advisor"
+                  value={personalDetails.staffAdvisor}
+                />
+                <DetailItem
+                  icon={<Shield className="text-purple-400" />}
+                  label="HOD"
+                  value={personalDetails.hodName}
+                />
+              </div>
             </div>
           </div>
 
@@ -173,7 +269,8 @@ const StudentDetails = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-rose-100 bg-rose-50/50">
               <h2 className="text-sm font-bold text-rose-800 flex items-center gap-2 uppercase tracking-wide">
-                <Award className="h-4 w-4 text-rose-500/70" /> Performance History
+                <Award className="h-4 w-4 text-rose-500/70" /> Performance
+                History
               </h2>
             </div>
             <div className="p-6">
@@ -184,16 +281,32 @@ const StudentDetails = () => {
                   { label: "Maths", val: academicDetails.maths },
                   { label: "KEAM Total", val: academicDetails.keamTotal },
                 ].map((item) => (
-                  <div key={item.label} className="p-3 rounded-lg border border-slate-100 bg-slate-50/50">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-1">{item.label}</p>
-                    <p className="text-base font-bold text-slate-800">{item.val}</p>
+                  <div
+                    key={item.label}
+                    className="p-3 rounded-lg border border-slate-100 bg-slate-50/50"
+                  >
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-1">
+                      {item.label}
+                    </p>
+                    <p className="text-base font-bold text-slate-800">
+                      {item.val}
+                    </p>
                   </div>
                 ))}
               </div>
               <div className="space-y-1">
-                <DetailItem label="Entrance Total" value={academicDetails.entranceTotal} />
-                <DetailItem label="Prev. Institution" value={academicDetails.previousInstitution} />
-                <DetailItem label="Prev. Percentage" value={`${academicDetails.previousPercentage}%`} />
+                <DetailItem
+                  label="Entrance Total"
+                  value={academicDetails.entranceTotal}
+                />
+                <DetailItem
+                  label="Prev. Institution"
+                  value={academicDetails.previousInstitution}
+                />
+                <DetailItem
+                  label="Prev. Percentage"
+                  value={`${academicDetails.previousPercentage}%`}
+                />
               </div>
             </div>
           </div>
@@ -202,7 +315,8 @@ const StudentDetails = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
             <div className="px-6 py-4 border-b border-emerald-100 bg-emerald-50/50">
               <h2 className="text-sm font-bold text-emerald-800 flex items-center gap-2 uppercase tracking-wide">
-                <CreditCard className="h-4 w-4 text-emerald-500/70" /> Banking & Finance
+                <CreditCard className="h-4 w-4 text-emerald-500/70" /> Banking &
+                Finance
               </h2>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -212,8 +326,12 @@ const StudentDetails = () => {
                 { label: "Branch", val: bankDetails.bankBranch },
               ].map((bank, i) => (
                 <div key={i} className="flex flex-col">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">{bank.label}</span>
-                  <span className="text-base font-semibold text-slate-900">{bank.val || "—"}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">
+                    {bank.label}
+                  </span>
+                  <span className="text-base font-semibold text-slate-900">
+                    {bank.val || "—"}
+                  </span>
                 </div>
               ))}
             </div>

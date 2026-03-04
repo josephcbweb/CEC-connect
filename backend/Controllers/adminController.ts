@@ -256,7 +256,24 @@ export const getStudentDetails = async (req: Request, res: Response) => {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
-        department: true, // to get department name
+        department: {
+          include: {
+            hodDetails: {
+              include: {
+                user: {
+                  select: { username: true }
+                }
+              }
+            }
+          }
+        },
+        class: {
+          include: {
+            advisor: {
+              select: { username: true }
+            }
+          }
+        }
       },
     });
 
@@ -287,6 +304,8 @@ export const getStudentDetails = async (req: Request, res: Response) => {
         guardianAddress: student.local_guardian_address,
         guardianPhone: student.local_guardian_phone_number,
         admittedCategory: student.admitted_category,
+        staffAdvisor: student.class?.advisor?.username || "Not Assigned",
+        hodName: student.department?.hodDetails?.user?.username || "Not Assigned",
       },
       academicDetails: {
         physics: student.physics_score,

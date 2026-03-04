@@ -67,6 +67,11 @@ const MODULE_COLORS: Record<string, { bg: string; text: string; dot: string }> =
     text: "text-violet-700",
     dot: "bg-violet-500",
   },
+  hostel: {
+    bg: "bg-teal-50",
+    text: "text-teal-700",
+    dot: "bg-teal-500",
+  },
   general: { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-500" },
 };
 
@@ -107,6 +112,13 @@ const ACTION_LABELS: Record<string, string> = {
   UPDATE_BUS_REQUEST_STATUS: "Updated Bus Request Status",
   VERIFY_BUS_PAYMENT: "Verified Bus Payment",
   UPDATE_BUS_FINE_SETTINGS: "Updated Bus Fine Settings",
+  CREATE_HOSTEL: "Created Hostel",
+  ASSIGN_STUDENT_TO_HOSTEL: "Assigned Student to Hostel",
+  UPDATE_HOSTEL_WARDEN: "Updated Hostel Warden",
+  UPDATE_HOSTEL_RENT: "Updated Hostel Rent",
+  GENERATE_HOSTEL_INVOICES: "Generated Hostel Invoices",
+  VACATE_HOSTEL_STUDENT: "Vacated Hostel Student",
+  UPDATE_HOSTEL_FINE_SETTINGS: "Updated Hostel Fine Settings",
 };
 
 function parseUserAgent(ua: string | null): string {
@@ -340,6 +352,7 @@ const AuditLogPage: React.FC = () => {
               <option value="due">Due Management</option>
               <option value="due_settings">Due Settings</option>
               <option value="bus">Bus Management</option>
+              <option value="hostel">Hostel Management</option>
             </select>
 
             {/* Toggle more filters */}
