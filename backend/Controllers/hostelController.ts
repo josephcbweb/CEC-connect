@@ -323,6 +323,30 @@ export const generateMonthlyInvoices = async (req: Request, res: Response) => {
   }
 };
 
+export const checkStudentDues = async (req: Request, res: Response) => {
+  try {
+    const { studentId } = req.params;
+
+    const pendingInvoices = await prisma.invoice.findMany({
+      where: {
+        studentId: Number(studentId),
+        status: { in: ['unpaid', 'overdue'] },
+        fee: { feeType: { contains: 'HOSTEL_RENT' } }
+      }
+    });
+
+    const totalDues = pendingInvoices.reduce((acc, inv) => acc + Number(inv.amount), 0);
+
+    return res.status(200).json({
+      hasDues: pendingInvoices.length > 0,
+      totalDues,
+    });
+  } catch (error: any) {
+    console.error("Check Dues Error:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 export const vacateStudent = async (req: Request, res: Response) => {
   try {
     const { studentId } = req.params;

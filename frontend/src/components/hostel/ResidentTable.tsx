@@ -55,7 +55,7 @@ const ResidentTable = ({
       }
 
       if (window.confirm(`Are you sure you want to vacate ${name}?`)) {
-        await axios.post(`http://localhost:3000/api/hostel/vacate/${id}`);
+        await axios.patch(`http://localhost:3000/api/hostel/vacate/${id}`);
         onRefresh();
       }
     } catch (error) {

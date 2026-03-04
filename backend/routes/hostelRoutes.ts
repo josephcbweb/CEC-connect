@@ -9,6 +9,7 @@ import {
     updateWarden,
     updateRent,
     generateMonthlyInvoices,
+    checkStudentDues,
     vacateStudent,
     getStudentHostelLedger,
     getHostelFineSettings,
@@ -37,6 +38,9 @@ router.patch('/updateRent/:id', updateRent);
 
 // Bulk generate monthly rent
 router.post('/generate-invoices', generateMonthlyInvoices);
+
+// Check outstanding hostel dues for a student
+router.get('/check-dues/:studentId', checkStudentDues);
 
 // Vacate student with due-check
 router.patch('/vacate/:studentId', vacateStudent);
