@@ -289,11 +289,9 @@ const StudentLogin = () => {
               {/* Features List */}
               <div className="space-y-4 text-left">
                 {[
-                  "View your course schedule and grades",
-                  "Submit assignments and track deadlines",
-                  "Access learning materials and resources",
-                  "Communicate with instructors and peers",
-                  "Monitor your academic progress",
+                  "View your no due status",
+                  "Submit requests and track status",
+                  "Real time notification",
                 ].map((feature, index) => (
                   <div key={index} className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-[#3AA9AB] rounded-full"></div>

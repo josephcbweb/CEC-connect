@@ -30,6 +30,7 @@ import BatchRegistry from "./components/admin/batches/BatchRegistry";
 import BatchDetail from "./components/admin/batches/BatchDetail";
 import NotificationManager from "./components/admin/notifications/NotificationManager";
 import HostelPage from "./components/hostel/HostelPage";
+import HostelFeePage from "./components/hostel/HostelFeePage";
 import AnalyticsPage from "./components/analytics/AnalyticsPage";
 import AuditLogPage from "./components/audit/AuditLogPage";
 
@@ -66,6 +67,7 @@ const App = () => {
             element={<NotificationManager />}
           />
           <Route path="/admin/hostel" element={<HostelPage />} />
+          <Route path="/admin/hostel/fees" element={<HostelFeePage />} />
           <Route path="/admin/analytics" element={<AnalyticsPage />} />
           <Route path="/admin/audit-logs" element={<AuditLogPage />} />
         </Route>

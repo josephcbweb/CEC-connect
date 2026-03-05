@@ -44,79 +44,98 @@ const HostelLedgerModal = ({ studentId, onClose }: { studentId: number; onClose:
     };
 
     return (
-        <div className="fixed inset-0 bg-gray-950/20 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl shadow-teal-200/20 border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: "rgba(15, 23, 42, 0.45)", backdropFilter: "blur(6px)" }}
+        >
+            <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
+
                 {/* Header */}
-                <div className="p-8 pb-4 flex justify-between items-start">
-                    <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 border border-teal-100">
-                            <CreditCard className="w-7 h-7" />
+                <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-teal-50 rounded-lg flex items-center justify-center text-teal-600 border border-teal-100 shrink-0">
+                            <CreditCard className="w-4.5 h-4.5" />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Payment Ledger</h3>
-                            <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1">Institutional Billing History</p>
+                            <h3 className="text-lg font-semibold text-slate-800 tracking-tight">Payment Ledger</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">Billing history for this student</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2.5 rounded-2xl hover:bg-gray-50 text-gray-400 transition-all cursor-pointer border border-transparent hover:border-gray-100">
-                        <X className="w-6 h-6" />
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 pt-4">
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto px-7 py-5">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20 gap-4">
-                            <div className="w-10 h-10 border-4 border-teal-100 border-t-teal-600 rounded-full animate-spin" />
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest animate-pulse">Retrieving records...</span>
+                        <div className="flex flex-col items-center justify-center py-20 gap-3">
+                            <Loader2 className="w-6 h-6 text-teal-500 animate-spin" />
+                            <span className="text-xs text-slate-400">Retrieving records...</span>
                         </div>
                     ) : ledger.length === 0 ? (
-                        <div className="py-20 text-center">
-                            <div className="w-20 h-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 border border-gray-100">
-                                <Receipt className="w-10 h-10 text-gray-200" />
+                        <div className="flex flex-col items-center justify-center py-20 gap-3">
+                            <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100">
+                                <Receipt className="w-6 h-6 text-slate-300" />
                             </div>
-                            <h4 className="text-lg font-bold text-gray-900">No records found</h4>
-                            <p className="text-gray-400 text-sm mt-1">This student has no archived transactions.</p>
+                            <p className="text-sm font-medium text-slate-700">No records found</p>
+                            <p className="text-xs text-slate-400">This student has no archived transactions.</p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             {ledger.map((inv) => (
-                                <div key={inv.id} className="group relative flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-teal-200 hover:shadow-xl hover:shadow-teal-200/20 transition-all duration-500 overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-teal-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-
-                                    <div className="relative flex items-center gap-5">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xs ${inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'} border transition-colors group-hover:scale-110 duration-500`}>
+                                <div
+                                    key={inv.id}
+                                    className="flex items-center justify-between px-5 py-4 bg-white border border-slate-200 rounded-xl hover:border-slate-300 hover:bg-slate-50 transition-all duration-200"
+                                >
+                                    {/* Left: icon + details */}
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border shrink-0 ${
+                                            inv.status === 'paid'
+                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                : 'bg-rose-50 text-rose-500 border-rose-100'
+                                        }`}>
                                             {inv.month?.charAt(0) || 'B'}
                                         </div>
                                         <div>
-                                            <p className="font-black text-gray-900 text-lg tracking-tight group-hover:text-teal-700 transition-colors uppercase">{inv.fee.feeType.replace(/_/g, ' ')}</p>
-                                            <div className="flex items-center gap-3 mt-1">
-                                                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{inv.month} {inv.year}</span>
-                                                <div className="w-1 h-1 bg-gray-200 rounded-full" />
-                                                <span className="text-[10px] text-gray-300 font-bold uppercase tracking-tighter">REF: {inv.id}</span>
+                                            <p className="text-sm font-semibold text-slate-800">
+                                                {inv.fee.feeType.replace(/_/g, ' ')}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-xs text-slate-400">{inv.month} {inv.year}</span>
+                                                <span className="text-slate-200">·</span>
+                                                <span className="text-xs text-slate-300">REF: {inv.id}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="relative flex items-center gap-6">
+                                    {/* Right: amount + status */}
+                                    <div className="flex items-center gap-4">
                                         <div className="text-right">
-                                            <p className="font-black text-xl text-gray-900 tracking-tighter group-hover:scale-110 transition-transform origin-right">₹{inv.amount}</p>
-                                            <div className="flex items-center justify-end gap-2 mt-0.5">
-                                                <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${inv.status === 'paid' ? 'text-emerald-500' : 'text-red-500'}`}>
-                                                    {inv.status}
-                                                </p>
-                                                {inv.status !== 'paid' && (
-                                                    <button
-                                                        onClick={() => handleMarkAsPaid(inv.id)}
-                                                        disabled={markingPayment === inv.id}
-                                                        className="text-[10px] font-black text-teal-600 hover:text-white hover:bg-teal-600 px-2 py-1 rounded-lg border border-teal-100 hover:border-teal-600 transition-all cursor-pointer disabled:opacity-50 uppercase tracking-tighter"
-                                                    >
-                                                        {markingPayment === inv.id ? "Processing..." : "Mark Paid"}
-                                                    </button>
-                                                )}
+                                            <p className="text-sm font-bold text-slate-800">₹{inv.amount}</p>
+                                            <p className={`text-xs font-medium mt-0.5 ${
+                                                inv.status === 'paid' ? 'text-emerald-500' : 'text-rose-500'
+                                            }`}>
+                                                {inv.status === 'paid' ? 'Paid' : 'Unpaid'}
+                                            </p>
+                                        </div>
+
+                                        {inv.status !== 'paid' ? (
+                                            <button
+                                                onClick={() => handleMarkAsPaid(inv.id)}
+                                                disabled={markingPayment === inv.id}
+                                                className="text-xs font-semibold text-teal-600 hover:text-white hover:bg-teal-600 px-3 py-1.5 rounded-lg border border-teal-200 hover:border-teal-600 transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                                            >
+                                                {markingPayment === inv.id ? "Processing..." : "Mark Paid"}
+                                            </button>
+                                        ) : (
+                                            <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-500 border border-emerald-100">
+                                                <CheckCircle2 className="w-4 h-4" />
                                             </div>
-                                        </div>
-                                        <div className={`p-3 rounded-2xl transition-all ${inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white' : 'bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white'}`}>
-                                            {inv.status === 'paid' ? <CheckCircle2 className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
-                                        </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -125,13 +144,13 @@ const HostelLedgerModal = ({ studentId, onClose }: { studentId: number; onClose:
                 </div>
 
                 {/* Footer */}
-                <div className="p-8 border-t border-gray-100 bg-gray-50 flex justify-center">
+                <div className="flex justify-end px-7 py-5 border-t border-slate-100 bg-slate-50">
                     <button
                         onClick={onClose}
-                        className="group flex items-center gap-3 py-3 px-8 bg-gray-900 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-black transition-all hover:shadow-xl active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
                     >
-                        Exit Ledger
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        Close
+                        <ArrowRight className="w-4 h-4" />
                     </button>
                 </div>
             </div>

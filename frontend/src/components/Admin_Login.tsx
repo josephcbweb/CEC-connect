@@ -269,7 +269,6 @@ const Login = () => {
                 {[
                   "Personalized academic dashboard",
                   "Real-time collaboration tools",
-                  "Advanced research resources",
                   "Seamless course management",
                 ].map((feature, index) => (
                   <div key={index} className="flex items-center space-x-3">

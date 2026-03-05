@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import {
   Loader2,
@@ -22,13 +23,13 @@ import AddHostelModal from "./AddHostelModal";
 import AssignStudentModal from "./AssignStudentModal";
 import EditWardenModal from "./EditWardenModal";
 import EditRentModal from "./EditRentModal";
-import GenerateBillsModal from "./GenerateBillsModal";
 import HostelFineSettingsModal from "./HostelFineSettingsModal";
 
 import type { Hostel, Resident } from "./types";
 
 const HostelPage = () => {
   usePageTitle("Hostel");
+  const [searchParams, setSearchParams] = useSearchParams();
   // Data States
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,9 +43,9 @@ const HostelPage = () => {
     useState(false);
   const [isEditWardenOpen, setIsEditWardenOpen] = useState(false);
   const [isEditRentOpen, setIsEditRentOpen] = useState(false);
-  const [isGenerateBillsOpen, setIsGenerateBillsOpen] = useState(false);
   const [isFineSettingsOpen, setIsFineSettingsOpen] = useState(false);
   const [selectedResidentIds, setSelectedResidentIds] = useState<number[]>([]);
+  const navigate = useNavigate();
 
   // Fetch all hostels from backend
   const fetchHostels = async () => {
@@ -89,15 +90,32 @@ const HostelPage = () => {
     fetchHostels();
   }, []);
 
+  // Sync selectedHostel with URL Search Params
+  useEffect(() => {
+    const hostelIdFromUrl = searchParams.get("id");
+    if (hostelIdFromUrl && hostels.length > 0) {
+      const hostelId = parseInt(hostelIdFromUrl);
+      const matchedHostel = hostels.find((h) => h.id === hostelId);
+      if (matchedHostel) {
+        setSelectedHostel(matchedHostel);
+        fetchResidents(matchedHostel.id);
+      } else {
+        // If ID is in URL but no match in list, clear it
+        setSelectedHostel(null);
+        setResidents([]);
+      }
+    } else if (!hostelIdFromUrl) {
+      setSelectedHostel(null);
+      setResidents([]);
+    }
+  }, [searchParams, hostels]);
+
   const handleHostelClick = (hostel: Hostel) => {
-    setSelectedHostel(hostel);
-    setSelectedResidentIds([]);
-    fetchResidents(hostel.id);
+    setSearchParams({ id: hostel.id.toString() });
   };
 
   const handleBackToHostels = () => {
-    setSelectedHostel(null);
-    setResidents([]);
+    setSearchParams({});
     setSelectedResidentIds([]);
   };
 
@@ -140,15 +158,6 @@ const HostelPage = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Generate Bills Button */}
-              <button
-                onClick={() => setIsGenerateBillsOpen(true)}
-                className="py-2.5 px-5 bg-indigo-600 text-white flex items-center gap-2 cursor-pointer font-semibold rounded-lg hover:bg-indigo-700 transition-all active:scale-95 shadow-sm"
-              >
-                < Receipt className="w-4 h-4" />
-                <span>Assign Rent {selectedResidentIds.length > 0 ? `(${selectedResidentIds.length})` : ""}</span>
-              </button>
-
               {!selectedHostel && (
                 <button
                   onClick={() => setIsFineSettingsOpen(true)}
@@ -156,6 +165,16 @@ const HostelPage = () => {
                 >
                   <Settings className="w-4 h-4" />
                   <span>Config</span>
+                </button>
+              )}
+
+              {selectedHostel && (
+                <button
+                  onClick={() => navigate(`/admin/hostel/fees?id=${selectedHostel.id}`)}
+                  className="py-2.5 px-5 bg-white border border-gray-200 text-gray-600 flex items-center gap-2 cursor-pointer font-bold text-xs uppercase tracking-widest rounded-lg hover:border-teal-200 hover:text-teal-700 transition-all shadow-sm group"
+                >
+                  <Receipt className="w-4 h-4 text-gray-400 group-hover:text-teal-500" />
+                  <span>Hostel Fees</span>
                 </button>
               )}
 
@@ -320,17 +339,6 @@ const HostelPage = () => {
         onClose={() => setIsEditRentOpen(false)}
         hostel={selectedHostel}
         onSuccess={fetchHostels}
-      />
-
-      <GenerateBillsModal
-        isOpen={isGenerateBillsOpen}
-        onClose={() => setIsGenerateBillsOpen(false)}
-        selectedStudentIds={selectedResidentIds}
-        onSuccess={(msg) => {
-          alert(msg);
-          setSelectedResidentIds([]);
-          if (selectedHostel) fetchResidents(selectedHostel.id);
-        }}
       />
 
       <HostelFineSettingsModal

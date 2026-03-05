@@ -64,6 +64,6 @@ app.use("/api/password-reset", passwordResetRoutes);
 import { initCronJobs } from "./services/cronService";
 initCronJobs();
 
-app.listen(PORT, () => {
+app.listen(3000,"0.0.0.0", () => {
   console.log("Server listening on port: ", PORT);
 });

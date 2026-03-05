@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Receipt, LogOut, Users } from "lucide-react";
 import axios from "axios";
 import type { Resident } from "./types";
@@ -20,6 +21,7 @@ const ResidentTable = ({
   onSelectionChange,
   onRefresh,
 }: Props) => {
+  const navigate = useNavigate();
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [isDuesModalOpen, setIsDuesModalOpen] = useState(false);
   const [pendingDuesInfo, setPendingDuesInfo] = useState<{
@@ -79,7 +81,7 @@ const ResidentTable = ({
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50/50 border-b border-gray-100">
-              <th className="px-8 py-5 text-center">
+              {/* <th className="px-8 py-5 text-center">
                 <input
                   type="checkbox"
                   className="w-5 h-5 rounded-lg border-gray-200 text-teal-600 focus:ring-teal-500/20 focus:ring-4 transition-all cursor-pointer bg-white"
@@ -89,7 +91,7 @@ const ResidentTable = ({
                   }
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
-              </th>
+              </th> */}
               <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Resident</th>
               <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Contact</th>
               <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Class</th>
@@ -99,14 +101,14 @@ const ResidentTable = ({
           <tbody className="divide-y divide-gray-50">
             {residents.map((resident) => (
               <tr key={resident.id} className="group hover:bg-teal-50/30 transition-all duration-300">
-                <td className="px-8 py-5 text-center">
+                {/* <td className="px-8 py-5 text-center">
                   <input
                     type="checkbox"
                     className="w-5 h-5 rounded-lg border-gray-200 text-teal-600 focus:ring-teal-500/20 focus:ring-4 transition-all cursor-pointer bg-white"
                     checked={selectedResidentIds.includes(resident.id)}
                     onChange={(e) => handleSelectOne(resident.id, e.target.checked)}
                   />
-                </td>
+                </td> */}
                 <td className="px-6 py-5">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs group-hover:bg-teal-600 group-hover:text-white transition-all duration-300 shadow-sm border border-gray-200 group-hover:border-teal-600">
@@ -129,12 +131,18 @@ const ResidentTable = ({
                 <td className="px-6 py-5">
                   <div className="flex items-center justify-end gap-2">
                     <button
+                      onClick={() => navigate(`/admin/studentDetails/${resident.id}`)}
+                      className="px-3 py-1.5 rounded-lg bg-teal-50 text-teal-600 font-black text-[10px] uppercase tracking-widest hover:bg-teal-600 hover:text-white transition-all duration-300 shadow-sm border border-teal-100/50 cursor-pointer"
+                    >
+                      View Details
+                    </button>
+                    {/* <button
                       onClick={() => setSelectedStudentId(resident.id)}
                       className="p-2.5 rounded-lg hover:bg-white hover:text-teal-600 text-gray-400 transition-all border border-transparent hover:border-teal-100 hover:shadow-md cursor-pointer group/btn"
                       title="View Ledger"
                     >
                       <Receipt className="w-4 h-4" />
-                    </button>
+                    </button> */}
                     <button
                       onClick={() => handleVacate(resident.id, resident.name)}
                       className="p-2.5 rounded-lg hover:bg-white hover:text-red-600 text-gray-400 transition-all border border-transparent hover:border-red-100 hover:shadow-md cursor-pointer"

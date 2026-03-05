@@ -110,6 +110,7 @@ export const assignStudentToHostel = async (req: Request, res: Response) => {
 export const getHostelStudents = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { month, year } = req.query;
 
     const hostelData = await prisma.hostel.findUnique({
       where: { id: Number(id) },
@@ -118,6 +119,7 @@ export const getHostelStudents = async (req: Request, res: Response) => {
           select: {
             id: true,
             name: true,
+            admission_number: true,
             student_phone_number: true,
             currentSemester: true,
             class: {
@@ -134,22 +136,53 @@ export const getHostelStudents = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "Hostel not found" });
     }
 
-    // Flattening the class name for a cleaner API response
-    const formattedStudents = hostelData.students.map(student => ({
-      id: student.id,
-      name: student.name,
-      phone: student.student_phone_number,
-      semester: student.currentSemester,
-      className: student.class?.name || "Not Assigned",
-    }));
+    let invoices: any[] = [];
+    let invoicesGenerated = false;
+
+    if (month && year) {
+      const feeTypeString = `HOSTEL_RENT_${(month as string).toUpperCase()}_${year}`;
+      invoices = await prisma.invoice.findMany({
+        where: {
+          fee: { feeType: feeTypeString },
+          studentId: { in: hostelData.students.map(s => s.id) }
+        },
+        select: {
+          id: true,
+          studentId: true,
+          status: true,
+          amount: true
+        }
+      });
+      invoicesGenerated = invoices.length > 0;
+    }
+
+    const formattedStudents = hostelData.students.map(student => {
+      const invoice = invoices.find(inv => inv.studentId === student.id);
+      return {
+        id: student.id,
+        name: student.name,
+        admissionNo: student.admission_number,
+        phone: student.student_phone_number,
+        semester: student.currentSemester,
+        className: student.class?.name || "Not Assigned",
+        paymentStatus: invoice ? invoice.status : (month && year ? 'not_generated' : null),
+        amount: invoice ? invoice.amount : null,
+        invoiceId: invoice ? invoice.id : null
+      };
+    });
 
     return res.status(200).json({
       success: true,
       hostelName: hostelData.name,
       warden: hostelData.wardenName,
-      wardenPhone: hostelData.wardenPhone, // Add this
-      monthlyRent: hostelData.monthlyRent, // Add this
-      students: formattedStudents
+      wardenPhone: hostelData.wardenPhone,
+      monthlyRent: hostelData.monthlyRent,
+      students: formattedStudents,
+      metadata: {
+        invoicesGenerated,
+        month,
+        year
+      }
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
