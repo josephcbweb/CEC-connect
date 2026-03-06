@@ -16,6 +16,9 @@ import {
 import axios from "axios";
 import AssignBusFeeModal from "./AssignBusFeeModal";
 import BusFineSettingsModal from "./BusFineSettingsModal";
+import ExportPdfModal from "./ExportPdfModal";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface StudentRow {
   studentId: number;
@@ -86,6 +89,7 @@ const BusFeeManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Confirmation modal states
@@ -152,6 +156,52 @@ const BusFeeManager = () => {
   const handleVerifyPaymentClick = (student: StudentRow) => {
     setTargetStudent(student);
     setIsConfirmModalOpen(true);
+  };
+
+  const handleExportPDF = (filterType: 'all' | 'paid' | 'unpaid') => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(65, 52, 189); // Violet 700
+    doc.text("Bus Fee Report", pageWidth / 2, 20, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128); // Gray 500
+    const filterLabel = filterType === 'all' ? 'All Residents' : (filterType === 'paid' ? 'Paid Residents Only' : 'Unpaid Residents Only');
+    doc.text(`Program: ${selectedProgram} | Semester: ${selectedSemester} | Filter: ${filterLabel}`, pageWidth / 2, 28, { align: "center" });
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, 34, { align: "center" });
+
+    // Filter students based on status
+    const studentsToExport = students.filter(s => {
+      if (filterType === 'all') return true;
+      if (filterType === 'paid') return s.status === 'paid';
+      if (filterType === 'unpaid') return s.status === 'unpaid' || s.status === 'overdue';
+      return true;
+    });
+
+    const tableData = studentsToExport.map((s, index) => [
+      index + 1,
+      s.name,
+      s.admissionNumber,
+      s.batchName || "N/A",
+      s.stopName || "N/A",
+      `INR ${Number(s.feeAmount).toLocaleString()}`,
+      statusConfig[s.status]?.label || s.status.toUpperCase()
+    ]);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [["S.No", "Name", "Admission No", "Batch", "Bus Stop", "Amount", "Status"]],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [65, 52, 189] },
+      styles: { fontSize: 9 }
+    });
+
+    doc.save(`Bus_Fee_Report_${selectedProgram}_S${selectedSemester}_${filterType}.pdf`);
+    setIsExportModalOpen(false);
   };
 
   const confirmPaymentUpdate = async () => {
@@ -235,6 +285,15 @@ const BusFeeManager = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
+          <button
+            onClick={() => setIsExportModalOpen(true)}
+            disabled={selectedSemester === "all" || selectedProgram === "all"}
+            className="flex items-center gap-2 py-2.5 px-4 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={(selectedSemester === "all" || selectedProgram === "all") ? "Select a specific program and semester to export PDF" : "Export PDF Report"}
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Export PDF</span>
+          </button>
           <button
             onClick={() => setIsSettingsModalOpen(true)}
             className="flex items-center gap-2 py-2.5 px-4 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95"
@@ -439,6 +498,14 @@ const BusFeeManager = () => {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
       />
+
+      {isExportModalOpen && (
+        <ExportPdfModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          onExport={handleExportPDF}
+        />
+      )}
 
       {/* Confirm Payment Modal */}
       {isConfirmModalOpen && (

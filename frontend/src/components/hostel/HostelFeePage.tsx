@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
     Search,
-    Filter,
     Download,
     RotateCcw,
     ArrowLeft,
@@ -19,6 +18,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import GenerateBillsModal from "./GenerateBillsModal";
 import HostelLedgerModal from "./HostelLedgerModal";
+import ExportPdfModal from "./ExportPdfModal";
 
 interface Resident {
     id: number;
@@ -52,6 +52,7 @@ const HostelFeePage = () => {
 
     // Modal States
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
 
@@ -123,7 +124,12 @@ const HostelFeePage = () => {
         });
     }, [residents, searchTerm, statusFilter]);
 
-    const handleExportPDF = () => {
+    const handleExportPDF = (filterType: 'all' | 'paid' | 'unpaid') => {
+        if (!selectedMonth || !selectedYear) {
+            alert("Please select a month and year to export the PDF.");
+            return;
+        }
+
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -135,9 +141,22 @@ const HostelFeePage = () => {
         doc.setFontSize(10);
         doc.setTextColor(107, 114, 128); // Gray 500
         const period = selectedMonth ? `${selectedMonth} ${selectedYear}` : "All Records";
-        doc.text(`Reporting Period: ${period}`, pageWidth / 2, 28, { align: "center" });
+        const filterLabel = filterType === 'all' ? 'All Residents' : (filterType === 'paid' ? 'Paid Residents Only' : 'Unpaid Residents Only');
+        doc.text(`Reporting Period: ${period} | Filter: ${filterLabel}`, pageWidth / 2, 28, { align: "center" });
 
-        const tableData = filteredResidents.map((r, index) => [
+        // Filter based on the selected criteria
+        const residentsToExport = residents.filter(resident => {
+            const matchesSearch = resident.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                resident.id.toString().includes(searchTerm);
+
+            const matchesStatus = filterType === "all" ||
+                (filterType === "paid" && resident.paymentStatus === "paid") ||
+                (filterType === "unpaid" && resident.paymentStatus === "unpaid");
+
+            return matchesSearch && matchesStatus;
+        });
+
+        const tableData = residentsToExport.map((r, index) => [
             index + 1,
             r.name,
             r.admissionNo || r.id.toString(),
@@ -155,7 +174,8 @@ const HostelFeePage = () => {
             styles: { fontSize: 9 }
         });
 
-        doc.save(`${hostelName}_Fees_${period.replace(' ', '_')}.pdf`);
+        doc.save(`${hostelName}_Fees_${filterType}_${period.replace(' ', '_')}.pdf`);
+        setIsExportModalOpen(false);
     };
 
     if (!hostelId) {
@@ -199,8 +219,13 @@ const HostelFeePage = () => {
 
                     <div className="flex gap-3">
                         <button
-                            onClick={handleExportPDF}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl hover:border-teal-200 hover:text-teal-700 transition-all shadow-sm hover:shadow-md cursor-pointer"
+                            onClick={() => setIsExportModalOpen(true)}
+                            disabled={!selectedMonth || !selectedYear}
+                            title={!selectedMonth || !selectedYear ? "Please select a month and year to export" : "Export PDF report"}
+                            className={`flex items-center gap-2 px-5 py-2.5 font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-sm focus:outline-none ${!selectedMonth || !selectedYear
+                                    ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60"
+                                    : "bg-white border border-gray-300 text-gray-600 hover:border-teal-200 hover:text-teal-700 hover:shadow-md cursor-pointer active:scale-95"
+                                }`}
                         >
                             <Download className="w-4 h-4" />
                             Export PDF
@@ -416,6 +441,13 @@ const HostelFeePage = () => {
                 <HostelLedgerModal
                     studentId={selectedStudentId}
                     onClose={() => setSelectedStudentId(null)}
+                />
+            )}
+            {isExportModalOpen && (
+                <ExportPdfModal
+                    isOpen={isExportModalOpen}
+                    onClose={() => setIsExportModalOpen(false)}
+                    onExport={handleExportPDF}
                 />
             )}
         </div>
