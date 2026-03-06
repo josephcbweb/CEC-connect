@@ -916,6 +916,7 @@ export const getSemesterBillingStatus = async (req: Request, res: Response) => {
         id: true,
         name: true,
         admission_number: true,
+        currentSemester: true,
         busStop: {
           select: { stopName: true, feeAmount: true },
         },
@@ -957,11 +958,16 @@ export const getSemesterBillingStatus = async (req: Request, res: Response) => {
       orderBy: { createdAt: "desc" },
     });
 
-    // 3. Map: studentId → latest FeeDetails record
+    // 3. Map: studentId → latest FeeDetails record (BUT ONLY if it matches their current semester)
+    const studentSemMap = new Map(students.map(s => [s.id, s.currentSemester]));
     const feeMap = new Map<number, (typeof feeDetails)[0]>();
     for (const fee of feeDetails) {
       if (!feeMap.has(fee.studentId)) {
-        feeMap.set(fee.studentId, fee); // latest first (ordered by createdAt desc)
+        // Enforce that in "All Semesters" view, we only show billing status for the CURRENT semester
+        const currentSem = studentSemMap.get(fee.studentId);
+        if (fee.semester === currentSem) {
+          feeMap.set(fee.studentId, fee); // latest first (ordered by createdAt desc)
+        }
       }
     }
 
