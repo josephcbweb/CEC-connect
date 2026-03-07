@@ -262,7 +262,7 @@ export const updateRent = async (req: Request, res: Response) => {
 export const generateMonthlyInvoices = async (req: Request, res: Response) => {
   try {
     // 1. Destructure month, year, and the new dueDate from the frontend request
-    const { month, year, dueDate, studentIds } = req.body;
+    const { month, year, dueDate, studentIds, hostelId } = req.body;
 
     if (!dueDate) {
       return res.status(400).json({ success: false, message: "Due date is required." });
@@ -271,12 +271,12 @@ export const generateMonthlyInvoices = async (req: Request, res: Response) => {
     // Convert the incoming date string into a JS Date object
     const finalDueDate = new Date(dueDate);
 
-    // 2. Fetch active hostel residents, optionally filtering by studentIds
+    // 2. Fetch active hostel residents, optionally filtering by studentIds and hostelId
     const residents = await prisma.student.findMany({
       where: {
         hostel_service: true,
         status: { not: 'graduated' },
-        hostelId: { not: null },
+        hostelId: hostelId ? Number(hostelId) : { not: null },
         ...(studentIds && Array.isArray(studentIds) && studentIds.length > 0
           ? { id: { in: studentIds.map(Number) } }
           : {}),

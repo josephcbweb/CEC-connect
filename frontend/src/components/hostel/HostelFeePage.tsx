@@ -223,8 +223,8 @@ const HostelFeePage = () => {
                             disabled={!selectedMonth || !selectedYear}
                             title={!selectedMonth || !selectedYear ? "Please select a month and year to export" : "Export PDF report"}
                             className={`flex items-center gap-2 px-5 py-2.5 font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-sm focus:outline-none ${!selectedMonth || !selectedYear
-                                    ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60"
-                                    : "bg-white border border-gray-300 text-gray-600 hover:border-teal-200 hover:text-teal-700 hover:shadow-md cursor-pointer active:scale-95"
+                                ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60"
+                                : "bg-white border border-gray-300 text-gray-600 hover:border-teal-200 hover:text-teal-700 hover:shadow-md cursor-pointer active:scale-95"
                                 }`}
                         >
                             <Download className="w-4 h-4" />
@@ -434,6 +434,7 @@ const HostelFeePage = () => {
                         fetchHostelData();
                     }}
                     selectedStudentIds={selectedStudentIds}
+                    hostelId={hostelId}
                 />
             )}
 

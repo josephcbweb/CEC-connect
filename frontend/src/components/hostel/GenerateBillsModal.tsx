@@ -7,9 +7,10 @@ interface Props {
   onClose: () => void;
   onSuccess: (message: string) => void;
   selectedStudentIds: number[];
+  hostelId: string | number;
 }
 
-const GenerateBillsModal = ({ isOpen, onClose, onSuccess, selectedStudentIds }: Props) => {
+const GenerateBillsModal = ({ isOpen, onClose, onSuccess, selectedStudentIds, hostelId }: Props) => {
   const currentYear = new Date().getFullYear();
 
   // States
@@ -41,6 +42,7 @@ const GenerateBillsModal = ({ isOpen, onClose, onSuccess, selectedStudentIds }: 
           year: Number(year),
           dueDate,
           studentIds: selectedStudentIds,
+          hostelId: Number(hostelId),
         },
       );
 
